@@ -1,0 +1,329 @@
+---
+title: "A Quick Introduction to wgaim QTL Analysis"
+author: "Julian Taylor"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+bibliography: intro.bib
+csl: biometrics.csl
+vignette: >
+  %\VignetteIndexEntry{"A Quick Introduction to wgaim QTL Analysis"}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+```{r, include = FALSE}
+library(wgaim)
+library(ggplot2)
+knitr::opts_chunk$set(fig.path = "", highlight = FALSE)
+```
+
+Welcome to version 2.0.x of the **wgaim** R package! This package is an
+implementation of the whole genome average interval mapping (WGAIM) QTL analysis
+algorithm discussed in @ver07 and @vt12. Although slightly out of date, the
+definitive reference for this software is @tv11jss with full reference given as
+
+<br>
+
+Taylor, J. and Verbyla, A (2011) R package **wgaim**: QTL Analysis in Bi-Parental
+Populations using Linear Mixed Models, *Journal of Statistical Software*, **40**(7).
+
+<br>
+
+*Note: The QTL analysis functions in **wgaim**
+explicitly use and build upon the functionality provided by the linear mixed
+modelling **ASReml-R** package (currently version 4). This is a commercial
+package available from VSNi at https://www.vsni.co.uk/software/asreml/ with pricing dependent on the
+institution. Users will require a fully licensed version of **ASReml-R** to use
+the QTL analysis functionality of the **wgaim** package and to run the code in this
+vignette. Users should consult the **ASReml-R** documentation for thorough details on the model
+syntax and extensive peripheral features of the package.*
+
+This introductory vignette presents the workflow of a **wgaim** QTL analysis. More in
+depth analyses can be found in an upcoming sister vignette, "A deeper look at
+the **wgaim** functionality." The analysis workflow can be summarised simply with three
+steps:
+
+1. With phenotypic data, build a base linear mixed model using the functionality
+   of **ASReml-R**.
+2. Construct a genotypic linkage map, store it as a **qtl** cross object and
+   convert it to a **wgaim** interval object.
+3. Use the base model from  1. and the interval genotype object from 2. to conduct a
+   **wgaim** QTL analysis.
+
+**Package restrictions**: The current version of **wgaim** provides
+  functionality for QTL analysis of Double Haploid, Backcross, Advanced
+  Recombinant Inbred and F2 populations.
+
+## Package data
+
+The **wgaim** package contains several pre-packaged phenotypic data sets with matching
+genetic linkage maps ready for QTL analysis.
+
+```{r}
+data(package = "wgaim")
+```
+
+The data has also been placed in a second location to provide the ability to
+read in manually.
+
+```{r}
+wgpath <- system.file("extdata", package = "wgaim")
+list.files(wgpath)
+```
+
+## Example: RAC875 x Kukri phenotypic and genotypic data
+
+### Phenotypic data and base model
+
+This example consists of phenotypic and genotypic data sets involving a Doubled
+Haploid (DH) population derived from the crossing of wheat varieties RAC875 and
+Kukri [@bon12]. The main goal of the experiment was to find causal links between
+grain yield related traits and genetic markers associated with the population.
+
+```{r}
+data(phenoRxK, package = "wgaim")
+head(phenoRxK)
+```
+
+The RAC875 x Kukri phenotypic data relates to a field trial consisting of 520
+plots. Two replicates of 256 DH lines (`Genotype`) from the RAC875 x Kukri population were
+allocated to a 20  `Row` by 26 `Range` layout using a randomized complete block design with 2
+Blocks (`Rep`). The additional plots remaining in each block were filled with
+one of each of the parents and controls (ATIL, SOKOLL, WEEBILL). A `Type` factor is included
+to distinguish the set of DH lines from each of the parents and controls. `lrow` and `lrange`
+are numerically encoded and zero centred row and range covariates. A number of yield related
+trait measurements were collected including grain yield (t/ha) (`yld`) and thousand
+grain weight (`tgw`).
+
+The analysis in this vignette concentrates on grain yield (`yld`). Before
+using the QTL analysis functions in **wgaim**, an appropriate initial base **ASReml-R**
+linear mixed model needs to be built and fitted.
+
+```{r}
+rkyld.asi <- asreml::asreml(yld ~ Type, random = ~ Genotype + Rep, residual =
+     ~ ar1(Range):ar1(Row), data = phenoRxK)
+```
+
+The focus of this model is the accurate calculation of the
+genetic variance of the DH progeny using `Genotype`. This accuracy is
+dramatically enhanced through the addition of terms used to account for
+extraneous variation arising from the experimental design (random term `Rep`) as
+well as potential correlation of the observations due to the similarity of
+neighbouring field trial plots (separable residual correlation structure
+`ar1(Row):ar1(Range)`)[@ver07; @gil07]. Additionally, the inclusion of a `Type`
+factor as a fixed effect ensures the random `Genotype` factor only contains
+non-zero effects for the DH progeny.
+
+A summary of the models variance parameter estimates shows a moderate
+correlation exists in the Range direction with a small correlation existing
+across the Rows.
+
+```{r}
+summary(rkyld.asi)$varcomp
+```
+
+**ASReml-R** provides functionality for diagnostically checking the linear mixed
+model residuals. The variogram of the residuals indicates there is potential trends in the
+row and range directions of the experimental layout.
+
+```{r variogram, fig.align = "center", out.width = "95%", dpi = 150}
+plot(asreml::varioGram.asreml(rkyld.asi))
+```
+
+A faceted plot of the residuals confirm these trends.
+
+```{r residuals, warning = FALSE, fig.align = "center", fig.width = 13, fig.height = 10, out.width = "95%", dpi = 150}
+phenoRxKd <- cbind.data.frame(phenoRxK, Residuals = resid(rkyld.asi))
+ggplot(phenoRxKd, aes(y = Residuals, x = as.numeric(Range))) + facet_wrap(~ Row) +
+    geom_hline(yintercept = 0, linetype = 2) + geom_point(shape = 16, colour = "blue") +
+    xlab("Range") + theme_bw()
+```
+
+To account for these trends, terms `lrow` and `Range` are added to the fixed and
+random components of the `asreml` model and the model is refitted. An `lrange`
+fixed term would also be a suitable alternative to the random `Range` term.
+
+```{r}
+rkyld.asf <- asreml::asreml(yld ~ Type + lrow, random = ~ Genotype + Range, residual =
+     ~ ar1(Range):ar1(Row), data = phenoRxK)
+```
+
+Users can diagnostically re-check this model to see model assumptions are more
+appropriately satisfied.
+
+### Genetic linkage map
+
+The wgaim package uses Karl Bromans
+[**qtl**](https://CRAN.R-project.org/package=qtl) package
+[@bro03] "cross" class objects to store and manipulate genetic data. The RAC875
+x Kukri cross object can be accessed using
+
+```{r}
+data(genoRxK, package = "wgaim")
+```
+
+However, in this vignette we will read in the external CSV file using the
+**qtl** package function `read.cross()`. This function is a highly flexible
+importation function that handles many types of genetic marker data. It is
+advised to read the help file for this function thoroughly to understand the
+arguments you require to import your genetic data successfully. Noting the
+external genetic genoRxK data is in rotated CSV format, the importing occurs
+using `
+
+```{r}
+genoRxK <- read.cross(format = "csvr", file="genoRxK.csv", genotypes=c("AA","BB"),
+     dir = wgpath, na.strings = c("-", "NA"))
+```
+
+The importation message indicates there are 500 markers. These are a
+combination of SSR and Diversity Array Technology (DArT) markers. The returned
+cross object is given a class `"bc"` (abbrev. for back-cross) by default. This
+can be changed to a `"dh"` class to match the population type, however, for this
+QTL analysis workflow the two classes are numerically equivalent.
+
+```{r}
+summary(genoRxK)
+names(genoRxK$pheno)
+```
+
+A quick summary of the object reveals the genotype data is a pre-constructed linkage map
+with 27 linkage groups and ~ 10% missing values. Additionally, note the object
+contains its own `pheno` element with a column named by `Genotype`. The
+contents of this column MUST match (at least in part) to the contents of the
+`Genotype` column in the phenotype data `phenoRxK` used in the fitting of the
+base model.
+
+As the `genoRxK` cross object is a finalized linkage map, it is ready for
+conversion to an interval object for use in **wgaim**. This is achieved using
+the `cross2int()` function available in **wgaim**.
+
+```{r}
+genoRxKi <- cross2int(genoRxK, consensus.mark = TRUE, impute = "MartinezCurnow",
+                      id = "Genotype")
+```
+
+By default, this function sequentially performs two very important tasks.
+
+1. With `consensus.mark = TRUE` it will collapse each set of co-located markers
+   to form unique consensus markers. As a consequence, each marker in the
+   reduced linkage map will have a unique position.
+2. Missing values are imputed using flanking marker information.
+
+The returned `genoRxKi` object contains updated linkage group elements.
+
+```{r}
+names(genoRxKi$geno[[1]])
+```
+
+The elements are:
+
+* `data`: numerically encoded set of unique ordered markers (with missing values).
+* `map`: genetic distances for the ordered set of unique markers
+* `imputed.data`: numerically encoded set of unique ordered markers with missing
+  values imputed
+* `dist`: genetic distances between markers
+* `theta`: recombination fractions between markers
+* `interval.data`: numerically encoded set of unique ordered interval markers
+  calculated using the derivations in @ver07
+
+`genoRxKi` is also given an additional `"interval"` class and is now ready
+for marker or interval QTL analysis with the main **wgaim** analysis function.
+
+*Note, this vignette does not discuss the complex task of linkage map construction and diagnosis.
+For efficient construction of a linkage map ready for use
+with the functions in **wgaim**, we can highly recommend the combination of the
+[**qtl**](https://CRAN.R-project.org/package=qtl) and
+[**ASMap**](https://CRAN.R-project.org/package=ASMap) R packages
+[@bro03; @tb17]. **ASMap** uses the very efficient and robust MSTmap algorithm
+discussed in @mst08 to cluster and order markers. It also contains functionality
+for flexible pre/post construction map diagnostics as well as methods for
+incorporating additional markers in established linkage maps.*
+
+### QTL analysis
+
+We now have a baseline phenotypic asreml model for grain yield and a
+matching linkage map containing a unique set of imputed markers. QTL analysis
+can then be conducted using the `wgaim` function. Before proceeding with the QTL
+analysis, and for the purpose of presentation in this vignette, it is prudent to
+discuss some of the relevant arguments that will be used in the `wgaim` call.
+
+```{r, warning = FALSE, eval = FALSE}
+rkyld.qtl <- wgaim(rkyld.asf, genoRxKi, merge.by = "Genotype", fix.lines = TRUE,
+                    gen.type = "interval", method = "random", selection = "interval",
+                    trace = "rxk.txt", na.action = asreml::na.method(x = "include"))
+```
+
+The first two arguments are the baseline phenotypic asreml model (`rkyld.asf`)
+and the matching genotypic data (`genoRxKi`). The phenotypic data is not
+required as it is internally recalled through from the baseline model. The other
+relevant arguments in this call are:
+
+* `merge.by`: named column in the phenotype and genotype data for matching
+* `fix.lines`: whether lines in the phenotype data not in the genotype data are
+  fixed in the baseline and subsequent QTL models
+* `gen.type`: whether an `"interval"` or a `"marker"` analysis is conducted
+* `method`: whether selected putative QTL are additively fitted in the `"fixed"` or
+`"random"` components of the linear mixed model
+* `selection`: whether `"interval"` or `"chromosome"` outlier statistics are
+  inspected first
+
+As `asreml` outputs optimisation numerics for each of the models, the `trace =
+"rxk.txt"` argument ensures this output is piped to a file for later inspection if
+required. As `gen.type = "interval"` has been set the wgaim algorithm will use
+the `"interval.data"` components of the linkage groups to form the complete set
+of genetic data for analysis. In this analysis, `fix.lines = TRUE` has been set
+and this will place a factor in the fixed model to fix the lines that do not
+exist in the genetic map. This new factor will now be partially confounded with the
+`Type` factor in the base model and a slew of messages will appear indicating
+some terms have zero degrees of freedom. Although harmless, these messages can
+be avoided by removing `Type` from the model and letting `fix.lines = TRUE`in
+the `wgaim` call handle the constraints.
+
+```{r, warning = FALSE, eval = TRUE}
+rkyld.asf <- asreml::update.asreml(rkyld.asf, fixed. = . ~ . - Type)
+rkyld.qtl <- wgaim(rkyld.asf, genoRxKi, merge.by = "Genotype", fix.lines = TRUE,
+                    gen.type = "interval", method = "random", selection = "interval",
+                    trace = "rxk.txt", na.action = asreml::na.method(x = "include"))
+```
+
+The iterative wgaim QTL analysis algorithm finds 10 putative QTL. Relevant
+diagnostic and summary information about the QTL are stored in the QTL element
+of the returned object ie `rkyld.qtl$QTL`. The returned object is also given a
+`"wgaim"` class.
+
+```{r}
+names(rkyld.qtl$QTL)
+names(rkyld.qtl$QTL$diag)
+class(rkyld.qtl)
+```
+
+Method functions `summary` and `print` are available to conveniently summarize the
+significant QTL selected.
+
+```{r}
+summary(rkyld.qtl, genoRxKi)
+```
+
+At each iteration of the wgaim algorithm, the set of marker outlier statistics
+and scaled marker Best Linear Unbiased Predictions (BLUPs) are returned for
+diagnostic assessment. These can be viewed using the `outStat` function.
+
+```{r out, warning = FALSE, fig.align = "center", fig.width = 13, fig.height = 6, out.width = "95%", dpi = 150}
+outStat(rkyld.qtl, genoRxKi, iter = 1:2, statistic = "outlier")
+outStat(rkyld.qtl, genoRxKi, iter = 1:2, statistic = "blups")
+```
+
+There is also a simplistic linkage map plotting function that provides flexibility
+for overlaying the significant QTL obtained in `rkyld.qtl`.
+
+```{r link, fig.align = "center", fig.width = 13, fig.height = 6, out.width = "95%", dpi = 150}
+linkMap(rkyld.qtl, genoRxKi)
+```
+
+
+## References
+
+

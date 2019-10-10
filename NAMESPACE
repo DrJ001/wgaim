@@ -1,0 +1,38 @@
+##imports
+import(
+stats,
+utils,
+graphics,
+grDevices,
+qtl,
+ggplot2)
+
+##[exports]
+export(
+cross2int,
+fixMap,
+getQTL,
+linkMap,
+linkMap.cross,
+linkMap.default,
+linkMap.wgaim,
+outStat,
+print.wgaim,
+tr.wgaim,
+qtlSelect,
+qtlTable,
+summary.wgaim,
+wgaim,
+wgaim.asreml,
+wgaim.default)
+
+##[S3 Methods]
+S3method(summary, wgaim)
+S3method(print, wgaim)
+S3method(linkMap, wgaim)
+S3method(tr, wgaim)
+S3method(linkMap, cross)
+S3method(linkMap, default)
+S3method(wgaim, asreml)
+S3method(wgaim, default)
+
