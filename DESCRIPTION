@@ -2,7 +2,7 @@ Package: wgaim
 Type: Package
 Title: Whole Genome Average Interval Mapping for QTL Detection and Estimation using ASReml-R
 Version: 2.0-2
-Date: 2019-10-10
+Date: 2020-01-16
 Author: Julian Taylor <julian.taylor@adelaide.edu.au> and Ari Verbyla <ari.verbyla@csiro.au>
 Maintainer: Julian Taylor <julian.taylor@adelaide.edu.au>
 Depends: R (>= 3.0.0), qtl
