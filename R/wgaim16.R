@@ -183,7 +183,8 @@ wgaim.asreml <- function (baseModel, intervalObj, merge.by = NULL, fix.lines = T
         dimnames(qtl.list$diag$lik.mat)[[2]] <- c("L0","L1","Statistic","Pvalue")
         qtl.list$diag$state <- state
         qtl.list$diag$genetic.term <- genetic.term
-        qtl.list$diag$rel.scale <- cov.env$scale
+        qtl.list$diag$rel.scale <- 1
+        if(exists("cov.env")) qtl.list$diag$rel.scale <- cov.env$scale
         qtl.list$iterations <- iter - 1
         qtl.list$breakout <- ifelse(breakout != -1, TRUE, FALSE)
         qtl.list$qtl <- qtl
