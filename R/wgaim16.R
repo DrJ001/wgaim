@@ -128,11 +128,13 @@ wgaim.asreml <- function (baseModel, intervalObj, merge.by = NULL, fix.lines = T
             covObj <- cbind.data.frame(rownames(genoSub), genoSub)
             names(covObj)[1] <- merge.by
             if(is.null(qtlModel$call$mbf$ints) & vm){
+                attr(intervalObj, "env") <- NULL
                 rterms <- unlist(strsplit(deparse(qtlModel$call$random[[2]]), " \\+ "))
-                rterms <- rterms[!(vmterms %in% rterms)]
+                rterms <- rterms[!(rterms %in% vmterms)]
                 qtlModel$call$mbf$ints$key <- rep(merge.by, 2)
                 qtlModel$call$mbf$ints$cov <- "covObj"
                 ran.form <- as.formula(paste(c("~ mbf('ints')", merge.by, rterms), collapse = " + "))
+                qtlModel$call$random <- ran.form
             }
         }
         assign("covObj", covObj, envir = parent.frame())
@@ -519,7 +521,7 @@ qtlSelect <- function(asm, phenoData, intervalObj, gen.type, selection, exclusio
     wnams <- names(state)[schr %in% mchr]
     inums <- as.numeric(sapply(strsplit(wnams, "\\."),"[", 3))
     dists <- intervalObj$geno[[mchr]]$map
-    if(gen.type == "interval")
+    if((gen.type == "interval") & (length(dists) > 1))
         dists <- dists[2:length(dists)] - diff(dists)/2
     dists <- dists[inums]
     exc <- wnams[abs(dists - dists[mint]) <= exclusion.window]

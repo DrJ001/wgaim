@@ -42,6 +42,13 @@
 }
 \subsection{BUG FIXES}{
   \itemize{
+    \item Fixed a bug that caused the algorithm to crash when there is
+    only one marker on a chromosome and the argument \code{gen.type =
+    "interval"} 
+    \item Fixed a bug that caused the algroithm to crash when
+    the number of markers in the model changes from being greater than
+    the number of lines to less than the number of lines (after
+    selection and exclusion).
     \item Fixed a bug that caused \code{summary.wgaim()} when only one
     QTL was found.
     \item Removed \code{maxiter = 1} from internal
