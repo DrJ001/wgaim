@@ -4,7 +4,7 @@ UseMethod("wgaim")
 wgaim.default <- function(baseModel, ...)
   stop("Currently the only supported method is \"asreml\"")
 
-wgaim.asreml <- function (baseModel, intervalObj, merge.by = NULL, fix.lines = TRUE, gen.type = "interval", method = "fixed", selection = "interval", exclusion.window = 20, breakout = -1, TypeI = 0.05, trace = TRUE, verboseLev = 0, ...)
+wgaim.asreml <- function (baseModel, intervalObj, merge.by = NULL, fix.lines = TRUE, gen.type = "interval", method = "fixed", selection = "interval", force = FALSE, exclusion.window = 20, breakout = -1, TypeI = 0.05, trace = TRUE, verboseLev = 0, ...)
 {
     if (!baseModel$converge) {
         cat("Warning: Base model has not converged. Updating base model\n")
@@ -71,7 +71,7 @@ wgaim.asreml <- function (baseModel, intervalObj, merge.by = NULL, fix.lines = T
         merge.by <- "Gsave"
     }
     qtlModel <- baseModel
-    if(ncol(genoData) > nrow(genoData)){
+    if((ncol(genoData) > nrow(genoData)) & !force){
         cov.env <- constructCM(genoData)
         covObj <- cov.env$relm
         vmterms <- c(paste("vm","(",merge.by,", covObj)", sep = ""), merge.by)
@@ -119,7 +119,7 @@ wgaim.asreml <- function (baseModel, intervalObj, merge.by = NULL, fix.lines = T
         phenoData <- phenoData[, -2]
         mout <- (1:ncol(genoData))[!as.logical(state)]
         genoSub <- genoData[, -mout]
-        if(ncol(genoSub) > nrow(genoSub)){
+        if((ncol(genoSub) > nrow(genoSub)) & !force){
             cov.env <- constructCM(genoSub)
             covObj <- cov.env$relm
             attr(intervalObj, "env") <- cov.env

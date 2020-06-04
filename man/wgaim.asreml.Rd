@@ -9,8 +9,8 @@
 \usage{
 \method{wgaim}{asreml}(baseModel, intervalObj, merge.by = NULL,
          fix.lines = TRUE, gen.type = "interval", method = "fixed",
-         selection = "interval", exclusion.window = 20, breakout = -1,
-         TypeI = 0.05, trace = TRUE, verboseLev = 0, \ldots)
+         selection = "interval", force = FALSE, exclusion.window = 20,
+         breakout = -1, TypeI = 0.05, trace = TRUE, verboseLev = 0, \ldots)
 }
 \arguments{
   \item{baseModel}{a linear mixed model object of class \code{"asreml"} usually representing
@@ -22,7 +22,7 @@
  \item{merge.by}{a character string or name of the column(s) in \code{phenoData} and
    \code{intervalObj} to merge the phenotypic and genotypic data sets.
  }
-\item{fix.lines}{A logical value. If \code{TRUE} then lines existing in
+\item{fix.lines}{a logical value. If \code{TRUE} then lines existing in
   the phenotype data that do not exist in \code{intervalObj} are fixed and placed in
   the \code{fixed} component of the \code{asreml()} models (see
   Details). It is recommended to set this to TRUE. Defaults to \code{TRUE}.
@@ -40,10 +40,14 @@
   \code{"interval"} and \code{"chromosome"}. The default is
   \code{"interval"}. (see Details).
 }
+\item{force}{a logical value. If \code{TRUE} then force the algorithm to
+  to envoke the low-dimensional model that is normally used when the
+  number of markers is less than the number of lines. Defaults to \code{FALSE}.
+}
 \item{exclusion.window}{For each QTL, the distance in centimorgans on
   the left and right side of each QTL that is excluded from further analysis.
 }
-\item{breakout}{A numerical integer equivalent to the iteration
+\item{breakout}{a numerical integer equivalent to the iteration
  where the algorithm breaks out. The default is
   -1 which ensures the algorithm finds all QTL before halting. (see
   Details)
@@ -51,13 +55,13 @@
 \item{TypeI}{a numerical value determining the familywise alpha level of significance
     for detecting a QTL. The default is 0.05.
   }
-\item{trace}{An automatic tracing facility. If \code{trace = TRUE} then
+\item{trace}{a automatic tracing facility. If \code{trace = TRUE} then
     all \code{asreml} output is piped to the screen during the analysis.
   If \code{trace = "file.txt"}, then output from all asreml models is
   piped to "\code{file.txt}". Both trace machanisms will display a
   message if a QTL is detected.
 }
- \item{verboseLev}{numerical value, either 0 or 1, determining the level of tracing
+ \item{verboseLev}{Numerical value, either 0 or 1, determining the level of tracing
    outputted during execution of the algorithm A 0 value will produce
    the standard model fitting output from the fitted ASReml models
    involved in the forward selection. A value of 1 will add a table of
