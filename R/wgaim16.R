@@ -1128,6 +1128,7 @@ theme_scatter <- function (base_size = 11, base_family = "") {
         panel.grid.major.x = element_blank(),
         panel.background = element_blank(),
         axis.text.x = element_text(size = base_size),
+        axis.ticks.x = element_blank(),
         axis.text.y = element_text(size = base_size),
         strip.text = element_text(size = base_size))
     }
@@ -1197,8 +1198,7 @@ outStat <- function (object, intervalObj, iter = NULL, chr = NULL, statistic = "
         dist <- rep(dist, length(iter))
         ointd <- cbind(do.call("rbind.data.frame", ointl), dist = dist, iteration = char.iter)
         gp <- ggplot(ointd, aes_string(x = "dist", y = "values", colour = "chr")) +
-            facet_wrap( ~ iteration, ncol = 1) + geom_line() +
-            scale_x_continuous(breaks = dist, labels = rep("", length(dist))) +
+            facet_wrap( ~ iteration, ncol = 1) + geom_line() + geom_rug(sides = "b", length = unit(0.02, "npc")) +
             ylab(y.lab) + xlab("") + theme_scatter()
         if(chr.lines){
             if(length(chr) > 1){
@@ -1207,7 +1207,6 @@ outStat <- function (object, intervalObj, iter = NULL, chr = NULL, statistic = "
             }
         gp <- gp + geom_vline(xintercept = dist[ci], colour = "grey80", size = 1)
         }
- #       gp <- gp + coord_cartesian(ylim = c(yl, yr[2] + diff(yr)/12), clip="off")
     }
     if(!is.null(qtl <- object$QTL$qtl)){
         iterq <- iter[iter < (length(qtl) + 1)]
@@ -1253,17 +1252,11 @@ outStat <- function (object, intervalObj, iter = NULL, chr = NULL, statistic = "
         }
     }
     if(ann.labels){
-        chrl <- chrlen(intervalObj)/100
-        dist.label <- cumsum(chrl) - chrl/2
         ann.iter <- paste("Iteration: ", iter[length(iter)], sep = "")
-        gb <- ggplot_build(gp)$layout
-        mr <- diff(gb$panel_params[[1]]$y.minor_source[1:2])
-        nudge <- mr*(11/20 + length(iter)/10)
-        yl <- ifelse(statistic == "outlier", - nudge, (gb$panel_scales_y[[1]]$range$range*1.01 - nudge))
-        ann <- cbind.data.frame(values = rep(yl, length(chr)), dist = dist.label, iteration = ann.iter)
-        ann$chr <- chr
-        gp <- gp + geom_text(data = ann, aes_string(label = "chr"), size = 3.5, colour = "grey40") +
-            coord_cartesian(ylim = c(ylc, yrc[2] + diff(yrc)/12), clip="off")
+        annd <- ointd[ointd$iteration %in% ann.iter,]
+        dist.label <- sapply(split(annd$dist, annd$chr), function(el)
+            min(el) + (max(el) - min(el))/2 )
+        gp <- gp + scale_x_continuous(breaks = dist.label, labels = chr) + coord_cartesian(ylim = c(ylc, yrc[2] + diff(yrc)/12))
     }
     gp
 }

@@ -13,10 +13,10 @@
          breakout = -1, TypeI = 0.05, trace = TRUE, verboseLev = 0, \ldots)
 }
 \arguments{
-  \item{baseModel}{a linear mixed model object of class \code{"asreml"} usually representing
+\item{baseModel}{a linear mixed model object of class \code{"asreml"} usually representing
     a base \code{asreml()} model to be extended.
 }
-  \item{intervalObj}{a list object containing the genotypic data, usually an \code{"interval"}
+\item{intervalObj}{a list object containing the genotypic data, usually an \code{"interval"}
     object obtained from using \code{cross2int} (see Details).
 }
  \item{merge.by}{a character string or name of the column(s) in \code{phenoData} and
