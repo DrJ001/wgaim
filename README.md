@@ -17,16 +17,10 @@ To install the package from GitHub you will need to do the following:
 install.packages("devtools")
 ```
 
-2. Load the devtools package.
+2. Install wgaim. In most cases, you just use install_github("author/package"). 
 
 ```
-library(devtools)
-```
-
-3. Install wgaim. In most cases, you just use install_github("author/package"). 
-
-```
-install_github("DrJ001/wgaim")
+devtools::install_github("DrJ001/wgaim")
 ```
 
 ### Getting Started
