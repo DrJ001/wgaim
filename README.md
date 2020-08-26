@@ -1,9 +1,11 @@
 
+[![CRAN_Status_Badge](https://www.r-pkg.org/badges/version/wgaim)](https://cran.r-project.org/package=wgaim) 
+
 ### wgaim: An R package for efficient whole genome QTL analysis
 
 Authors: Julian Taylor & Ari Verbyla
 
-This is the public facing GitHub repository verison of the R package [wgaim](https://cran.r-project.org/package=wgaim) available on CRAN.
+This is the public facing GitHub repository verison of the R package [wgaim](https://cran.r-project.org/package=wgaim) available on CRAN. This repository is updated more regularly than the CRAN version of the package.  
 
 The package was built to implement the original wgaim algorithm in Verbyla et al. (2007, 2012). wgaim is a whole genome average interval mapping R package that uses ASReml-R V4 for it core linear mixed modelling functionality. To use full functionality of the package users will require a valid license for ASReml-R V4 and this can be obtained from \url{https://www.vsni.co.uk/software/asreml-r}. 
 
