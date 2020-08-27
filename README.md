@@ -1,5 +1,5 @@
 ---
-title: ""
+title: "R/wgaim: An R package for efficient whole genome QTL analysis"
 output:
   html_document:
     keep_md: yes
@@ -10,8 +10,6 @@ output:
 
 
 
-
-### R/wgaim: An R package for efficient whole genome QTL analysis
 
 <!-- badges: start -->
 
