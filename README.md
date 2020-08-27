@@ -1,6 +1,7 @@
-
 ---
-output: github_document
+output:
+  html_document:
+    keep_md: yes
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
@@ -8,6 +9,8 @@ output: github_document
 
 
 
+
+### R/wgaim: An R package for efficient whole genome QTL analysis
 
 <!-- badges: start -->
 
@@ -18,13 +21,11 @@ output: github_document
 [![Last-changedate](https://img.shields.io/badge/last%20change-2020--08--27-yellowgreen.svg)](/commits/master)
 <!-- badges: end -->
 
-### wgaim: An R package for efficient whole genome QTL analysis
-
-Authors: Julian Taylor & Ari Verbyla
+**Authors**: Julian Taylor & Ari Verbyla
 
 This is the public facing GitHub repository verison of the R package [wgaim](https://cran.r-project.org/package=wgaim) available on CRAN. This repository is updated more regularly than the CRAN version of the package and includes minor additions and small bug fixes. Please check the badges at the top of this README and the NEWS for the package. 
 
-The package was built to implement the original wgaim algorithm in Verbyla et al. (2007, 2012). **wgaim** is a whole genome average interval mapping R package that uses ASReml-R V4 for it core linear mixed modelling functionality. To use full functionality of the package users will require a valid license for ASReml-R V4 and this can be obtained from [https://www.vsni.co.uk/software/asreml-r](https://www.vsni.co.uk/software/asreml-r). 
+The package was built to implement the original wgaim algorithm in Verbyla et al. (2007, 2012). **R/wgaim** is a whole genome average interval mapping R package that uses ASReml-R V4 for it core linear mixed modelling functionality. To use full functionality of the package users will require a valid license for ASReml-R V4 and this can be obtained from [https://www.vsni.co.uk/software/asreml-r](https://www.vsni.co.uk/software/asreml-r). 
 
 To install the package from GitHub you will need to do the following: 
 
@@ -42,11 +43,11 @@ install.packages("devtools")
 devtools::install_github("DrJ001/wgaim")
 ```
 
-### Getting Started
+#### Getting Started
 
 For a quick but complete introduction of the functionality of the package please visit the [vignette](https://cran.r-project.org/web/packages/wgaim/vignettes/wgaim_intro.html) on the CRAN package page.
 
-### References
+#### References
 
 Verbyla, A.P., Cullis, B...R. & Thompson, R. (2007) The analysis of QTL by simultaneous use of the of the full linkage map. *Theoretical and Applied Genetics*, **116**, 95-111.
 
