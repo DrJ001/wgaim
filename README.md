@@ -1,8 +1,3 @@
----
-output:
-  html_document:
-    keep_md: yes
----
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
@@ -10,7 +5,7 @@ output:
 
 
 
-### "R/wgaim: An R package for efficient whole genome QTL analysis"
+### R/wgaim: An R package for efficient whole genome QTL analysis
 
 <!-- badges: start -->
 
