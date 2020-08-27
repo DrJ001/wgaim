@@ -1,5 +1,4 @@
 ---
-title: "R/wgaim: An R package for efficient whole genome QTL analysis"
 output:
   html_document:
     keep_md: yes
@@ -21,6 +20,8 @@ description <- read.dcf('DESCRIPTION')
 version <- as.vector(description[, 'Version'])
 min.r <- substr(description[,"Depends"], 7, 11)
 ```
+
+### "R/wgaim: An R package for efficient whole genome QTL analysis"
 
 <!-- badges: start -->
 
