@@ -44,6 +44,6 @@ For a quick but complete introduction of the functionality of the package please
 
 #### References
 
-Verbyla, A.P., Cullis, B...R. & Thompson, R. (2007) The analysis of QTL by simultaneous use of the of the full linkage map. *Theoretical and Applied Genetics*, **116**, 95-111.
+Verbyla, A.P., Cullis, B.R. & Thompson, R. (2007) The analysis of QTL by simultaneous use of the of the full linkage map. *Theoretical and Applied Genetics*, **116**, 95-111.
 
 Verbyla, A.P., Taylor, J.D. & Verbyla, K.L. (2012) RWGAIM: An efficient high dimensional random whole genome average (QTL) interval mapping approach. *Genetics Research*, **94**, 291-306.
