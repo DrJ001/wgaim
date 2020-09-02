@@ -13,14 +13,14 @@
 [![minimal R version](https://img.shields.io/badge/R%3E%3D-3.0.0-6666ff.svg)](https://cran.r-project.org/)
 [![CRAN_Status_Badge](https://www.r-pkg.org/badges/version/wgaim)](https://cran.r-project.org/package=wgaim) 
 [![packageversion](https://img.shields.io/badge/Package%20version-2.0--5-orange.svg?style=flat-square)](/commits/master)
-[![Last-changedate](https://img.shields.io/badge/last%20change-2020--08--27-yellowgreen.svg)](/commits/master)
+[![Last-changedate](https://img.shields.io/badge/last%20change-2020--09--02-yellowgreen.svg)](/commits/master)
 <!-- badges: end -->
 
 **Authors**: Julian Taylor & Ari Verbyla
 
 This is the public facing GitHub repository verison of the R package [wgaim](https://cran.r-project.org/package=wgaim) available on CRAN. This repository is updated more regularly than the CRAN version of the package and includes minor additions and small bug fixes. Please check the badges at the top of this README and the NEWS for the package. 
 
-The package was built to implement the original wgaim algorithm in Verbyla et al. (2007, 2012). **R/wgaim** is a whole genome average interval mapping R package that uses ASReml-R V4 for it core linear mixed modelling functionality. To use full functionality of the package users will require a valid license for ASReml-R V4 and this can be obtained from [https://www.vsni.co.uk/software/asreml-r](https://www.vsni.co.uk/software/asreml-r). 
+**R/wgaim** is a whole genome average interval mapping R package that implements the original wgaim algorithm derived in Verbyla et al. (2007, 2012). The packages main QTL analysis function uses ASReml-R V4 for its core linear mixed modelling. To use full functionality of the package users will require a valid license for ASReml-R V4 and this can be obtained from [https://www.vsni.co.uk/software/asreml-r](https://www.vsni.co.uk/software/asreml-r). 
 
 To install the package from GitHub you will need to do the following: 
 
