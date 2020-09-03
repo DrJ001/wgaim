@@ -178,6 +178,7 @@ wgaim.asreml <- function (baseModel, intervalObj, merge.by = NULL, fix.lines = T
     qtl.list$method <- method
     qtl.list$type <- gen.type
     qtl.list$diag <- ldiag
+    qtl.list$iterations <- iter
     if (length(qtl)) {
         qtl.list$diag$coef.list <- coef.list
         qtl.list$diag$vcoef.list <- vcoef.list
@@ -187,7 +188,6 @@ wgaim.asreml <- function (baseModel, intervalObj, merge.by = NULL, fix.lines = T
         qtl.list$diag$genetic.term <- genetic.term
         qtl.list$diag$rel.scale <- 1
         if(exists("cov.env")) qtl.list$diag$rel.scale <- cov.env$scale
-        qtl.list$iterations <- iter - 1
         qtl.list$breakout <- ifelse(breakout != -1, TRUE, FALSE)
         qtl.list$qtl <- qtl
         qtl.list$effects <- coef.list[[iter - 1]]
@@ -1245,11 +1245,9 @@ outStat <- function (object, intervalObj, iter = NULL, chr = NULL, statistic = "
                #
         }
     }
-    if(length(iter) == 1){
-        if(iter == object$QTL$iterations + 1){
+    if(object$QTL$iterations == 1){
             yrc <- ggplot_build(gp)$layout$panel_scales_y[[1]]$range$range
             ylc <- ifelse(statistic == "outlier", 0, yrc[1] + abs(diff(yrc))/40)
-        }
     }
     if(ann.labels){
         ann.iter <- paste("Iteration: ", iter[length(iter)], sep = "")
