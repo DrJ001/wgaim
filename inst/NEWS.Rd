@@ -1,5 +1,11 @@
 \name{news}
 \title{Release information for wgaim}
+\section{Changes in version 2.0-6}{
+  \itemize{
+    \item Version 2.0-6 of \pkg{wgaim} is a minor maintenance release
+    to fix CRAN build errors.
+    }
+}
 \section{Changes in version 2.0-x}{
 \subsection{NEW FEATURES}{
   \itemize{
@@ -44,7 +50,7 @@
   \itemize{
     \item Fixed a chromosome labelling issue with \code{outStat()}. The
     fix now ensures any graphic generated with the function produces the
-    correct chromosome labels in the appropriate position. 
+    correct chromosome labels in the appropriate position.
     \item Fixed a bug that caused the algorithm to crash when there is
     only one marker on a chromosome and the argument \code{gen.type =
     "interval"} is used in \code{wgaim.asreml()}.
