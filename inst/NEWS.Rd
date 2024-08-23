@@ -1,10 +1,13 @@
 \name{news}
 \title{Release information for wgaim}
-\section{Changes in version 2.0-6}{
+\section{Changes in version 2.0-x}{
+\subsection{NEW FEATURES}{
   \itemize{
     \item Version 2.0-6 of \pkg{wgaim} is a minor maintenance release
-    to fix CRAN build errors.
-    }
+    to fix CRAN build warnings.
+
+    \code{vignette("wgaim_intro")}
+  }
 }
 \section{Changes in version 2.0-x}{
 \subsection{NEW FEATURES}{
