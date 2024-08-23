@@ -12,4 +12,4 @@ SystemRequirements: asreml-R 4.x
 URL: https://github.com/DrJ001/wgaim
 BugReports: https://github.com/DrJ001/wgaim/issues
 Description: A computationally efficient whole genome approach to detecting and estimating significant QTL in linkage maps using the flexible linear mixed modelling functionality of ASReml-R.
-License: GPL (>= 2) + file LICENSE
+License: GPL (>= 2)

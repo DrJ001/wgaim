@@ -4,3 +4,4 @@
 ^build_vignette.R$
 ^LICENSE\.md$
 ^\.github$
+^cran-comments.md$
