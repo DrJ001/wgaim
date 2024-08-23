@@ -9,10 +9,11 @@
 state and is being actively
 developed.](http://www.repostatus.org/badges/latest/active.svg)](http://www.repostatus.org/#active)
 [![minimal R
-version](https://img.shields.io/badge/R%3E%3D-3.0.0-6666ff.svg)](https://cran.r-project.org/)
+version](https://img.shields.io/badge/R%3E%3D-3.5.0-6666ff.svg)](https://cran.r-project.org/)
 [![CRAN_Status_Badge](https://www.r-pkg.org/badges/version/wgaim)](https://cran.r-project.org/package=wgaim)
-[![packageversion](https://img.shields.io/badge/Package%20version-2.0--5-orange.svg?style=flat-square)](/commits/master)
+[![packageversion](https://img.shields.io/badge/Package%20version-2.0--6-orange.svg?style=flat-square)](/commits/master)
 [![Last-changedate](https://img.shields.io/badge/last%20change-2024--08--23-yellowgreen.svg)](/commits/master)
+[![R-CMD-check](https://github.com/DrJ001/wgaim/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/DrJ001/wgaim/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 **Authors**: Julian Taylor & Ari Verbyla

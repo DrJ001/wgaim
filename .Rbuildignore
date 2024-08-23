@@ -3,3 +3,4 @@
 ^README.Rmd$
 ^build_vignette.R$
 ^LICENSE\.md$
+^\.github$

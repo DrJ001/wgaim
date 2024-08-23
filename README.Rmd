@@ -28,6 +28,7 @@ min.r <- substr(description[,"Depends"], 7, 11)
 [![CRAN_Status_Badge](https://www.r-pkg.org/badges/version/wgaim)](https://cran.r-project.org/package=wgaim) 
 [![packageversion](https://img.shields.io/badge/Package%20version-`r gsub('-', '--', version)`-orange.svg?style=flat-square)](/commits/master)
 [![Last-changedate](https://img.shields.io/badge/last%20change-`r gsub('-', '--', Sys.Date())`-yellowgreen.svg)](/commits/master)
+[![R-CMD-check](https://github.com/DrJ001/wgaim/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/DrJ001/wgaim/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 **Authors**: Julian Taylor & Ari Verbyla
