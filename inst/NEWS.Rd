@@ -7,6 +7,7 @@
     to fix CRAN build warnings.
   }
 }
+}
 \section{Changes in version 2.0-x}{
 \subsection{NEW FEATURES}{
   \itemize{
