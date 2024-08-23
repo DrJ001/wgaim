@@ -80,6 +80,6 @@ multiple traits is also possible (see \code{\link{linkMap.default}}).
 }
 \keyword{ package }
 \seealso{
-  \code{\link{qtl-package}}
+  \code{\link[qtl]{qtl-package}}
 }
 
