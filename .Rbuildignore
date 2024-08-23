@@ -5,3 +5,5 @@
 ^LICENSE\.md$
 ^\.github$
 ^cran-comments.md$
+^CRAN-SUBMISSION$
+^vignettes/wgaim_intro\.Rmd_orig$
