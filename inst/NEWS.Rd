@@ -5,8 +5,6 @@
   \itemize{
     \item Version 2.0-6 of \pkg{wgaim} is a minor maintenance release
     to fix CRAN build warnings.
-
-    \code{vignette("wgaim_intro")}
   }
 }
 \section{Changes in version 2.0-x}{
