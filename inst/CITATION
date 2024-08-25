@@ -1,6 +1,6 @@
 citHeader("To cite wgaim in publications use:")
 
-bibEntry(entry = "Article",
+bibentry(bibtype = "Article",
   title        = "{R} Package {wgaim}: QTL Analysis in Bi-Parental Populations Using Linear Mixed Models",
   author       = c(person("Julian", "Taylor"), person("Arunas", "Verbyla")),
   journal      = "Journal of Statistical Software",
