@@ -1,6 +1,6 @@
 citHeader("To cite wgaim in publications use:")
 
-citEntry(entry = "Article",
+bibEntry(entry = "Article",
   title        = "{R} Package {wgaim}: QTL Analysis in Bi-Parental Populations Using Linear Mixed Models",
   author       = c(person("Julian", "Taylor"), person("Arunas", "Verbyla")),
   journal      = "Journal of Statistical Software",
@@ -14,6 +14,6 @@ citEntry(entry = "Article",
   paste("Julian Taylor, Arunas Verbyla (2011).",
         "R Package wgaim: QTL Analysis in Bi-Parental Populations Using Linear Mixed Models.",
         "Journal of Statistical Software, 40(7), 1-18.",
-        "URL https://www.jstatsoft.org/v40/i07/.")
+        "URL https://www.jstatsoft.org/v40/i07/")
 )
 

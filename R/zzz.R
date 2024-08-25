@@ -4,7 +4,7 @@
 This is currently a commercially available product with a licensing system that varies
 depending on the institution.
 
-Please visit http://www.vsni.co.uk/products/asreml/ for more information including trial
+Please visit https://vsni.co.uk/software/asreml-r/ for more information including trial
 licenses and pricing.")
       }
 }

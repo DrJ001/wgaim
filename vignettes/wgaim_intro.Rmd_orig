@@ -35,7 +35,7 @@ Populations using Linear Mixed Models, *Journal of Statistical Software*, **40**
 *Note: The QTL analysis functions in **wgaim**
 explicitly use and build upon the functionality provided by the linear mixed
 modelling **ASReml-R** package (currently version 4). This is a commercial
-package available from VSNi at https://www.vsni.co.uk/software/asreml/ with pricing dependent on the
+package available from VSNi at https://vsni.co.uk/software/asreml-r/ with pricing dependent on the
 institution. Users will require a fully licensed version of **ASReml-R** to use
 the QTL analysis functionality of the **wgaim** package and to run the code in this
 vignette. Users should consult the **ASReml-R** documentation for thorough details on the model

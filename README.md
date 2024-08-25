@@ -12,7 +12,7 @@ developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.re
 version](https://img.shields.io/badge/R%3E%3D-3.5.0-6666ff.svg)](https://cran.r-project.org/)
 [![CRAN_Status_Badge](https://www.r-pkg.org/badges/version/wgaim)](https://cran.r-project.org/package=wgaim)
 [![packageversion](https://img.shields.io/badge/Package%20version-2.0--6-orange.svg?style=flat-square)](/commits/master)
-[![Last-changedate](https://img.shields.io/badge/last%20change-2024--08--23-yellowgreen.svg)](/commits/master)
+[![Last-changedate](https://img.shields.io/badge/last%20change-2024--08--25-yellowgreen.svg)](/commits/master)
 [![R-CMD-check](https://github.com/DrJ001/wgaim/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/DrJ001/wgaim/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
@@ -29,7 +29,7 @@ implements the original wgaim algorithm derived in Verbyla et al. (2007,
 2012). The packages main QTL analysis function uses ASReml-R V4 for its
 core linear mixed modelling. To use full functionality of the package
 users will require a valid license for ASReml-R V4 and this can be
-obtained from <https://www.vsni.co.uk/software/asreml-r>.
+obtained from <https://vsni.co.uk/software/asreml-r/>.
 
 To install the package from GitHub you will need to do the following:
 
