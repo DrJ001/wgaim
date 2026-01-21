@@ -230,105 +230,6 @@ envFix <- function(model, asremlEnv){
     model
 }
 
-constructCM <- function(genoData, scale.method = "diag") {
-        tg <- t(genoData)
-        relm <- crossprod(tg)
-        scale <- mean(diag(relm))
-        relm <- relm/scale
-        attr(relm, "rowNames") <- dimnames(relm)[[2]] <- rownames(genoData)
-        ch <- chol(relm)
-        chol.inv <- chol2inv(ch)
-        rm.env <- new.env()
-        rm.env$trans <- (tg %*% chol.inv)/scale
-        rm.env$relm <- relm
-        rm.env$scale <- scale
-        rm.env
-}
-
-getQTL <- function (object, intervalObj)
-{
-  spe <- strsplit(names(object$QTL$effects),"\\.")
-  wchr <- sapply(spe, "[", 2)
-  wint <- as.numeric(sapply(spe, "[", 3))
-  qtlm <- matrix(ncol = 6, nrow = length(wchr))
-  for (i in 1:length(wchr)) {
-    lhmark <- intervalObj$geno[[wchr[i]]]$map[wint[i]]
-    qtlm[i, 1:4] <-  c(wchr[i], wint[i], names(lhmark), round(lhmark, 2))
-    if(object$QTL$type == "interval"){
-        if(length(intervalObj$geno[[wchr[i]]]$map) > 1)
-            rhmark <- intervalObj$geno[[wchr[i]]]$map[wint[i] + 1]
-        else rhmark <- intervalObj$geno[[wchr[i]]]$map[wint[i]]
-        qtlm[i, 5:6] <- c(names(rhmark), round(rhmark, 2))
-   }
-   else qtlm <- qtlm[,-c(5:6)]
- }
-  qtlm
-}
-
-summary.wgaim <- function (object, intervalObj, LOD = TRUE, ...)
-{
-    if (missing(intervalObj))
-        stop("intervalObj is a required argument")
-    if (!inherits(intervalObj, "cross"))
-        stop("intervalObj is not of class \"cross\"")
-    if (is.null(qtle <- object$QTL$effects)) {
-        cat("There are no significant putative QTL's\n")
-        return()
-    }
-    sigma2 <- object$sigma2
-    if(object$vparameters.con[length(object$vparameters.con)] == 4)
-        sigma2 <- 1
-    if (object$QTL$type == "interval")
-        gdat <- lapply(intervalObj$geno, function(el) el$interval.data)
-    else gdat <- lapply(intervalObj$geno, function(el) el$imputed.data)
-    genoData <- do.call("cbind", gdat)
-    gterm <- object$QTL$diag$genetic.term
-    scale <- object$QTL$diag$rel.scale
-    dimnames(genoData) <- list(as.character(intervalObj$pheno[[gterm]]), names(object$QTL$diag$state))
-    genoSub <- genoData[,as.logical(object$QTL$diag$state)]
-    if("Gsave" %in% names(object$mf))
-        gterm <- "Gsave"
-    genoSub <- genoSub[rownames(genoSub) %in% levels(object$mf[[gterm]]),]
-    coef.mark <- c(mean(apply(genoSub,1,function(el) sum(el*el)), na.rm=TRUE))
-    mark.terms <- paste("mbf*.*ints*", paste("vm\\(", gterm, "*", sep = ""), sep = "|")
-    oth.terms <- object$vparameters[-grep(mark.terms, names(object$vparameters))]
-    var.mark <- sigma2*object$vparameters[grep(mark.terms, names(object$vparameters))]/scale
-    var.res <- sigma2*oth.terms[grep(gterm, names(oth.terms))]
-    if(object$QTL$method == "random"){
-        var.est <- sigma2*object$vparameters[grep("X\\.", names(object$vparameters))]
-        coef.est <- apply(genoData[,object$QTL$qtl, drop = FALSE]^2, 2, mean, na.rm = TRUE)
-    } else {
-        var.est <- qtle^2
-        coef.est <- rep(1, length(qtle))
-    }
-    var.all <- sum(c(coef.est, coef.mark, 1)*c(var.est, var.mark, var.res))
-    perc.var <- round(100*(coef.est*var.est)/var.all, 1)
-    zrat <- qtle/sqrt(object$QTL$veffects * sigma2)
-    if (object$QTL$method == "random") {
-        pvalue <- round((1 - pchisq(zrat^2, df=1))/2, 4)
-        pname <- "Prob"
-    }
-    else {
-        pvalue <- round(2 * (1 - pnorm(abs(zrat))), 4)
-        pname <- "Pvalue"
-    }
-    qtlmat <- as.data.frame(matrix(getQTL(object, intervalObj), nrow = length(qtle)))
-    qtlmat <- cbind.data.frame(qtlmat[, c(1, 3:ncol(qtlmat))], round(qtle, 4), pvalue, perc.var)
-    add.lab <- c("Size", pname, "% Var")
-    if (object$QTL$type == "interval")
-        collab <- c("Chromosome", "Left Marker", "dist(cM)","Right Marker", "dist(cM)")
-    else collab <- c("Chromosome", "Marker", "dist(cM)")
-    names(qtlmat) <- c(collab, add.lab)
-    if (LOD){
-        lod <- round(0.5 * log(exp(zrat^2), base = 10), 4)
-        qtlmat <- cbind.data.frame(qtlmat, LOD = lod)
-    }
-    qtlmat <- qtlmat[order(qtlmat[, 1], as.numeric(as.character(qtlmat[,3]))), ]
-    rownames(qtlmat) <- as.character(1:length(qtle))
-    qtlmat
-}
-
-
 qtlTable <- function (..., intervalObj = NULL, labels = NULL, columns = "all")
 {
     dots <- list(...)
@@ -520,76 +421,15 @@ qtlSelect <- function(asm, phenoData, intervalObj, gen.type, selection, exclusio
     schr <- sapply(strsplit(names(state), "\\."), "[", 2)
     wnams <- names(state)[schr %in% mchr]
     inums <- as.numeric(sapply(strsplit(wnams, "\\."),"[", 3))
-    dists <- intervalObj$geno[[mchr]]$map
-    if((gen.type == "interval") & (length(dists) > 1))
-        dists <- dists[2:length(dists)] - diff(dists)/2
+    if(gen.type == "marker")
+        dists <- intervalObj$geno[[mchr]]$map
+    else dists <- intervalObj$geno[[mchr]]$inferred.map
+    ## if((gen.type == "interval") & (length(dists) > 1))
+    ## dists <- dists[2:length(dists)] - diff(dists)/2
     dists <- dists[inums]
     exc <- wnams[abs(dists - dists[mint]) <= exclusion.window]
     state[exc] <- 0
     list(state = state, qtl = qtl, ochr = ochr, oint = oint, blups = blups)
-}
-
-cross2int <- function(object, impute = "MartinezCurnow", consensus.mark = TRUE, id = "id",
-                      subset = NULL){
-  cls <- class(object)[1]
-  if(!(cls %in% c("bc","dh","f2","riself")))
-    stop("This function is restricted to populations inheriting from classes \"bc\",\"dh\",\"f2\",\"riself\".")
-  object <- drop.nullmarkers(object)
-  if(!(id %in% names(object$pheno)))
-    stop("The unique identifier for the genotypic rows, ", deparse(substitute(id)), ",cannot be found in genotypic data")
-  if(!is.null(subset))
-    object <- subset(object, chr = subset)
-  if(consensus.mark) {
-    tpheno <- object$pheno
-    object <- fixMap(object, rd = 3)
-    object$pheno <- tpheno
-  }
-  lid <- as.character(object$pheno[[id]])
-  mtype <- c("Broman", "MartinezCurnow")
-  if(is.na(type <- pmatch(impute, mtype)))
-      stop("Missing marker type must be one of \"Broman\" or \"MartinezCurnow\". Partial matching is allowed.")
-  impute <- mtype[type]
-  if(impute == "Broman")
-      object <- argmax.geno(object)
-  object$geno <- lapply(object$geno, function(el, impute, lid, cls){
-      row.names(el$data) <- as.character(lid)
-      if(!is.null(el$argmax))
-          el$imputed.data <- el$argmax
-      else el$imputed.data <- el$data
-      if(cls %in% "f2"){
-          el$imputed.data[el$imputed.data == 3] <- -1
-          el$imputed.data[el$imputed.data == 2] <- 0
-      } else
-          el$imputed.data[el$imputed.data == 2] <- - 1
-      if(length(el$map) == 1){
-          el$dist <- 0; el$theta <- 0; elambda <- 1/2
-          names(el$dist) <- names(el$map)
-          el$imputed.data[is.na(el$imputed.data)] <- 0
-          el$interval.data <- as.matrix(el$imputed.data/2, ncol = 1)
-          dimnames(el$interval.data)[[2]] <- names(el$map)
-      }
-      else {
-          el$dist <- diff(el$map)/100
-          el$theta <- 0.5*(1-exp(-2*el$dist))
-          if(cls %in% "riself")
-              el$theta <- (el$theta/2)/(1 - el$theta)
-          elambda <- el$theta/(2*el$dist*(1-el$theta))
-          if(impute == "MartinezCurnow")
-              el$imputed.data <- imputeGen(el$theta, el$imputed.data, dom = FALSE)$add
-          dimnames(el$imputed.data)[[1]] <- dimnames(el$data)[[1]]
-          lambda <- addiag(elambda,-1) + addiag(c(elambda,0),0)
-          lambda <- lambda[,-dim(lambda)[2]]
-          el$interval.data <- el$imputed.data %*% lambda
-          dimnames(el$interval.data)[[2]] <- names(el$dist)
-      }
-      el
-  }, impute, lid, cls)
-  if(length(grep("\\.", names(object$geno)))){
-      warning("Removing \".\" from linkage group names.")
-      names(object$geno) <- gsub("\\.", "", names(object$geno))
-  }
-  class(object) <- c(class(object), "interval")
-  object
 }
 
 fixMap <- function (full.data, rd = 3)
@@ -644,32 +484,6 @@ fixMap <- function (full.data, rd = 3)
     rownames(cor.mark) <- NULL
     newmap$colocated.markers <- cor.mark
     newmap
-}
-
-
-
-addiag <- function(x = 1, di = 0, nrow.arg, ncol.arg = n)
-{
-    if(is.matrix(x)) {
-        k <- ifelse(col(x) == (row(x) + di), TRUE, FALSE)
-        return(x[k])
-    }
-    if(missing(x))
-        n <- nrow.arg
-    else if(length(x) == 1 && missing(di) && missing(nrow.arg) && missing(ncol.arg)) {
-        n <- as.integer(x)
-        x <- 1
-    }
-    else n <- length(x)
-    if(!missing(nrow.arg))
-        n <- nrow.arg
-    k <- abs(di)
-    p <- ncol.arg + k
-    n <- n + k
-    m <- matrix(0, n, p)
-    k <- ifelse(col(m) == (row(m) + di), TRUE, FALSE)
-    m[k] <- x
-    m
 }
 
 imputeGen <-  function (theta, chr, dom = TRUE){
@@ -1258,6 +1072,332 @@ outStat <- function (object, intervalObj, iter = NULL, chr = NULL, statistic = "
     }
     gp
 }
+
+constructCM <- function (genoData, scale.method = "diag"){
+    print(dim(genoData))
+    tg <- t(genoData)
+    relm <- crossprod(tg)
+    scale <- mean(diag(relm))
+    relm <- relm/scale
+    sv <- eigen(relm)
+    if(any(whv <- sv$values < 0)){
+        sv$values[sv$values < 0] <- 0
+        eps <- 1e-12*scale
+        relm <- sv$vectors %*% diag(sv$values) %*% t(sv$vectors) + eps*diag(nrow(relm))
+    }
+    attr(relm, "rowNames") <- dimnames(relm)[[1]] <- dimnames(relm)[[2]] <- rownames(genoData)
+    ch <- chol(relm)
+    chol.inv <- chol2inv(ch)
+    rm.env <- new.env()
+    rm.env$trans <- (tg %*% chol.inv)/scale
+    rm.env$relm <- relm
+    rm.env$scale <- scale
+    rm.env
+}
+
+getQTL <- function (object, intervalObj)
+{
+  spe <- strsplit(substring(unlist(names(object$QTL$effects)), 3),"\\.")
+  wchr <- unlist(lapply(spe, function(el) el[1]))
+  wint <- as.numeric(unlist(lapply(spe, function(el) el[2])))
+  if(object$QTL$type == "marker"){
+      qtlm <- matrix(ncol = 4, nrow = length(wchr))
+      for (i in 1:length(wchr)) {
+          lhmark <- intervalObj$geno[[wchr[i]]]$map[wint[i]]
+          qtlm[i, 1:4] <-  c(wchr[i], wint[i], names(lhmark), round(lhmark, 2))
+      }
+  } else {
+      qtlm <- matrix(ncol = 8, nrow = length(wchr))
+      for(i in 1:length(wchr)){
+          if(length(intervalObj$geno[[wchr[i]]]$inferred.map) > 1){
+              imark <- intervalObj$geno[[wchr[i]]]$inferred.map[wint[i]]
+              print(imark)
+              lhint <- findInterval(imark, intervalObj$geno[[wchr[i]]]$map)
+              lhmark <- intervalObj$geno[[wchr[i]]]$map[lhint]
+              rhmark <- intervalObj$geno[[wchr[i]]]$map[lhint + 1]
+          } else lhmark <- rhmark <- imark <- intervalObj$geno[[wchr[i]]]$map[wint[i]]
+          qtlm[i, 1:8] <- c(wchr[i], wint[i], names(lhmark), round(lhmark, 2),
+                            names(imark), round(imark, 2), names(rhmark), round(rhmark, 2))
+
+      }
+  }
+  qtlm
+}
+
+summary.wgaim <- function (object, intervalObj, LOD = TRUE, ...) {
+    if (missing(intervalObj))
+        stop("intervalObj is a required argument")
+    if (!inherits(intervalObj, "cross"))
+        stop("intervalObj is not of class \"cross\"")
+    if (is.null(qtle <- object$QTL$effects)) {
+        cat("There are no significant putative QTL's\n")
+        return()
+    }
+    sigma2 <- object$sigma2
+    if (object$vparameters.con[length(object$vparameters.con)] ==
+        4)
+        sigma2 <- 1
+    if (object$QTL$type == "interval")
+        gdat <- lapply(intervalObj$geno, function(el) el$interval.data)
+    else gdat <- lapply(intervalObj$geno, function(el) el$imputed.data)
+    genoData <- do.call("cbind", gdat)
+    gterm <- object$QTL$diag$genetic.term
+    scale <- object$QTL$diag$rel.scale
+    dimnames(genoData) <- list(as.character(intervalObj$pheno[[gterm]]),
+        names(object$QTL$diag$state))
+    genoSub <- genoData[, as.logical(object$QTL$diag$state)]
+    if ("Gsave" %in% names(object$mf))
+        gterm <- "Gsave"
+    genoSub <- genoSub[rownames(genoSub) %in% levels(object$mf[[gterm]]),
+        ]
+    coef.mark <- c(mean(apply(genoSub, 1, function(el) sum(el *
+        el)), na.rm = TRUE))
+    mark.terms <- paste("mbf*.*ints*", paste("vm\\(", gterm,
+        "*", sep = ""), sep = "|")
+    oth.terms <- object$vparameters[-grep(mark.terms, names(object$vparameters))]
+    var.mark <- sigma2 * object$vparameters[grep(mark.terms,
+        names(object$vparameters))]/scale
+    var.res <- sigma2 * oth.terms[grep(gterm, names(oth.terms))]
+    if (object$QTL$method == "random") {
+        var.est <- sigma2 * object$vparameters[grep("X\\.", names(object$vparameters))]
+        coef.est <- apply(genoData[, object$QTL$qtl, drop = FALSE]^2,
+            2, mean, na.rm = TRUE)
+    }
+    else {
+        var.est <- qtle^2
+        coef.est <- rep(1, length(qtle))
+    }
+    var.all <- sum(c(coef.est, coef.mark, 1) * c(var.est, var.mark,
+        var.res))
+    perc.var <- round(100 * (coef.est * var.est)/var.all, 1)
+    zrat <- qtle/sqrt(object$QTL$veffects * sigma2)
+    if (object$QTL$method == "random") {
+        pvalue <- round((1 - pchisq(zrat^2, df = 1))/2, 4)
+        pname <- "Prob"
+    }
+    else {
+        pvalue <- round(2 * (1 - pnorm(abs(zrat))), 4)
+        pname <- "Pvalue"
+    }
+    qtlmat <- as.data.frame(matrix(getQTL(object, intervalObj),
+        nrow = length(qtle)))
+    qtlmat <- cbind.data.frame(qtlmat[, c(1, 3:ncol(qtlmat))],
+        round(qtle, 4), pvalue, perc.var)
+    add.lab <- c("Size", pname, "% Var")
+    if (object$QTL$type == "interval")
+        collab <- c("Chromosome", "Left Marker", "dist(cM)", "Infer. Marker", "dist(cM)",
+                "Right Marker", "dist(cM)")
+    else collab <- c("Chromosome", "Marker", "dist(cM)")
+    names(qtlmat) <- c(collab, add.lab)
+    if (LOD) {
+        lod <- round(0.5 * log(exp(zrat^2), base = 10), 4)
+        qtlmat <- cbind.data.frame(qtlmat, LOD = lod)
+    }
+    qtlmat <- qtlmat[order(qtlmat[, 1], as.numeric(as.character(qtlmat[,
+        3]))), ]
+    rownames(qtlmat) <- as.character(1:length(qtle))
+    qtlmat
+}
+
+cross2int <- function (object, impute = "MartinezCurnow", consensus.mark = TRUE,
+    id = "id", subset = NULL, infer = "mid")
+{
+    cls <- class(object)[1]
+    if (!(cls %in% c("bc", "dh", "f2", "riself")))
+        stop("This function is restricted to populations inheriting from classes \"bc\",\"dh\",\"f2\",\"riself\".")
+    object <- drop.nullmarkers(object)
+    if (!(id %in% names(object$pheno)))
+        stop("The unique identifier for the genotypic rows, ",
+            deparse(substitute(id)), ",cannot be found in genotypic data")
+    if (!is.null(subset))
+        object <- subset(object, chr = subset)
+    if (consensus.mark) {
+        tpheno <- object$pheno
+        object <- fixMap(object, rd = 3)
+        object$pheno <- tpheno
+    }
+    lid <- as.character(object$pheno[[id]])
+    mtype <- c("Broman", "MartinezCurnow")
+    if (is.na(type <- pmatch(impute, mtype)))
+        stop("Missing marker type must be one of \"Broman\" or \"MartinezCurnow\". Partial matching is allowed.")
+    impute <- mtype[type]
+    if (impute == "Broman")
+        object <- argmax.geno(object)
+    object$geno <- lapply(object$geno, function(el, impute, lid,
+        cls) {
+        row.names(el$data) <- as.character(lid)
+        if (!is.null(el$argmax))
+            el$imputed.data <- el$argmax
+        else el$imputed.data <- el$data
+        if (cls %in% "f2") {
+            el$imputed.data[el$imputed.data == 3] <- -1
+            el$imputed.data[el$imputed.data == 2] <- 0
+        }
+        else el$imputed.data[el$imputed.data == 2] <- -1
+        if (length(el$map) == 1) {
+            el$dist <- 0
+            el$theta <- 0
+            elambda <- 1/2
+            names(el$dist) <- names(el$map)
+            el$imputed.data[is.na(el$imputed.data)] <- 0
+            el$interval.data <- as.matrix(el$imputed.data/2,
+                ncol = 1)
+            dimnames(el$interval.data)[[2]] <- names(el$map)
+        }
+        else {
+            el$dist <- diff(el$map)/100
+            el$theta <- 0.5 * (1 - exp(-2 * el$dist))
+            if (cls %in% "riself")
+                el$theta <- (el$theta/2)/(1 - el$theta)
+            if (impute == "MartinezCurnow")
+                el$imputed.data <- wgaim:::imputeGen(el$theta, el$imputed.data,
+                  dom = FALSE)$add
+            dimnames(el$imputed.data)[[1]] <- dimnames(el$data)[[1]]
+            if(infer == "mid"){
+                lend <- length(el$dist)
+                elambda <- el$theta/(2 * el$dist * (1 - el$theta))
+                lambda <- matrix(0, nrow = length(el$map), ncol = lend)
+                inams <- paste("midm", 1:ncol(lambda), sep = "")
+                mind <- cbind(c(1:lend,1:lend + 1),c(1:lend,1:lend))
+                lambda[mind] <- rep(elambda, 2)
+                el$inferred.map <- (cumsum(diff(el$map)) - diff(el$map)/2)
+                names(el$inferred.map) <- inams
+            } else {
+                lam <- lambdaf(el, infer)
+                lambda <- lam$lambda
+                inams <- paste("ifm", 1:ncol(lambda), sep = "")
+                el$inferred.map <- lam$imark
+                                        #             el$dist <- diff(el$map)/100
+                names(el$inferred.map) <- inams
+            }
+            el$interval.data <- el$imputed.data %*% lambda
+            dimnames(el$interval.data)[[2]] <- inams
+        }
+        el
+    }, impute, lid, cls)
+    for(i in 1:length(names(object$geno))){
+        wchr <- names(object$geno)[i]
+        names(object$geno[[wchr]]$inferred.map) <- paste(wchr, names(object$geno[[wchr]]$inferred.map), sep = ".")
+        colnames(object$geno[[wchr]]$interval.data) <- names(object$geno[[wchr]]$inferred.map)
+    }
+    if (length(grep("\\.", names(object$geno)))) {
+        warning("Removing \".\" from linkage group names.")
+        names(object$geno) <- gsub("\\.", "", names(object$geno))
+    }
+    class(object) <- c(class(object), "interval")
+    object
+}
+
+lambdaf <- function(el, infer){
+    ints <- seq(0, el$map[length(el$map)], by = infer)
+    cs <- split(ints, cut(ints, el$map, include.lowest = TRUE))
+    ri <- findInterval(ints, el$map)
+    ci <- 1:length(ri)
+    lm <- el$map[1:(length(el$map) - 1)]
+    rm <- el$map[2:(length(el$map))]
+    lambda <- matrix(0, nrow = length(el$map), ncol = length(ints))
+    laml <- lamr <- list()
+    k <- 1
+    for(i in 1:length(cs)){
+        if(length(cs[[i]])){
+            ltq <- 0.5*(1 - exp(-2*(cs[[i]] - lm[i])/100))
+#             rtq <- 0.5*(1 - exp(-2*(rm[i] - cs[[i]])))
+            it <-  0.5*(1 - exp(-2*(rm[i] - lm[i])/100))
+            den <- it*(1 - it)*(1 - 2*ltq)
+            laml[[k]] <- (1 - it - ltq)*(it - ltq)/den
+            lamr[[k]] <- ltq*(1 - ltq)*(1 - 2*it)/den
+            k <- k + 1
+        }
+    }
+    index <- rbind(cbind(ri, ci),cbind(ri + 1,ci))
+    lambda[index] <- c(unlist(laml),unlist(lamr))
+    list(lambda = lambda, imark = ints)
+}
+
+fineMap <- function(model, intervalObj, mark = NULL, flanking = 50, exclusion.window = 50, ...){
+    resp <- deparse(model$call$fixed[[2]])
+    phenoData <- eval(parse(text = paste(resp, ".data", sep = "")))
+    if (missing(intervalObj))
+        stop("intervalObj is a required argument")
+    if (!inherits(intervalObj, "cross"))
+        stop("intervalObj is not of class \"cross\"")
+    if(is.null(mark))
+        stop("mark argument must be non-NULL.")
+    gterm <- model$QTL$diag$genetic.term
+    state <- model$QTL$diag$state
+    method <- model$QTL$method
+    if (model$QTL$type == "interval"){
+        gdat <- lapply(intervalObj$geno, function(el) el$interval.data)
+        mchr <- names(intervalObj$geno)[sapply(intervalObj$geno, function(el, mark) mark %in% names(el$inferred.map), mark)]
+        mapc <- intervalObj$geno[[mchr]]$inferred.map
+    } else{
+        gdat <- lapply(intervalObj$geno, function(el) el$imputed.data)
+        mchr <- names(intervalObj$geno)[sapply(intervalObj$geno, function(el, mark) mark %in% names(el$map), mark)]
+        mapc <- intervalObj$geno[[mchr]]$map
+    }
+    genoData <- do.call("cbind", gdat)
+    dimnames(genoData) <- list(as.character(intervalObj$pheno[[gterm]]), names(state))
+    genoData <- genoData[rownames(genoData) %in% as.character(phenoData[[gterm]]),]
+    chrs <- sapply(strsplit(names(state), "\\."), "[", 2)
+    chr.ind <- chrs %in% mchr
+    state.chri <- state[chrs %in% mchr]
+    qind <- (1:length(mapc))[names(mapc) %in% mark]
+    mark.qtl <- gsub("Chr\\.", "X.", names(state.chri)[qind])
+    ql <- ifelse(qind - flanking <= 0, 1, qind - flanking)
+    qr <- ifelse(qind + flanking > length(mapc), length(mapc), qind + flanking)
+    state.chri[ql:qr] <- 1
+    genoChr <- genoData[,names(state.chri)[ql:qr]]
+    colnames(genoChr) <- gsub("Chr\\.", "X.", colnames(genoChr))
+    tmp <- cbind.data.frame(rownames(genoData), genoChr)
+    colnames(tmp)[1] <- gterm
+    phenoData <- phenoData[,!(names(phenoData) %in% mark.qtl)]
+    phenoData$ord <- 1:nrow(phenoData)
+    phenoData <- merge(phenoData, tmp, by = gterm, all.x = TRUE)
+    phenoData <- phenoData[order(phenoData$ord),]
+    k <- 1
+    pvalue <- lod <- c()
+    for(i in ql:qr){
+        wind <- abs(mapc[i] - mapc) <= exclusion.window
+        state.chr <- state.chri
+        state.chr[wind] <- 0
+        state[chr.ind] <- state.chr
+        mout <- (1:ncol(genoData))[!as.logical(state)]
+        genoSub <- genoData[,-mout]
+        if(ncol(genoSub) > nrow(genoSub)){
+            cov.env <- constructCM(genoSub)
+            covObj <- cov.env$relm
+        } else {
+            tempObj <- cbind.data.frame(covObj[,1], genoSub)
+            names(tempObj)[1] <- names(covObj)[1]
+            covObj <- tempObj
+        }
+        assign("covObj", covObj, envir = parent.frame())
+        mark.i <- colnames(genoChr)[k]
+        if(method == "random"){
+            temp.form <- update.formula(model$call$random, as.formula(paste("~ . - ", mark.qtl, sep = "")))
+            temp.form <- update.formula(temp.form, as.formula(paste("~ . + ", mark.i, sep = "")))
+            tempmodel <- wgaim:::vModify(model, gterm)
+            tempmodel <- update.asreml(tempmodel, random. = temp.form, data = phenoData, ...)
+        }
+        else {
+            fix.form <- formula(paste(". ~ . +", mark.i, "-", mark.qtl, sep = ""))
+            tempmodel <- update.asreml(model, fixed. = fix.form, data = phenoData, ...)
+        }
+        cf <- tempmodel$coefficients[[method]]
+        whr <- grep(mark.i, rownames(cf))
+        mcf <- tempmodel$coefficients[[method]][whr, 1]
+        vcf <- tempmodel$vcoeff[[method]][whr]
+        zrat <- mcf/sqrt(vcf * tempmodel$sigma2)
+        #zrat <- mcf/sqrt(vcf)
+        pvalue[k] <- round((1 - pchisq(zrat^2, df = 1)), 4)
+        lod[k] <- round(0.5 * log(exp(zrat^2), base = 10), 4)
+        print(c(pvalue[k], lod[k]))
+        k <- k + 1
+    }
+    cbind.data.frame(mark = names(mapc)[ql:qr], dist = mapc[ql:qr], pvalue = pvalue, LOD = lod)
+}
+
+
 
 ######################## end functions
 
