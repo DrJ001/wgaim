@@ -10,6 +10,7 @@ ggplot2)
 ##[exports]
 export(
 cross2int,
+fineMap,
 fixMap,
 getQTL,
 linkMap,
