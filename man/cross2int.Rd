@@ -7,7 +7,7 @@ Converts an object of class "\code{cross}" to an object with class
 }
 \usage{
 cross2int(object, impute = "MartinezCurnow", consensus.mark = TRUE,
-     id = "id", subset = NULL)
+     id = "id", subset = NULL, infer = "mid")
 }
 \arguments{
   \item{object}{an object of class \code{"cross"} that inherits one of the class
@@ -25,6 +25,12 @@ cross2int(object, impute = "MartinezCurnow", consensus.mark = TRUE,
   \item{subset}{a possible character vector naming the subset of
     chromosomes to be returned. Defaults to \code{NULL} implying return
     all chromosomes.}
+  \item{infer}{a character string or numerical value controlling the
+    placement of inferred interval midpoint markers. If \code{"mid"}
+    (the default), the midpoint of each marker interval is used as the
+    inferred marker position. If a numeric value is supplied, inferred
+    markers are placed at that cM spacing across each interval using the
+    lambda weighting approach of Martinez \& Curnow (1994).}
 }
 \details{
 This function provides the conversion of genetic data objects that have
@@ -71,8 +77,12 @@ a list of class \code{"cross"} that also inherits the class
   rules of \code{"impute"}; \code{"dist"} contains the genetic
   distance between adjacent markers or the genetic distances of the
   intervals; \code{"theta"} contains the recombination fractions for
-  each interval; \code{"interval.data"} contains the recalculated intervals
-  based on the recombination fractions and the missing marker information.}
+  each interval; \code{"interval.data"} contains the recalculated interval
+  data based on the recombination fractions and the missing marker
+  information; \code{"inferred.map"} is a named vector of inferred marker
+  positions (in cM) within each interval, with names of the form
+  \code{"<chromosome>.<label>"} where the label and spacing are
+  determined by the \code{infer} argument.}
 \item{colocated.markers}{
 If \code{consensus.mark = TRUE}, a four column data frame containing
 stacked binned sets of co-located markers. In each binned set the first

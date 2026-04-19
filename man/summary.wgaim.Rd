@@ -34,16 +34,17 @@ Prints a QTL summary form the \code{"wgaim"} object in a presentable format
   negative). If \code{method = "fixed"} then the significance of the QTL is
   summarized using a one degree of freedom Wald statistic.
 }
-\value{A summary of the QTL component of the \code{"wgaim"} object is
-  printed to the screen. For each QTL detected, if an \code{"interval"}
-  analysis was performed then \code{summary.wgaim()} prints which
-  chromosome, name and distance of each flanking marker, size,
-  probability/p-value, contribution of genetic variance and LOD
-  score if desired. If a \code{"marker"} analysis was performed then the
-  chromosome, name and distance of the associated marker, size,
-  probability/p-value, contribution of genetic variance
-  and LOD score are printed. \code{print.wgaim()} provides a narrative
-  brief of the QTL detected.
+\value{A \code{data.frame} summarising the QTL detected in the
+  \code{"wgaim"} object. For each QTL detected, if an \code{"interval"}
+  analysis was performed the data frame contains seven location columns:
+  chromosome, name and distance (cM) of the left flanking marker, name
+  and distance (cM) of the inferred interval midpoint marker, and name
+  and distance (cM) of the right flanking marker. If a \code{"marker"}
+  analysis was performed then three location columns are returned:
+  chromosome, marker name, and distance (cM). In both cases the location
+  columns are followed by the QTL size, probability/p-value,
+  percentage of genetic variance explained, and optionally the LOD score.
+  \code{print.wgaim()} provides a narrative brief of the QTL detected.
 }
 \references{
   Verbyla, A. P & Taylor, J. D, Verbyla, K. L (2012). RWGAIM: An efficient high

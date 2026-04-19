@@ -1074,7 +1074,6 @@ outStat <- function (object, intervalObj, iter = NULL, chr = NULL, statistic = "
 }
 
 constructCM <- function (genoData, scale.method = "diag"){
-    print(dim(genoData))
     tg <- t(genoData)
     relm <- crossprod(tg)
     scale <- mean(diag(relm))

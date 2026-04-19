@@ -3,8 +3,8 @@
 \alias{fixMap}
 \alias{envFix}
 \alias{getQTL}
-\alias{addiag}
 \alias{imputeGen}
+\alias{lambdaf}
 \alias{wgaim.default}
 \alias{qtlSelect}
 \alias{vModify}
@@ -19,8 +19,8 @@ constructCM(genoData, scale.method = "diag")
 fixMap(full.data, rd = 3)
 envFix(model, asremlEnv)
 getQTL(object, intervalObj)
-addiag(x = 1, di = 0, nrow.arg, ncol.arg = n)
 imputeGen(theta, chr, dom = TRUE)
+lambdaf(el, infer)
 \method{wgaim}{default}(baseModel, \ldots)
 qtlSelect(asm, phenoData, intervalObj, gen.type, selection,
           exclusion.window, state, verboseLev)
