@@ -1,27 +1,37 @@
 # =============================================================================
 # manhattan.R
 # S3 generic and GWASAim method for Manhattan plots.
-# Uses first-iteration outlier statistics to derive approximate single-marker
-# p-values from the genome-wide conditional scan.
+#
+# Plots per-iteration outlier statistics across the genome, faceted by
+# iteration. The marker selected as significant at iteration k is labelled
+# in facet k only. No threshold line is drawn — significant markers have
+# already been determined by the forward selection algorithm.
 # =============================================================================
 
 manhattan <- function(object, ...)
     UseMethod("manhattan")
 
-manhattan.GWASAim <- function(object, panelObj, iter = 1,
-                               chr = NULL, sig.col = "red",
+manhattan.GWASAim <- function(object, panelObj,
+                               iter    = NULL,
+                               chr     = NULL,
                                pt.col  = c("steelblue", "grey50"),
-                               pt.cex  = 0.6,
-                               labels  = TRUE, ...) {
+                               sig.col = "red",
+                               pt.cex  = 0.6, ...) {
+
     if (missing(panelObj))
         stop("panelObj is a required argument.")
     if (!inherits(panelObj, "panel"))
         stop("panelObj must be of class \"panel\".")
-    if (iter > length(object$QTL$diag$oint))
-        stop("iter exceeds the number of analysis iterations stored.")
+
+    # Default: all stored iterations
+    n.stored <- length(object$QTL$diag$oint)
+    if (is.null(iter))
+        iter <- seq_len(n.stored)
+    if (any(iter > n.stored))
+        stop("iter contains values exceeding the number of stored iterations (", n.stored, ").")
 
     # -------------------------------------------------------------------------
-    # Build position data from panelObj
+    # Chromosome subset
     # -------------------------------------------------------------------------
     chr.names <- names(panelObj$geno)
     if (!is.null(chr)) {
@@ -30,104 +40,114 @@ manhattan.GWASAim <- function(object, panelObj, iter = 1,
         chr.names <- chr
     }
 
-    # Cumulative positions across chromosomes
-    pos.list <- lapply(panelObj$geno[chr.names], function(el) el$map)
-    chr.lens  <- sapply(pos.list, function(p) max(p) - min(p))
-    chr.offsets <- c(0, cumsum(chr.lens + 5))   # 5 cM gap between chromosomes
-    names(chr.offsets) <- c(chr.names, "end")
+    # -------------------------------------------------------------------------
+    # Build cumulative position lookup: internal name -> cumulative cM
+    # Internal names are "Chr.{chrName}.{markerIndex}" (from .buildGenoData)
+    # -------------------------------------------------------------------------
+    pos.lookup  <- c()
+    chr.mid.pos <- c()
+    cum.offset  <- 0
+    gap.cM      <- 5    # gap between chromosomes on x-axis
 
-    marker.df <- do.call(rbind, lapply(seq_along(chr.names), function(i) {
-        ch  <- chr.names[i]
-        pos <- pos.list[[ch]]
+    for (ch in chr.names) {
+        map.pos <- as.numeric(panelObj$geno[[ch]]$map)
+        n.mk    <- length(map.pos)
+        span    <- map.pos[n.mk] - map.pos[1]
+        for (k in seq_len(n.mk)) {
+            key            <- paste("Chr", ch, k, sep = ".")
+            pos.lookup[key] <- cum.offset + (map.pos[k] - map.pos[1])
+        }
+        chr.mid.pos[ch] <- cum.offset + span / 2
+        cum.offset      <- cum.offset + span + gap.cM
+    }
+
+    # -------------------------------------------------------------------------
+    # Build long-format data frame across all requested iterations
+    # -------------------------------------------------------------------------
+    c.iter <- paste("Iteration:", iter)
+
+    oint.list <- object$QTL$diag$oint[iter]
+    names(oint.list) <- c.iter
+
+    ointl <- lapply(oint.list, function(el) {
+        # Filter to requested chromosomes and non-zero entries
+        echr <- sapply(strsplit(names(el), "\\."), "[", 2)
+        whc  <- echr %in% chr.names & el > 0
         data.frame(
-            marker   = names(pos),
-            chr      = ch,
-            pos.cM   = as.numeric(pos),
-            cum.pos  = as.numeric(pos) - min(as.numeric(pos)) + chr.offsets[i],
-            chr.idx  = i,
+            values = as.numeric(el[whc]),
+            chr    = echr[whc],
+            iname  = names(el)[whc],          # internal "Chr.chrName.idx"
+            dist   = pos.lookup[names(el)[whc]],
             stringsAsFactors = FALSE
         )
-    }))
-
-    # -------------------------------------------------------------------------
-    # Extract outlier statistics and convert to -log10(p)
-    # -------------------------------------------------------------------------
-    oint <- object$QTL$diag$oint[[iter]]
-
-    # oint is over all markers (with state=0 for excluded/selected)
-    # Convert: oint ~ chi-sq(1), so p = (1 - pchisq(oint, 1)) / 2
-    pvals           <- (1 - pchisq(oint, 1)) / 2
-    pvals[pvals == 0] <- .Machine$double.xmin   # avoid -Inf
-    log10p          <- -log10(pvals)
-
-    # Match to marker.df by name
-    mnames         <- paste0("Chr.", marker.df$chr, ".",
-                              match(marker.df$marker,
-                                    names(panelObj$geno[[marker.df$chr[1]]]$map)))
-    # Build lookup from internal names to log10p
-    stat.names     <- names(oint)
-    marker.df$oint <- NA_real_
-    for (k in seq_len(nrow(marker.df))) {
-        ch  <- marker.df$chr[k]
-        mkr <- marker.df$marker[k]
-        idx <- which(names(panelObj$geno[[ch]]$map) == mkr)
-        if (length(idx)) {
-            key <- paste("Chr", ch, idx, sep = ".")
-            if (key %in% stat.names)
-                marker.df$oint[k] <- oint[key]
-        }
-    }
-    marker.df$log10p <- ifelse(is.na(marker.df$oint), NA,
-                               -log10(pmax((1 - pchisq(marker.df$oint, 1)) / 2,
-                                           .Machine$double.xmin)))
-
-    # Alternating chromosome colours
-    marker.df$col <- pt.col[(marker.df$chr.idx %% 2) + 1]
-
-    # -------------------------------------------------------------------------
-    # Significance threshold line: -log10(TypeI.eff)
-    # -------------------------------------------------------------------------
-    thresh.log10p <- -log10(object$QTL$TypeI.eff)
-    sig.markers   <- if (!is.null(object$QTL$qtl) && iter <= length(object$QTL$qtl))
-        object$QTL$qtl[1:iter] else character(0)
-
-    # -------------------------------------------------------------------------
-    # ggplot2 Manhattan plot
-    # -------------------------------------------------------------------------
-    chr.mids <- sapply(chr.names, function(ch) {
-        rows <- marker.df[marker.df$chr == ch, ]
-        mean(range(rows$cum.pos, na.rm = TRUE))
     })
 
-    gp <- ggplot(marker.df[!is.na(marker.df$log10p), ],
-                 aes_string(x = "cum.pos", y = "log10p")) +
-        geom_point(aes_string(colour = "col"), size = pt.cex, show.legend = FALSE) +
+    char.iter <- factor(
+        rep(c.iter, times = sapply(ointl, nrow)),
+        levels = unique(c.iter)
+    )
+
+    ointd      <- do.call("rbind.data.frame", ointl)
+    ointd$iteration <- char.iter
+    # Alternating chromosome colours
+    ointd$col  <- pt.col[(match(ointd$chr, chr.names) %% 2) + 1]
+
+    # -------------------------------------------------------------------------
+    # Significant marker per iteration
+    # Each facet k labels ONLY the marker selected at that iteration.
+    # object$QTL$qtl[k] is the internal name of the marker selected at iter k.
+    # The last iteration has no selection (it failed the significance test).
+    # -------------------------------------------------------------------------
+    qtl.names <- object$QTL$qtl   # may be NULL if nothing found
+
+    sig.df <- NULL
+    if (!is.null(qtl.names) && length(qtl.names) > 0) {
+        # Only iterations that actually produced a significant selection
+        iter.with.sig <- iter[iter <= length(qtl.names)]
+
+        sig.rows <- lapply(iter.with.sig, function(it) {
+            qn   <- qtl.names[it]
+            echr <- strsplit(qn, "\\.")[[1]][2]
+            if (!echr %in% chr.names) return(NULL)
+            idx  <- as.integer(strsplit(qn, "\\.")[[1]][3])
+            mkr  <- names(panelObj$geno[[echr]]$map)[idx]
+            val  <- object$QTL$diag$oint[[it]][qn]
+            if (is.null(val) || is.na(val)) return(NULL)
+            data.frame(
+                values    = as.numeric(val),
+                chr       = echr,
+                iname     = qn,
+                dist      = pos.lookup[qn],
+                iteration = factor(paste("Iteration:", it), levels = levels(char.iter)),
+                label     = mkr,
+                stringsAsFactors = FALSE
+            )
+        })
+        sig.df <- do.call("rbind", sig.rows[!sapply(sig.rows, is.null)])
+    }
+
+    # -------------------------------------------------------------------------
+    # Plot
+    # -------------------------------------------------------------------------
+    gp <- ggplot(ointd, aes_string(x = "dist", y = "values", colour = "col")) +
+        facet_wrap(~iteration, ncol = 1, scales = "free_y") +
+        geom_point(size = pt.cex, show.legend = FALSE) +
         scale_colour_identity() +
-        geom_hline(yintercept = thresh.log10p, colour = sig.col,
-                   linetype = "dashed", linewidth = 0.6) +
-        scale_x_continuous(breaks = chr.mids, labels = chr.names) +
-        labs(x = "Chromosome", y = expression(-log[10](p)),
-             title = sprintf("Manhattan Plot (Iteration %d)", iter),
-             caption = sprintf("Dashed line: Bonferroni threshold (p = %s)",
-                               formatC(object$QTL$TypeI.eff, format = "e", digits = 2))) +
+        scale_x_continuous(breaks = chr.mid.pos, labels = chr.names) +
+        labs(x = "Chromosome", y = "Outlier Statistic") +
         theme_scatter()
 
-    # Label significant markers from this iteration
-    if (labels && length(sig.markers)) {
-        sig.df <- do.call(rbind, lapply(sig.markers, function(qtl.name) {
-            parts <- strsplit(qtl.name, "\\.")[[1]]
-            ch    <- parts[2]; idx <- as.integer(parts[3])
-            mkr   <- names(panelObj$geno[[ch]]$map)[idx]
-            rows  <- marker.df[marker.df$chr == ch & marker.df$marker == mkr, ]
-            if (nrow(rows)) rows[1, , drop = FALSE] else NULL
-        }))
-        if (!is.null(sig.df) && nrow(sig.df))
-            gp <- gp + geom_point(data = sig.df,
-                                   aes_string(x = "cum.pos", y = "log10p"),
-                                   colour = sig.col, size = pt.cex * 2.5) +
-                geom_text(data = sig.df,
-                          aes_string(x = "cum.pos", y = "log10p", label = "marker"),
-                          colour = sig.col, size = 2.5, vjust = -0.8, hjust = 0.5)
+    # Overlay significant marker point + label in the matching facet only
+    if (!is.null(sig.df) && nrow(sig.df) > 0) {
+        gp <- gp +
+            geom_point(data = sig.df,
+                       aes_string(x = "dist", y = "values"),
+                       colour = sig.col, size = pt.cex * 4,
+                       shape = 18, inherit.aes = FALSE) +
+            geom_text(data = sig.df,
+                      aes_string(x = "dist", y = "values", label = "label"),
+                      colour = sig.col, size = 2.8,
+                      vjust = -1.0, hjust = 0.5, inherit.aes = FALSE)
     }
     gp
 }
