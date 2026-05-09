@@ -10,6 +10,7 @@ print.GPAim <- function(x, ...) {
     cat(sprintf("  Lines genotyped : %d\n",  nrow(gp$gebv)))
     cat(sprintf("  Markers used    : %d\n",  gp$n.markers))
     cat(sprintf("  Genotype data   : %s\n",  gp$gen.type))
+    cat(sprintf("  Fitting path    : %s\n",  gp$path))
     cat("\nVariance components:\n")
     cat(sprintf("  Genetic  (Vg)   : %.4f\n", gp$var.genetic))
     cat(sprintf("  Residual (Ve)   : %.4f\n", gp$var.resid))

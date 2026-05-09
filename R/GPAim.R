@@ -2,23 +2,23 @@
 # GPAim.R
 # Genomic Prediction via Integrated Modelling.
 #
-# Fits a genomic best linear unbiased prediction (G-BLUP) model using the
-# shared wgAim engine. Unlike QTLAim and GWASAim there is no iterative
-# selection loop — GPAim fits a single genome-wide model using the genomic
-# relationship matrix (G matrix) as the covariance structure, then extracts
-# genomic estimated breeding values (GEBVs) for all genotyped lines.
+# Fits a genomic best linear unbiased prediction (G-BLUP) model and extracts
+# GEBVs for all genotyped lines. Two computational paths are used:
 #
-# The vm path (relationship matrix) is always used regardless of the
-# markers:lines ratio — the G matrix IS the genomic prediction model.
+#   vm path  (markers > lines): builds the genomic relationship matrix G = XX'
+#            and fits vm(line, G). GEBVs extracted directly via predict().
+#
+#   mbf path (lines >= markers): models marker effects q directly as random
+#            effects via ASReml's mbf() facility. GEBVs computed as M %*% q̂,
+#            where M is the marker matrix and q̂ are the marker effect BLUPs.
+#            The mbf path avoids the singularity of G when lines >= markers.
 #
 # Arguments intentionally absent (vs QTLAim/GWASAim):
 #   method          - always 'random' (GEBVs are random effects by definition)
 #   selection       - no selection; no loop
-#   force           - vm path is always taken; not a user decision
 #   exclusion.window- no iterative selection to exclude around
 #   breakout        - no loop to break out of
 #   TypeI           - no significance testing
-#   bonferroni      - removed from GWASAim; not applicable here either
 # =============================================================================
 
 GPAim <- function(baseModel, ...)
@@ -29,7 +29,7 @@ GPAim.default <- function(baseModel, ...)
 
 GPAim.asreml <- function(baseModel, genoObj, merge.by = NULL,
                           fix.lines = TRUE, gen.type = "marker",
-                          trace = TRUE, ...) {
+                          force = FALSE, trace = TRUE, ...) {
 
     caller.env <- parent.frame()
 
@@ -92,48 +92,94 @@ GPAim.asreml <- function(baseModel, genoObj, merge.by = NULL,
     genetic.term <- fl$genetic.term
 
     # -------------------------------------------------------------------------
-    # Phase 3: Build genomic relationship matrix and fit GP model
-    # Always uses the vm path — the G matrix is the GP covariance structure.
+    # Phase 3: Fit GP model — vm or mbf path
+    #
+    # vm  path (markers > lines): G = XX' is full rank; fit vm(line, G).
+    # mbf path (lines >= markers): G is singular; fit marker effects directly
+    #                              via mbf(), then GEBVs = M %*% q̂.
     # -------------------------------------------------------------------------
-    n.markers <- ncol(genoData)
-    cat(sprintf("\nBuilding genomic relationship matrix  (%d markers)...\n", n.markers))
-    cov.env <- .constructCM(genoData)
-    covObj  <- cov.env$relm
-    assign("covObj", covObj, envir = caller.env)
+    n.markers    <- ncol(genoData)
+    n.lines.geno <- nrow(genoData)
+    use.vm       <- (n.markers > n.lines.geno) & !force
 
-    vmterm   <- paste0("vm(", merge.by, ", covObj)")
-    ran.form <- as.formula(paste(c("~", vmterm, rterms), collapse = " + "))
-
-    cat("Fitting Genomic Prediction model...\n")
     gpModel           <- baseModel
     gpModel$call$data <- quote(phenoData)
+
+    if (use.vm) {
+        cat(sprintf("\nvm path: building relationship matrix (%d markers > %d lines)...\n",
+                    n.markers, n.lines.geno))
+        cov.env  <- .constructCM(genoData)
+        covObj   <- cov.env$relm
+        assign("covObj", covObj, envir = caller.env)
+        vmterm   <- paste0("vm(", merge.by, ", covObj)")
+        ran.form <- as.formula(paste(c("~", vmterm, rterms), collapse = " + "))
+    } else {
+        cat(sprintf("\nmbf path: fitting marker effects directly (%d lines >= %d markers)...\n",
+                    n.lines.geno, n.markers))
+        cov.env  <- NULL
+        covObj   <- cbind.data.frame(rownames(genoData), genoData)
+        names(covObj)[1] <- merge.by
+        gpModel$call$mbf$markers$key <- rep(merge.by, 2)
+        gpModel$call$mbf$markers$cov <- "covObj"
+        assign("covObj", covObj, envir = caller.env)
+        ran.form <- as.formula(paste(c("~ mbf('markers')", rterms), collapse = " + "))
+    }
+
+    cat("Fitting Genomic Prediction model...\n")
     gpModel <- update(gpModel, random. = ran.form, ...)
 
     # -------------------------------------------------------------------------
-    # Extract GEBVs via predict() on the vm term
+    # Extract GEBVs and compute variance components
     # -------------------------------------------------------------------------
     cat("Extracting GEBVs...\n")
-    pv   <- predict(gpModel, classify = merge.by, only = vmterm,
-                    vcov = FALSE, data = phenoData)
-    pvdf <- pv$pvals
-    gebv <- data.frame(
-        pvdf[[merge.by]],
-        pvdf[["predicted.value"]],
-        pvdf[["std.error"]],
-        stringsAsFactors = FALSE
-    )
-    names(gebv) <- c(genetic.term, "GEBV", "SE")
-
-    # -------------------------------------------------------------------------
-    # Variance components and narrow-sense heritability
-    # -------------------------------------------------------------------------
     sigma2 <- gpModel$sigma2
     if (gpModel$vparameters.con[length(gpModel$vparameters.con)] == 4)
         sigma2 <- 1
-    var.genetic <- sigma2 *
-        gpModel$vparameters[grep("vm.*covObj", names(gpModel$vparameters))]
-    var.resid   <- sigma2   # residual variance in ASReml parameterisation
-    h2          <- as.numeric(var.genetic / (var.genetic + var.resid))
+
+    if (use.vm) {
+        # vm path: predict genetic values directly from the vm term
+        pv   <- predict(gpModel, classify = merge.by, only = vmterm,
+                        vcov = FALSE, data = phenoData)
+        pvdf <- pv$pvals
+        gebv <- data.frame(
+            pvdf[[merge.by]],
+            pvdf[["predicted.value"]],
+            pvdf[["std.error"]],
+            stringsAsFactors = FALSE
+        )
+        names(gebv) <- c(genetic.term, "GEBV", "SE")
+
+        var.genetic <- sigma2 *
+            gpModel$vparameters[grep("vm.*covObj", names(gpModel$vparameters))]
+        var.resid   <- sigma2
+
+    } else {
+        # mbf path: GEBVs = M %*% q̂
+        # Extract marker effect BLUPs (q̂) from the mbf random coefficients
+        mbf.rows <- grep("mbf", rownames(gpModel$coefficients$random))
+        q.hat    <- gpModel$coefficients$random[mbf.rows, 1]
+        gebvs    <- as.numeric(genoData %*% q.hat)
+
+        # Approximate SE: sqrt( M^2 %*% PEV(q̂) )
+        # Treats marker effects as independent — ignores their covariance.
+        pev     <- sigma2 * gpModel$vcoeff$random[mbf.rows]
+        se.gebv <- sqrt(as.numeric(genoData^2 %*% pev))
+
+        gebv <- data.frame(
+            rownames(genoData),
+            gebvs,
+            se.gebv,
+            stringsAsFactors = FALSE
+        )
+        names(gebv) <- c(genetic.term, "GEBV", "SE")
+
+        # Genetic variance from marker effects: Var(Mq) = sigma2 * vpar * mean(sum_j m_ij^2)
+        vpar.mbf    <- gpModel$vparameters[grep("mbf.*markers", names(gpModel$vparameters))]
+        var.genetic <- sigma2 * vpar.mbf * mean(rowSums(genoData^2), na.rm = TRUE)
+        var.resid   <- sigma2
+    }
+
+    h2 <- as.numeric(var.genetic / (var.genetic + var.resid))
 
     # -------------------------------------------------------------------------
     # Package results and clean up
@@ -141,11 +187,12 @@ GPAim.asreml <- function(baseModel, genoObj, merge.by = NULL,
     gp.list <- list(
         gebv         = gebv,
         gen.type     = gen.type,
+        path         = ifelse(use.vm, "vm", "mbf"),
         var.genetic  = as.numeric(var.genetic),
         var.resid    = as.numeric(var.resid),
         heritability = h2,
         n.markers    = n.markers,
-        rel.scale    = cov.env$scale,
+        rel.scale    = if (use.vm) cov.env$scale else 1,
         genetic.term = genetic.term
     )
 
