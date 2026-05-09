@@ -5,7 +5,9 @@
 # Forward-selection marker association analysis using the shared wgAim engine.
 # Differences from QTLAim:
 #   - Takes a 'panel' object (from makePanel()) instead of an 'interval' object
-#   - gen.type is always 'marker' (no interval midpoints in GWAS)
+#   - gen.type is always 'marker'  — no interval midpoints in GWAS
+#   - method is always 'fixed'     — GWAS tests marker effects as fixed effects
+#   - selection is always 'interval' — best individual marker, not chromosome
 #   - Bonferroni correction applied to TypeI threshold by default
 #   - Returns class c('GWASAim', 'asreml')
 # =============================================================================
@@ -17,11 +19,16 @@ GWASAim.default <- function(baseModel, ...)
     stop("Currently the only supported method is \"asreml\".")
 
 GWASAim.asreml <- function(baseModel, panelObj, merge.by = NULL,
-                            fix.lines = TRUE, method = "fixed",
-                            selection = "interval", force = FALSE,
+                            fix.lines = TRUE, force = FALSE,
                             exclusion.window = 20, breakout = -1,
                             TypeI = 0.05, bonferroni = TRUE,
                             trace = TRUE, verboseLev = 0, ...) {
+
+    # Hard-coded engine constants — not user-configurable for GWAS:
+    #   method    = "fixed"    GWAS tests each marker as a fixed effect
+    #   selection = "interval" always select the best individual marker
+    method    <- "fixed"
+    selection <- "interval"
 
     # Capture calling environment early — needed for assign() in engine
     caller.env <- parent.frame()
