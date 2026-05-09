@@ -19,6 +19,51 @@
 #   selection differential.
 # =============================================================================
 
+#' @describeIn GPAim Produce one of three diagnostic plots for a \code{GPAim}
+#'   object, selected via the \code{type} argument.
+#'
+#'   \describe{
+#'     \item{\code{"caterpillar"} (default)}{Ranked GEBV dot plot with
+#'       half-HSD comparison bars for the top and bottom \code{top.n} lines.
+#'       Half-HSD bars are defined as \eqn{t_\alpha \times SE_i / \sqrt{2}};
+#'       two GEBVs whose half-HSD bars do not overlap are significantly
+#'       different at level \code{alpha}. Bars are shown only for the extreme
+#'       lines (near selection decisions) to preserve readability with many
+#'       lines. Points are coloured by selection status relative to the
+#'       threshold.}
+#'     \item{\code{"heatmap"}}{Tile heatmap of the genomic relationship matrix
+#'       \eqn{G}, with lines ordered by Ward hierarchical clustering. Reveals
+#'       population sub-structure, family groups, and potential duplicate lines.
+#'       A warning is issued for datasets with more than 500 lines where
+#'       rendering may be slow.}
+#'     \item{\code{"density"}}{Density plot of the GEBV distribution with the
+#'       selected region shaded, a threshold line, and annotation of the number
+#'       selected, proportion selected, and selection differential
+#'       (mean GEBV of selected minus mean of all).}
+#'   }
+#'
+#' @param x A \code{GPAim} object.
+#' @param type Character string specifying the plot type: \code{"caterpillar"}
+#'   (default), \code{"heatmap"}, or \code{"density"}.
+#' @param alpha Numeric significance level used to compute half-HSD bar widths
+#'   in the caterpillar plot. Default \code{0.05}.
+#' @param top.n Integer. Number of highest- and lowest-ranked lines for which
+#'   half-HSD bars are drawn in the caterpillar plot. Default \code{20}.
+#'   Reducing this value improves readability with very many lines.
+#' @param threshold Numeric. Selection threshold for caterpillar and density
+#'   plots. If between 0 and 1 exclusive, treated as a quantile of the GEBV
+#'   distribution (e.g. \code{0.9} selects the top 10\%). If outside (0, 1),
+#'   treated as a raw GEBV value. If \code{NULL} (default), \code{prop.select}
+#'   is used instead.
+#' @param prop.select Numeric proportion of lines to select, used when
+#'   \code{threshold = NULL}. Default \code{0.10} (top 10\%).
+#' @param pt.col Character vector of length 2: \code{pt.col[1]} is used for
+#'   selected lines / high relatedness / positive GEBVs;
+#'   \code{pt.col[2]} for unselected lines / low relatedness / negative GEBVs.
+#'   Default \code{c("steelblue","firebrick")}.
+#' @param pt.cex Numeric point size. Default \code{0.8}.
+#' @return A \code{\link[ggplot2]{ggplot}} object.
+#' @export
 plot.GPAim <- function(x,
                        type        = c("caterpillar", "heatmap", "density"),
                        # --- caterpillar args ---

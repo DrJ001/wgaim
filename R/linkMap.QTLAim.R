@@ -5,7 +5,37 @@
 # Note: the linkMap() generic and linkMap.cross() are defined in wgaim16.R.
 # =============================================================================
 
-linkMap.QTLAim <- function(object, intervalObj, chr, chr.dist,
+#' @describeIn QTLAim Plot the genetic linkage map with detected QTL overlaid
+#'   as coloured polygons (interval mode) or points (marker mode). QTL regions
+#'   are annotated with flanking marker names and connected to trait labels by
+#'   leader lines. Multiple traits can be overlaid using different colours by
+#'   passing a list of \code{QTLAim} objects to \code{\link{linkMap.default}}.
+#' @param object A \code{QTLAim} object.
+#' @param intervalObj The \code{"cross"} or \code{"interval"} object used in
+#'   the analysis.
+#' @param chr Optional character vector of chromosome names to display. Default
+#'   is all chromosomes carrying at least one detected QTL.
+#' @param chr.dist Optional named list with elements \code{$start} and/or
+#'   \code{$end} (numeric vectors of cM positions) to restrict the displayed
+#'   map range per chromosome.
+#' @param marker.names Character string controlling marker label display:
+#'   \code{"markers"} (default, show marker names), \code{"dist"} (show cM
+#'   positions), or \code{NULL} (no marker labels, compact display).
+#' @param flanking Logical. If \code{TRUE} (default), only the flanking markers
+#'   of detected QTL intervals are annotated, reducing clutter.
+#' @param list.col Named list with colour specifications: \code{$q.col} (QTL
+#'   fill colour, default \code{"light blue"}), \code{$m.col} (flanking marker
+#'   label colour, default \code{"red"}), \code{$t.col} (trait label colour,
+#'   default same as \code{q.col}).
+#' @param list.cex Named list with text size specifications: \code{$t.cex}
+#'   (trait label size, default \code{0.6}), \code{$m.cex} (marker label size,
+#'   default \code{0.6}).
+#' @param trait.labels Optional character vector of trait label(s) to display.
+#'   Defaults to the response variable name from the model formula.
+#' @param tick Logical. If \code{TRUE}, tick marks are drawn on the chromosome
+#'   axis. Default \code{FALSE}.
+#' @export
+linkMap.QTLAim <- function (object, intervalObj, chr, chr.dist,
                             marker.names = "markers", flanking = TRUE,
                             list.col = list(q.col = "light blue",
                                             m.col = "red",

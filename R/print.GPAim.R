@@ -3,6 +3,13 @@
 # S3 print method for GPAim objects.
 # =============================================================================
 
+#' @describeIn GPAim Print a concise summary of the genomic prediction to the
+#'   console, reporting the number of genotyped lines and markers, the
+#'   computational path used (\code{"vm"} or \code{"mbf"}), estimated genetic
+#'   and residual variance components, narrow-sense heritability, and the
+#'   range of GEBVs.
+#' @param x A \code{GPAim} object.
+#' @export
 print.GPAim <- function(x, ...) {
     gp <- x$GP
     cat("\nGenomic Prediction (G-BLUP)\n")

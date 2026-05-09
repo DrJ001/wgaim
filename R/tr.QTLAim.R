@@ -5,6 +5,19 @@
 # Note: the tr() generic is defined in wgaim16.R and is already available.
 # =============================================================================
 
+#' @describeIn QTLAim Print the incremental QTL p-value matrix — a table showing
+#'   the p-value of each detected QTL at every iteration of the forward
+#'   selection where it was present in the model. Also optionally prints the
+#'   likelihood ratio test table showing the LRT statistic and p-value at each
+#'   iteration. Useful for assessing the stability of QTL effects as additional
+#'   QTL are added.
+#' @param object A \code{QTLAim} object.
+#' @param iter Integer vector specifying which iterations to display. Default
+#'   is all iterations: \code{1:length(object\$QTL\$effects)}.
+#' @param lik.out Logical. If \code{TRUE} (default), the likelihood ratio test
+#'   table is also printed, showing the base and full model log-likelihoods,
+#'   the LRT statistic, and its p-value at each iteration.
+#' @export
 tr.QTLAim <- function(object, iter = 1:length(object$QTL$effects),
                       lik.out = TRUE, ...) {
     dots <- list(...)

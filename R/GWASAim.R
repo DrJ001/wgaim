@@ -12,12 +12,150 @@
 #   - Returns class c('GWASAim', 'asreml')
 # =============================================================================
 
+#' GWAS Analyses via Integrated Modelling
+#'
+#' @description
+#' Performs forward-selection genome-wide association analysis in diversity
+#' panels using the whole-genome composite model framework of Verbyla et al.
+#' (2007, 2012). All panel markers are included simultaneously as a composite
+#' genome-wide random effect; at each iteration the marker with the highest
+#' outlier statistic is nominated and tested for significance via a likelihood
+#' ratio test (LRT). Significant markers are added as fixed effects and the
+#' process repeats until no further associations are detected.
+#'
+#' \code{GWASAim} differs from \code{\link{QTLAim}} in three important ways:
+#' \enumerate{
+#'   \item Input is a \code{"panel"} object from \code{\link{makePanel}}
+#'     rather than an \code{"interval"} object from \code{cross2int}.
+#'   \item Marker effects are always treated as fixed effects
+#'     (\code{method = "fixed"} is hard-coded), consistent with standard
+#'     GWAS practice.
+#'   \item Selection is always at the individual marker level
+#'     (\code{selection = "interval"} is hard-coded), not chromosome-level
+#'     aggregation.
+#' }
+#'
+#' @param baseModel A converged \code{asreml} model object representing the
+#'   null model. Should capture non-genetic sources of variation (spatial
+#'   effects, experimental design terms) and any known population structure
+#'   covariates. If the model has not converged, one update is attempted
+#'   automatically.
+#' @param panelObj An object of class \code{"panel"} produced by
+#'   \code{\link{makePanel}}. Contains per-chromosome marker genotype matrices
+#'   in additive \eqn{\pm 1} coding, used to construct the genome-wide
+#'   composite term.
+#' @param merge.by Character string naming the column present in both the
+#'   phenotypic data and \code{panelObj} that links lines across datasets.
+#' @param fix.lines Logical. If \code{TRUE} (default), phenotyped lines absent
+#'   from \code{panelObj} are handled by adding a fixed \code{Gomit} factor,
+#'   restricting variance estimation to genotyped lines only. See
+#'   \code{\link{QTLAim}} for full details.
+#' @param force Logical. If \code{FALSE} (default), the algorithm
+#'   automatically uses the \strong{vm} path (genomic relationship matrix)
+#'   when markers exceed lines, and the \strong{mbf} path otherwise. In
+#'   practice, diversity panels almost always have more markers than lines
+#'   so the vm path is typically taken. Set \code{force = TRUE} to override
+#'   and use the mbf path regardless.
+#' @param exclusion.window Numeric scalar giving the exclusion distance in
+#'   cM around each detected marker. Markers within this window are excluded
+#'   from selection in subsequent iterations. Default is \code{20} cM.
+#'   In GWAS this is a proxy for linkage disequilibrium-based exclusion;
+#'   users in high-LD populations may wish to increase this value.
+#' @param breakout Integer. If positive, terminates the algorithm after that
+#'   many iterations, returning diagnostics without adding the final marker
+#'   as a fixed effect. Default is \code{-1} (run to completion).
+#' @param TypeI Numeric scalar giving the significance level for the LRT.
+#'   Default is \code{0.05}. \strong{No Bonferroni correction is applied.}
+#'   The LRT tests the additive variance parameter of the composite
+#'   genome-wide term — a single test per iteration, not one per marker —
+#'   so \code{TypeI = 0.05} already acts as a family-wise error rate. This
+#'   has been empirically validated for the wgaim algorithm; see Details.
+#' @param trace Logical or character string. If \code{TRUE} (default),
+#'   ASReml output is printed to the console. If a character string giving
+#'   a file path, output is redirected there (errors, warnings and detection
+#'   messages still appear on screen).
+#' @param verboseLev Integer, \code{0} (default) or \code{1}. At \code{1},
+#'   per-marker outlier statistics are printed at each iteration.
+#' @param \dots Additional arguments passed to \code{update.asreml}, such as
+#'   \code{na.action = na.method(x = "include")}.
+#'
+#' @details
+#' \strong{Why TypeI = 0.05 without Bonferroni:}
+#' In standard single-marker GWAS, \eqn{n} LRTs are performed (one per
+#' marker) and a Bonferroni correction (\eqn{\alpha / n}) is needed. In the
+#' \code{GWASAim} forward-selection framework, at each iteration \emph{only
+#' one} LRT is performed: it tests whether the additive variance parameter of
+#' the \emph{entire composite genome-wide term} (all remaining markers
+#' simultaneously) is significantly greater than zero. This single omnibus
+#' test controls the family-wise error rate directly, making an additional
+#' Bonferroni correction double-counting. Empirical type I error rate studies
+#' confirm that \code{TypeI = 0.05} achieves approximately 5\% family-wise
+#' error control under the null.
+#'
+#' \strong{Outlier statistic vs. p-value:}
+#' The outlier statistic \eqn{\tilde{q}_i^2 / \tilde{v}_i} is a
+#' \emph{ranking} tool that nominates the most likely associated marker; it
+#' is derived from conditional BLUPs in the genome-wide model and should not
+#' be converted to per-marker p-values via a chi-squared distribution.
+#' Formal significance comes only from the LRT. Visualise the selection
+#' process with \code{\link{manhattan.GWASAim}}.
+#'
+#' @return An object of class \code{c("GWASAim","asreml")} — the final fitted
+#'   ASReml model augmented with a \code{$QTL} list (structured identically
+#'   to \code{\link{QTLAim}}) plus GWAS-specific fields:
+#' \describe{
+#'   \item{\code{$TypeI}}{The significance threshold used.}
+#'   \item{\code{$n.markers}}{Total number of markers in the panel.}
+#' }
+#'
+#' @references
+#' Verbyla, A.P., Cullis, B.R. and Thompson, R. (2007). The analysis of QTL
+#' by simultaneous use of the full linkage map. \emph{Theoretical and Applied
+#' Genetics}, \bold{116}, 95--111.
+#'
+#' Verbyla, A.P., Taylor, J.D. and Verbyla, K.L. (2012). RWGAIM: An efficient
+#' high-dimensional random whole genome average (QTL) interval mapping approach.
+#' \emph{Genetics Research}, \bold{94}, 291--306.
+#'
+#' @seealso \code{\link{makePanel}}, \code{\link{summary.GWASAim}},
+#'   \code{\link{print.GWASAim}}, \code{\link{manhattan.GWASAim}},
+#'   \code{\link{QTLAim}}, \code{\link{GPAim}}
+#'
+#' @examples
+#' \dontrun{
+#' library(asreml)
+#'
+#' # Build panel object from 0/1/2 encoded genotype matrix
+#' panel <- makePanel(geno = geno.mat, map = map.df,
+#'                    encoding = "012", maf = 0.05)
+#' panel$pheno$line <- factor(line.ids)
+#'
+#' # Null base model capturing experimental structure
+#' base.mod <- asreml(yield ~ rep,
+#'                    random   = ~ line,
+#'                    data     = pheno.df)
+#'
+#' # Forward-selection GWAS
+#' gwas.fit <- GWASAim(base.mod, panelObj = panel,
+#'                     merge.by = "line", TypeI = 0.05,
+#'                     trace    = "trace.txt",
+#'                     na.action = na.method(x = "include"))
+#'
+#' print(gwas.fit,   panelObj = panel)
+#' summary(gwas.fit, panelObj = panel)
+#' manhattan(gwas.fit, panelObj = panel)
+#' }
+#'
+#' @name GWASAim
+#' @export
 GWASAim <- function(baseModel, ...)
     UseMethod("GWASAim")
 
+#' @exportS3Method
 GWASAim.default <- function(baseModel, ...)
     stop("Currently the only supported method is \"asreml\".")
 
+#' @exportS3Method
 GWASAim.asreml <- function(baseModel, panelObj, merge.by = NULL,
                             fix.lines = TRUE, force = FALSE,
                             exclusion.window = 20, breakout = -1,

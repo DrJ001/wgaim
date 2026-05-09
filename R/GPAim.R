@@ -21,12 +21,159 @@
 #   TypeI           - no significance testing
 # =============================================================================
 
+#' Genomic Prediction via Integrated Modelling
+#'
+#' @description
+#' Fits a genomic best linear unbiased prediction (G-BLUP) model and extracts
+#' genomic estimated breeding values (GEBVs) for all genotyped lines. Two
+#' computational paths are used depending on the relationship between the
+#' number of markers and lines:
+#'
+#' \describe{
+#'   \item{\strong{vm path} (markers > lines)}{Constructs the genomic
+#'     relationship matrix \eqn{G = XX'/s} (where \eqn{X} is the marker
+#'     matrix and \eqn{s} is a scaling constant) and fits
+#'     \code{vm(line, G)} as the genetic random effect in ASReml. GEBVs
+#'     are the predicted values of this random effect, obtained via
+#'     \code{\link[asreml]{predict.asreml}}.}
+#'   \item{\strong{mbf path} (lines \eqn{\ge} markers)}{Models marker effects
+#'     \eqn{\mathbf{q}} directly as i.i.d. random effects via ASReml's
+#'     \code{mbf()} facility. GEBVs are then computed as
+#'     \eqn{\hat{\mathbf{g}} = M\hat{\mathbf{q}}}, where \eqn{M} is the
+#'     \eqn{(\text{lines} \times \text{markers})} genotype matrix and
+#'     \eqn{\hat{\mathbf{q}}} are the marker effect BLUPs. This avoids the
+#'     singularity of \eqn{G} when lines equal or exceed markers.}
+#' }
+#'
+#' @param baseModel A converged \code{asreml} model object representing the
+#'   null model without any genomic genetic term. Should capture experimental
+#'   design effects, spatial terms, and fixed covariates. The genetic line
+#'   term should be included in the random formula; it is removed internally
+#'   and replaced by the genomic term. If the model has not converged, one
+#'   update attempt is made automatically.
+#' @param genoObj A genotypic data object of class \code{"interval"} (from
+#'   \code{\link[wgaim]{cross2int}}, for biparental populations) or class
+#'   \code{"panel"} (from \code{\link{makePanel}}, for diversity panels).
+#'   Must contain per-chromosome genotype matrices accessible at
+#'   \code{$geno[[chr]]$imputed.data} (marker mode) or
+#'   \code{$geno[[chr]]$interval.data} (interval mode).
+#' @param merge.by Character string naming the column present in both the
+#'   phenotypic data and \code{genoObj} linking lines across datasets.
+#' @param fix.lines Logical. If \code{TRUE} (default), lines in the
+#'   phenotypic data that are absent from \code{genoObj} are accommodated
+#'   by adding a fixed \code{Gomit} factor and restricting the genomic
+#'   random effect to genotyped lines only. See \code{\link{QTLAim}} for
+#'   full details.
+#' @param gen.type Character string, either \code{"marker"} (default) or
+#'   \code{"interval"}. Determines which genotype scores are used to build
+#'   the marker matrix \eqn{M}. \code{"marker"} uses imputed marker
+#'   scores (\code{$imputed.data}); \code{"interval"} uses interval
+#'   midpoint scores (\code{$interval.data}) and requires an
+#'   \code{"interval"} class \code{genoObj}. For diversity panels
+#'   (\code{"panel"} class), \code{gen.type = "marker"} is required.
+#' @param force Logical. If \code{FALSE} (default), the vm path is used when
+#'   markers exceed lines and the mbf path otherwise (automatic selection).
+#'   Set \code{force = TRUE} to always use the mbf path regardless of the
+#'   markers-to-lines ratio. The two paths are statistically equivalent.
+#' @param trace Logical or character string. If \code{TRUE} (default), ASReml
+#'   output is printed to the console. If a file path character string, output
+#'   is redirected there.
+#' @param \dots Additional arguments passed to \code{update.asreml}, such as
+#'   \code{na.action = na.method(x = "include")}.
+#'
+#' @details
+#' \strong{GEBV standard errors under the mbf path:}
+#' For the mbf path, GEBV standard errors are computed using a diagonal
+#' approximation: \eqn{SE(\hat{g}_i) \approx \sqrt{M_i^2 \cdot
+#' PEV(\hat{q})}}, where \eqn{M_i} is row \eqn{i} of the marker matrix
+#' and \eqn{PEV(\hat{q})} is the vector of prediction error variances for
+#' the marker effects. This approximation treats marker effects as
+#' independent, ignoring their covariances, and may underestimate true
+#' standard errors somewhat.
+#'
+#' \strong{Heritability:}
+#' Narrow-sense heritability is estimated as
+#' \eqn{h^2 = V_g / (V_g + V_e)}, where \eqn{V_g} is the estimated
+#' additive genetic variance and \eqn{V_e} is the residual variance. For
+#' the vm path, \eqn{V_g = \sigma^2 \cdot \lambda_{vm}} where
+#' \eqn{\lambda_{vm}} is the vm variance parameter. For the mbf path,
+#' \eqn{V_g = \sigma^2 \cdot \lambda_{mbf} \cdot \overline{\sum_j m_{ij}^2}},
+#' where \eqn{\overline{\sum_j m_{ij}^2}} is the mean sum of squared marker
+#' scores per line.
+#'
+#' \strong{Genomic relationship matrix:}
+#' The relationship matrix \eqn{G} is stored in the returned object
+#' (\code{$GP$rel.matrix}) for both paths and is used by
+#' \code{\link{plot.GPAim}} to produce the relatedness heatmap. For the
+#' vm path this is the matrix used in model fitting; for the mbf path it
+#' is computed as \eqn{MM'/s} from the fitted marker matrix.
+#'
+#' @return An object of class \code{c("GPAim","asreml")} — the fitted ASReml
+#'   model augmented with a \code{$GP} list containing:
+#' \describe{
+#'   \item{\code{$gebv}}{A \code{data.frame} with columns for the line
+#'     identifier, \code{GEBV} (genomic estimated breeding value), and
+#'     \code{SE} (standard error of the GEBV).}
+#'   \item{\code{$gen.type}}{The genotype data type used (\code{"marker"} or
+#'     \code{"interval"}).}
+#'   \item{\code{$path}}{The computational path used (\code{"vm"} or
+#'     \code{"mbf"}).}
+#'   \item{\code{$var.genetic}}{Estimated additive genetic variance \eqn{V_g}.}
+#'   \item{\code{$var.resid}}{Estimated residual variance \eqn{V_e}.}
+#'   \item{\code{$heritability}}{Estimated narrow-sense heritability
+#'     \eqn{h^2 = V_g/(V_g + V_e)}.}
+#'   \item{\code{$n.markers}}{Number of markers used.}
+#'   \item{\code{$rel.matrix}}{The genomic relationship matrix \eqn{G},
+#'     stored for use in \code{\link{plot.GPAim}}.}
+#'   \item{\code{$genetic.term}}{The name of the genetic line identifier
+#'     column (as named in the returned \code{$gebv} data frame).}
+#' }
+#' Additionally, the (possibly modified) phenotypic data frame is assigned
+#' to \code{<response>.data} in the calling environment.
+#'
+#' @seealso \code{\link{print.GPAim}}, \code{\link{summary.GPAim}},
+#'   \code{\link{plot.GPAim}}, \code{\link{makePanel}},
+#'   \code{\link[wgaim]{cross2int}}, \code{\link{QTLAim}},
+#'   \code{\link{GWASAim}}
+#'
+#' @examples
+#' \dontrun{
+#' library(asreml)
+#'
+#' # --- Diversity panel (vm path, markers > lines) ---
+#' panel <- makePanel(geno = geno.mat, map = map.df, encoding = "012")
+#' panel$pheno$line <- factor(line.ids)
+#' base.mod <- asreml(yield ~ rep, random = ~ line, data = pheno.df)
+#'
+#' gp.fit <- GPAim(base.mod, genoObj = panel, merge.by = "line",
+#'                 trace = "trace.txt",
+#'                 na.action = na.method(x = "include"))
+#'
+#' print(gp.fit)
+#' summary(gp.fit)
+#' plot(gp.fit, type = "caterpillar")
+#' plot(gp.fit, type = "heatmap")
+#' plot(gp.fit, type = "density", prop.select = 0.10)
+#'
+#' # --- Biparental population (interval mode) ---
+#' data(genoRxK, package = "wgaim")
+#' genoRxK <- cross2int(genoRxK, impute = "Martinez", id = "Genotype")
+#' base.mod2 <- asreml(yld ~ Type, random = ~ Genotype, data = phenoRxK)
+#'
+#' gp.fit2 <- GPAim(base.mod2, genoObj = genoRxK,
+#'                  merge.by = "Genotype", gen.type = "interval")
+#' }
+#'
+#' @name GPAim
+#' @export
 GPAim <- function(baseModel, ...)
     UseMethod("GPAim")
 
+#' @exportS3Method
 GPAim.default <- function(baseModel, ...)
     stop("Currently the only supported method is \"asreml\".")
 
+#' @exportS3Method
 GPAim.asreml <- function(baseModel, genoObj, merge.by = NULL,
                           fix.lines = TRUE, gen.type = "marker",
                           force = FALSE, trace = TRUE, ...) {

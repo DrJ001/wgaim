@@ -4,6 +4,13 @@
 # Returns the GEBV data frame sorted descending by GEBV value.
 # =============================================================================
 
+#' @describeIn GPAim Return and print the full GEBV table, sorted from highest
+#'   to lowest GEBV. The returned \code{data.frame} contains the line
+#'   identifier column, \code{GEBV} (genomic estimated breeding value), and
+#'   \code{SE} (standard error of the GEBV). A header line reports the
+#'   estimated heritability, number of lines, and number of markers.
+#' @param object A \code{GPAim} object.
+#' @export
 summary.GPAim <- function(object, ...) {
     gp   <- object$GP
     gebv <- gp$gebv

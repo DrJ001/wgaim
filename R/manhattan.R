@@ -8,9 +8,43 @@
 # already been determined by the forward selection algorithm.
 # =============================================================================
 
+#' Manhattan Plot for GWASAim Objects
+#'
+#' @description
+#' Produces a genome-wide Manhattan plot of outlier statistics from a
+#' \code{\link{GWASAim}} forward-selection analysis, with one facet per
+#' requested iteration. Each facet shows the outlier statistic for all active
+#' markers at that iteration, with the marker selected as significant at that
+#' iteration highlighted and labelled. No significance threshold line is drawn:
+#' significant markers have already been determined by the forward-selection
+#' likelihood ratio test.
+#'
+#' @param object A \code{GWASAim} object.
+#' @param \dots Additional arguments passed to methods.
+#'
+#' @name manhattan
+#' @export
 manhattan <- function(object, ...)
     UseMethod("manhattan")
 
+#' @describeIn manhattan Manhattan plot for a \code{GWASAim} object.
+#' @param object A \code{GWASAim} object.
+#' @param panelObj The \code{"panel"} object passed to \code{GWASAim}, used
+#'   to look up marker cM positions for the x-axis.
+#' @param iter Integer vector of iterations to display. Default is all stored
+#'   iterations (\code{NULL}). Each iteration produces one facet panel.
+#' @param chr Optional character vector of chromosome names to display. Default
+#'   is all chromosomes.
+#' @param pt.col Character vector of length 2 giving alternating chromosome
+#'   point colours. Default is \code{c("steelblue","grey50")}.
+#' @param sig.col Colour used to highlight and label the significant marker
+#'   in each facet. Default is \code{"red"}.
+#' @param pt.cex Numeric point size. Default is \code{0.6}.
+#' @return A \code{\link[ggplot2]{ggplot}} object. The y-axis shows the raw
+#'   outlier statistic \eqn{\tilde{q}_i^2 / \tilde{v}_i} (not a transformed
+#'   p-value). The selected marker in each iteration is shown as a larger
+#'   coloured diamond with its marker name as a label.
+#' @export
 manhattan.GWASAim <- function(object, panelObj,
                                iter    = NULL,
                                chr     = NULL,

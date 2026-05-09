@@ -3,6 +3,19 @@
 # S3 summary method for QTLAim objects.
 # =============================================================================
 
+#' @describeIn QTLAim Produce a detailed summary table of detected QTL, sorted
+#'   by chromosome and position. Returns a \code{data.frame} with columns for
+#'   chromosome, flanking markers and their cM positions, inferred interval
+#'   midpoint, QTL effect size, p-value or posterior probability, percentage of
+#'   phenotypic variance explained, and (optionally) LOD score. Returns
+#'   \code{NULL} invisibly if no QTL were detected.
+#' @param object A \code{QTLAim} object.
+#' @param intervalObj The \code{"interval"} or \code{"cross"} object used in
+#'   the analysis, required to resolve QTL positions.
+#' @param LOD Logical. If \code{TRUE} (default), a LOD score column is
+#'   appended to the summary table. LOD is computed from the Wald z-statistic
+#'   as \eqn{0.5 \log_{10}(\exp(z^2))}.
+#' @export
 summary.QTLAim <- function(object, intervalObj, LOD = TRUE, ...) {
     if (missing(intervalObj))
         stop("intervalObj is a required argument.")

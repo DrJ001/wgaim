@@ -3,6 +3,13 @@
 # S3 print method for GWASAim objects.
 # =============================================================================
 
+#' @describeIn GWASAim Print a brief summary of significant markers to the
+#'   console, listing the chromosome, marker name, and cM position of each
+#'   detected association. Also reports the significance threshold and total
+#'   number of markers tested.
+#' @param x A \code{GWASAim} object.
+#' @param panelObj The \code{"panel"} object passed to \code{GWASAim}.
+#' @export
 print.GWASAim <- function(x, panelObj, ...) {
     if (missing(panelObj))
         stop("panelObj is a required argument.")
