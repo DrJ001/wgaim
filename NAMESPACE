@@ -32,7 +32,15 @@ QTLAim.default,
 print.QTLAim,
 summary.QTLAim,
 tr.QTLAim,
-linkMap.QTLAim)
+linkMap.QTLAim,
+makePanel,
+GWASAim,
+GWASAim.asreml,
+GWASAim.default,
+print.GWASAim,
+summary.GWASAim,
+manhattan,
+manhattan.GWASAim)
 
 ##[S3 Methods]
 S3method(summary, wgaim)
@@ -49,4 +57,9 @@ S3method(summary, QTLAim)
 S3method(print, QTLAim)
 S3method(linkMap, QTLAim)
 S3method(tr, QTLAim)
+S3method(GWASAim, asreml)
+S3method(GWASAim, default)
+S3method(summary, GWASAim)
+S3method(print, GWASAim)
+S3method(manhattan, GWASAim)
 
