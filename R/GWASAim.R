@@ -21,7 +21,7 @@ GWASAim.default <- function(baseModel, ...)
 GWASAim.asreml <- function(baseModel, panelObj, merge.by = NULL,
                             fix.lines = TRUE, force = FALSE,
                             exclusion.window = 20, breakout = -1,
-                            TypeI = 0.05, bonferroni = TRUE,
+                            TypeI = 0.05,
                             trace = TRUE, verboseLev = 0, ...) {
 
     # Hard-coded engine constants — not user-configurable for GWAS:
@@ -72,14 +72,13 @@ GWASAim.asreml <- function(baseModel, panelObj, merge.by = NULL,
     mnams    <- gd$mnams
     state    <- gd$state
 
-    # Apply Bonferroni correction to significance threshold
+    # TypeI is used directly as the LRT threshold. No multiple-testing
+    # correction is needed: the LRT tests the additive variance parameter of
+    # the entire genome-wide composite term (not individual markers), so TypeI
+    # already acts as a family-wise error rate.
     n.markers <- ncol(genoData)
-    TypeI.eff <- if (bonferroni) TypeI / n.markers else TypeI
-    if (bonferroni) {
-        cat("\nBonferroni-adjusted significance threshold:",
-            formatC(TypeI.eff, format = "e", digits = 3),
-            sprintf("(TypeI=%.3f / %d markers)\n", TypeI, n.markers))
-    }
+    cat(sprintf("\nGWAS significance threshold (TypeI): %.4f  (%d markers in panel)\n",
+                TypeI, n.markers))
 
     # Phase 2b: Handle lines present in phenotypic but absent from panel
     fl           <- .fixLines(baseModel, phenoData, genoData, merge.by, plines, fix.lines, ...)
@@ -116,8 +115,9 @@ GWASAim.asreml <- function(baseModel, panelObj, merge.by = NULL,
         ldiag$ochr[[iter]] <- selq$ochr
         ldiag$blups[[iter]] <- selq$blups
 
-        # Likelihood ratio test with Bonferroni-adjusted threshold
-        lrt               <- .lrtTest(qtlModel, baseModel, TypeI.eff)
+        # Likelihood ratio test: tests significance of the additive variance
+        # parameter of the genome-wide composite term (not individual markers)
+        lrt               <- .lrtTest(qtlModel, baseModel, TypeI)
         ldiag$lik[[iter]] <- c(lrt$baseLogL, qtlModel$loglik, lrt$stat, lrt$pvalue)
         if (!lrt$pass | breakout == iter) break
 
@@ -155,12 +155,11 @@ GWASAim.asreml <- function(baseModel, panelObj, merge.by = NULL,
     # -------------------------------------------------------------------------
     # Phase 5: Package results and clean up
     # -------------------------------------------------------------------------
-    qtl.list            <- .packResults(qtl, coef.list, vcoef.list, ldiag, state,
-                                         iter, breakout, cov.env, genetic.term,
-                                         method, "marker", selection)
-    qtl.list$bonferroni <- bonferroni
-    qtl.list$TypeI.eff  <- TypeI.eff
-    qtl.list$n.markers  <- n.markers
+    qtl.list           <- .packResults(qtl, coef.list, vcoef.list, ldiag, state,
+                                        iter, breakout, cov.env, genetic.term,
+                                        method, "marker", selection)
+    qtl.list$TypeI     <- TypeI
+    qtl.list$n.markers <- n.markers
 
     data.name <- paste(as.character(baseModel$call$fixed[2]), "data", sep = ".")
     assign(data.name, phenoData, envir = caller.env)

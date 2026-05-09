@@ -8,13 +8,8 @@ print.GWASAim <- function(x, panelObj, ...) {
         stop("panelObj is a required argument.")
     if (!inherits(panelObj, "panel"))
         stop("panelObj must be of class \"panel\".")
-    bonf.str <- if (isTRUE(x$QTL$bonferroni))
-        sprintf("Bonferroni-adjusted threshold: %s (%d markers)",
-                formatC(x$QTL$TypeI.eff, format = "e", digits = 3),
-                x$QTL$n.markers)
-    else
-        sprintf("Significance threshold: %.4f (no Bonferroni correction)", x$QTL$TypeI.eff)
-    cat("\nGWAS forward selection -", bonf.str, "\n")
+    cat(sprintf("\nGWAS forward selection  TypeI = %.4f  (%d markers in panel)\n",
+                x$QTL$TypeI, x$QTL$n.markers))
     if (is.null(x$QTL$effects)) {
         cat("No significant markers detected.\n")
     } else {

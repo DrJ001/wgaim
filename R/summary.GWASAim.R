@@ -71,12 +71,7 @@ summary.GWASAim <- function(object, panelObj, LOD = TRUE, ...) {
     qtab <- qtab[order(qtab$Chromosome, qtab[["dist(cM)"]], na.last = TRUE), ]
     rownames(qtab) <- NULL
 
-    bonf.str <- if (isTRUE(object$QTL$bonferroni))
-        sprintf("Bonferroni threshold: %s (%d markers tested)",
-                formatC(object$QTL$TypeI.eff, format = "e", digits = 3),
-                object$QTL$n.markers)
-    else
-        sprintf("Threshold: %.4f (no correction)", object$QTL$TypeI.eff)
-    attr(qtab, "threshold") <- bonf.str
+    attr(qtab, "threshold") <- sprintf("TypeI = %.4f  (%d markers in panel)",
+                                        object$QTL$TypeI, object$QTL$n.markers)
     qtab
 }
