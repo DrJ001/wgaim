@@ -184,6 +184,17 @@ GPAim.asreml <- function(baseModel, genoObj, merge.by = NULL,
     # -------------------------------------------------------------------------
     # Package results and clean up
     # -------------------------------------------------------------------------
+    # Genomic relationship matrix — stored for heatmap plot.
+    # vm path: already computed; mbf path: compute M %*% M' / scale on demand.
+    if (use.vm) {
+        rel.matrix <- cov.env$relm
+    } else {
+        tg         <- t(genoData)
+        relm.raw   <- crossprod(tg)
+        rel.scale2 <- mean(diag(relm.raw))
+        rel.matrix <- relm.raw / rel.scale2
+    }
+
     gp.list <- list(
         gebv         = gebv,
         gen.type     = gen.type,
@@ -192,7 +203,8 @@ GPAim.asreml <- function(baseModel, genoObj, merge.by = NULL,
         var.resid    = as.numeric(var.resid),
         heritability = h2,
         n.markers    = n.markers,
-        rel.scale    = if (use.vm) cov.env$scale else 1,
+        rel.scale    = if (use.vm) cov.env$scale else rel.scale2,
+        rel.matrix   = rel.matrix,
         genetic.term = genetic.term
     )
 
