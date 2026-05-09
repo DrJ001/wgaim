@@ -40,7 +40,13 @@ GWASAim.default,
 print.GWASAim,
 summary.GWASAim,
 manhattan,
-manhattan.GWASAim)
+manhattan.GWASAim,
+GPAim,
+GPAim.asreml,
+GPAim.default,
+print.GPAim,
+summary.GPAim,
+plot.GPAim)
 
 ##[S3 Methods]
 S3method(summary, wgaim)
@@ -62,4 +68,9 @@ S3method(GWASAim, default)
 S3method(summary, GWASAim)
 S3method(print, GWASAim)
 S3method(manhattan, GWASAim)
+S3method(GPAim, asreml)
+S3method(GPAim, default)
+S3method(print, GPAim)
+S3method(summary, GPAim)
+S3method(plot, GPAim)
 
