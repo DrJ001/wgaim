@@ -81,8 +81,10 @@ summary.QTLAim <- function(object, intervalObj, LOD = TRUE, ...) {
     }
     if (LOD)
         qtab$LOD <- lod
+    # Sort by chromosome then by inferred/marker position (3rd column for interval, 2nd for marker)
+    pos.col <- if (object$QTL$type == "interval") 3 else 2
     qtab <- qtab[order(as.numeric(qtab$Chromosome),
-                       as.numeric(qtab[, if (object$QTL$type == "interval") "dist(cM).1" else "dist(cM)"]), 
+                       as.numeric(qtab[, pos.col]),
                        na.last = TRUE), ]
     rownames(qtab) <- NULL
     qtab

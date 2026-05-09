@@ -25,7 +25,14 @@ qtlTable,
 summary.wgaim,
 wgaim,
 wgaim.asreml,
-wgaim.default)
+wgaim.default,
+QTLAim,
+QTLAim.asreml,
+QTLAim.default,
+print.QTLAim,
+summary.QTLAim,
+tr.QTLAim,
+linkMap.QTLAim)
 
 ##[S3 Methods]
 S3method(summary, wgaim)
@@ -36,4 +43,10 @@ S3method(linkMap, cross)
 S3method(linkMap, default)
 S3method(wgaim, asreml)
 S3method(wgaim, default)
+S3method(QTLAim, asreml)
+S3method(QTLAim, default)
+S3method(summary, QTLAim)
+S3method(print, QTLAim)
+S3method(linkMap, QTLAim)
+S3method(tr, QTLAim)
 
