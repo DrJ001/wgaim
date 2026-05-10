@@ -27,7 +27,7 @@ whole-genome inference:
 
 | Pillar | Function | Description |
 |---|---|---|
-| QTL detection | `qtlAim()` | Forward-selection whole-genome average interval mapping in biparental populations |
+| QTL detection | `qtlAim()` | Forward-selection whole-genome marker or interval mapping in biparental populations |
 | GWAS | `gwasAim()` | Forward-selection genome-wide association analysis in diversity panels |
 | Genomic prediction | `gpAim()` | Genomic best linear unbiased prediction (G-BLUP) delivering GEBVs |
 
