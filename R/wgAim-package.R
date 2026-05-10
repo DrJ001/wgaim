@@ -6,11 +6,11 @@
 #' ASReml-R linear mixed modelling engine:
 #'
 #' \describe{
-#'   \item{\code{\link{QTLAim}}}{Forward-selection QTL detection in biparental
+#'   \item{\code{\link{qtlAim}}}{Forward-selection QTL detection in biparental
 #'     mapping populations using whole-genome average interval mapping.}
-#'   \item{\code{\link{GWASAim}}}{Forward-selection genome-wide association
+#'   \item{\code{\link{gwasAim}}}{Forward-selection genome-wide association
 #'     analysis in diversity panels using the same composite genome-wide model.}
-#'   \item{\code{\link{GPAim}}}{Genomic best linear unbiased prediction
+#'   \item{\code{\link{gpAim}}}{Genomic best linear unbiased prediction
 #'     (G-BLUP) delivering genomic estimated breeding values (GEBVs) via either
 #'     a genomic relationship matrix (vm path) or direct marker effect
 #'     estimation (mbf path).}
@@ -26,17 +26,12 @@
 #'
 #' \strong{Data preparation:}
 #' \itemize{
-#'   \item Biparental mapping populations: use \code{\link[wgaim]{cross2int}}
-#'     from the legacy \code{wgaim} functions to prepare an \code{"interval"}
-#'     object for \code{QTLAim} or \code{GPAim}.
+#'   \item Biparental mapping populations: use \code{cross2int} from the
+#'     \code{wgaim} package to prepare an \code{"interval"} object for
+#'     \code{qtlAim} or \code{gpAim}.
 #'   \item Diversity panels: use \code{\link{makePanel}} to prepare a
-#'     \code{"panel"} object for \code{GWASAim} or \code{GPAim}.
+#'     \code{"panel"} object for \code{gwasAim} or \code{gpAim}.
 #' }
-#'
-#' \strong{Legacy functions:}
-#' The original \code{\link{wgaim}} QTL analysis function and its associated
-#' utilities (\code{cross2int}, \code{fixMap}, \code{fineMap}, \code{linkMap},
-#' \code{outStat}, etc.) remain fully available for backward compatibility.
 #'
 #' @references
 #' Verbyla, A.P., Taylor, J.D. and Verbyla, K.L. (2012). RWGAIM: An efficient
@@ -51,31 +46,4 @@
 #' @aliases wgAim
 #'
 #' @import stats utils graphics grDevices qtl ggplot2
-#'
-#' @rawNamespace
-#'   export(wgaim)
-#'   export(wgaim.asreml)
-#'   export(wgaim.default)
-#'   export(cross2int)
-#'   export(fineMap)
-#'   export(fixMap)
-#'   export(getQTL)
-#'   export(linkMap)
-#'   export(linkMap.cross)
-#'   export(linkMap.default)
-#'   export(linkMap.wgaim)
-#'   export(outStat)
-#'   export(print.wgaim)
-#'   export(tr.wgaim)
-#'   export(qtlSelect)
-#'   export(qtlTable)
-#'   export(summary.wgaim)
-#'   S3method(summary, wgaim)
-#'   S3method(print, wgaim)
-#'   S3method(linkMap, wgaim)
-#'   S3method(tr, wgaim)
-#'   S3method(linkMap, cross)
-#'   S3method(linkMap, default)
-#'   S3method(wgaim, asreml)
-#'   S3method(wgaim, default)
 NULL

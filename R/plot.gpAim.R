@@ -1,6 +1,6 @@
 # =============================================================================
-# plot.GPAim.R
-# S3 plot method for GPAim objects.
+# plot.gpAim.R
+# S3 plot method for gpAim objects.
 #
 # type = "caterpillar" (default)
 #   Ranked GEBV plot with half-HSD comparison bars. Half-HSD bars are shown
@@ -19,7 +19,7 @@
 #   selection differential.
 # =============================================================================
 
-#' @describeIn GPAim Produce one of three diagnostic plots for a \code{GPAim}
+#' @describeIn gpAim Produce one of three diagnostic plots for a \code{gpAim}
 #'   object, selected via the \code{type} argument.
 #'
 #'   \describe{
@@ -42,7 +42,7 @@
 #'       (mean GEBV of selected minus mean of all).}
 #'   }
 #'
-#' @param x A \code{GPAim} object.
+#' @param x A \code{gpAim} object.
 #' @param type Character string specifying the plot type: \code{"caterpillar"}
 #'   (default), \code{"heatmap"}, or \code{"density"}.
 #' @param alpha Numeric significance level used to compute half-HSD bar widths
@@ -64,7 +64,7 @@
 #' @param pt.cex Numeric point size. Default \code{0.8}.
 #' @return A \code{\link[ggplot2]{ggplot}} object.
 #' @export
-plot.GPAim <- function(x,
+plot.gpAim <- function(x,
                        type        = c("caterpillar", "heatmap", "density"),
                        # --- caterpillar args ---
                        alpha       = 0.05,   # significance level for half-HSD bars

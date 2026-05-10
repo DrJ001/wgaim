@@ -1,5 +1,5 @@
 # =============================================================================
-# GPAim.R
+# gpAim.R
 # Genomic Prediction via Integrated Modelling.
 #
 # Fits a genomic best linear unbiased prediction (G-BLUP) model and extracts
@@ -13,7 +13,7 @@
 #            where M is the marker matrix and q̂ are the marker effect BLUPs.
 #            The mbf path avoids the singularity of G when lines >= markers.
 #
-# Arguments intentionally absent (vs QTLAim/GWASAim):
+# Arguments intentionally absent (vs qtlAim/gwasAim):
 #   method          - always 'random' (GEBVs are random effects by definition)
 #   selection       - no selection; no loop
 #   exclusion.window- no iterative selection to exclude around
@@ -62,7 +62,7 @@
 #' @param fix.lines Logical. If \code{TRUE} (default), lines in the
 #'   phenotypic data that are absent from \code{genoObj} are accommodated
 #'   by adding a fixed \code{Gomit} factor and restricting the genomic
-#'   random effect to genotyped lines only. See \code{\link{QTLAim}} for
+#'   random effect to genotyped lines only. See \code{\link{qtlAim}} for
 #'   full details.
 #' @param gen.type Character string, either \code{"marker"} (default) or
 #'   \code{"interval"}. Determines which genotype scores are used to build
@@ -104,11 +104,11 @@
 #' \strong{Genomic relationship matrix:}
 #' The relationship matrix \eqn{G} is stored in the returned object
 #' (\code{$GP$rel.matrix}) for both paths and is used by
-#' \code{\link{plot.GPAim}} to produce the relatedness heatmap. For the
+#' \code{\link{plot.gpAim}} to produce the relatedness heatmap. For the
 #' vm path this is the matrix used in model fitting; for the mbf path it
 #' is computed as \eqn{MM'/s} from the fitted marker matrix.
 #'
-#' @return An object of class \code{c("GPAim","asreml")} — the fitted ASReml
+#' @return An object of class \code{c("gpAim","asreml")} — the fitted ASReml
 #'   model augmented with a \code{$GP} list containing:
 #' \describe{
 #'   \item{\code{$gebv}}{A \code{data.frame} with columns for the line
@@ -124,17 +124,17 @@
 #'     \eqn{h^2 = V_g/(V_g + V_e)}.}
 #'   \item{\code{$n.markers}}{Number of markers used.}
 #'   \item{\code{$rel.matrix}}{The genomic relationship matrix \eqn{G},
-#'     stored for use in \code{\link{plot.GPAim}}.}
+#'     stored for use in \code{\link{plot.gpAim}}.}
 #'   \item{\code{$genetic.term}}{The name of the genetic line identifier
 #'     column (as named in the returned \code{$gebv} data frame).}
 #' }
 #' Additionally, the (possibly modified) phenotypic data frame is assigned
 #' to \code{<response>.data} in the calling environment.
 #'
-#' @seealso \code{\link{print.GPAim}}, \code{\link{summary.GPAim}},
-#'   \code{\link{plot.GPAim}}, \code{\link{makePanel}},
-#'   \code{\link[wgaim]{cross2int}}, \code{\link{QTLAim}},
-#'   \code{\link{GWASAim}}
+#' @seealso \code{\link{print.gpAim}}, \code{\link{summary.gpAim}},
+#'   \code{\link{plot.gpAim}}, \code{\link{makePanel}},
+#'   \code{\link[wgaim]{cross2int}}, \code{\link{qtlAim}},
+#'   \code{\link{gwasAim}}
 #'
 #' @examples
 #' \dontrun{
@@ -145,7 +145,7 @@
 #' panel$pheno$line <- factor(line.ids)
 #' base.mod <- asreml(yield ~ rep, random = ~ line, data = pheno.df)
 #'
-#' gp.fit <- GPAim(base.mod, genoObj = panel, merge.by = "line",
+#' gp.fit <- gpAim(base.mod, genoObj = panel, merge.by = "line",
 #'                 trace = "trace.txt",
 #'                 na.action = na.method(x = "include"))
 #'
@@ -160,21 +160,21 @@
 #' genoRxK <- cross2int(genoRxK, impute = "Martinez", id = "Genotype")
 #' base.mod2 <- asreml(yld ~ Type, random = ~ Genotype, data = phenoRxK)
 #'
-#' gp.fit2 <- GPAim(base.mod2, genoObj = genoRxK,
+#' gp.fit2 <- gpAim(base.mod2, genoObj = genoRxK,
 #'                  merge.by = "Genotype", gen.type = "interval")
 #' }
 #'
-#' @name GPAim
+#' @name gpAim
 #' @export
-GPAim <- function(baseModel, ...)
-    UseMethod("GPAim")
+gpAim <- function(baseModel, ...)
+    UseMethod("gpAim")
 
 #' @exportS3Method
-GPAim.default <- function(baseModel, ...)
+gpAim.default <- function(baseModel, ...)
     stop("Currently the only supported method is \"asreml\".")
 
 #' @exportS3Method
-GPAim.asreml <- function(baseModel, genoObj, merge.by = NULL,
+gpAim.asreml <- function(baseModel, genoObj, merge.by = NULL,
                           fix.lines = TRUE, gen.type = "marker",
                           force = FALSE, trace = TRUE, ...) {
 
@@ -190,7 +190,7 @@ GPAim.asreml <- function(baseModel, genoObj, merge.by = NULL,
 
     # -------------------------------------------------------------------------
     # Phase 1: Validation
-    # Inline only the shared parts — GPAim has no method/selection/breakout
+    # Inline only the shared parts — gpAim has no method/selection/breakout
     # -------------------------------------------------------------------------
     if (!baseModel$converge) {
         cat("Warning: Base model has not converged. Updating base model\n")
@@ -359,6 +359,6 @@ GPAim.asreml <- function(baseModel, genoObj, merge.by = NULL,
     assign(data.name, phenoData, envir = caller.env)
     gpModel <- .envFix(gpModel, asremlEnv)
     gpModel$GP <- gp.list
-    class(gpModel) <- c("GPAim", "asreml")
+    class(gpModel) <- c("gpAim", "asreml")
     gpModel
 }

@@ -1,19 +1,19 @@
 # =============================================================================
-# summary.GWASAim.R
-# S3 summary method for GWASAim objects.
+# summary.gwasAim.R
+# S3 summary method for gwasAim objects.
 # Returns a data frame: Chromosome, Marker, dist(cM), Size, Pvalue, %Var, LOD
 # =============================================================================
 
-#' @describeIn GWASAim Produce a summary table of significant markers, sorted
+#' @describeIn gwasAim Produce a summary table of significant markers, sorted
 #'   by chromosome and cM position. Returns a \code{data.frame} with columns
 #'   for chromosome, marker name, cM position, effect size, p-value, percentage
 #'   of phenotypic variance explained, and (optionally) LOD score. The
 #'   significance threshold and marker count are stored as an attribute.
-#' @param object A \code{GWASAim} object.
-#' @param panelObj The \code{"panel"} object passed to \code{GWASAim}.
+#' @param object A \code{gwasAim} object.
+#' @param panelObj The \code{"panel"} object passed to \code{gwasAim}.
 #' @param LOD Logical. If \code{TRUE} (default), a LOD score column is appended.
 #' @export
-summary.GWASAim <- function(object, panelObj, LOD = TRUE, ...) {
+summary.gwasAim <- function(object, panelObj, LOD = TRUE, ...) {
     if (missing(panelObj))
         stop("panelObj is a required argument.")
     if (!inherits(panelObj, "panel"))

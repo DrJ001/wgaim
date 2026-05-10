@@ -1,16 +1,16 @@
 # =============================================================================
-# print.QTLAim.R
-# S3 print method for QTLAim objects.
+# print.qtlAim.R
+# S3 print method for qtlAim objects.
 # =============================================================================
 
-#' @describeIn QTLAim Print a brief summary of detected QTL to the console,
+#' @describeIn qtlAim Print a brief summary of detected QTL to the console,
 #'   listing the chromosome, interval number, and flanking marker names for
 #'   each significant QTL. If no QTL were detected, a message is printed.
-#' @param x A \code{QTLAim} object.
-#' @param intervalObj The \code{"interval"} object passed to \code{QTLAim}.
+#' @param x A \code{qtlAim} object.
+#' @param intervalObj The \code{"interval"} object passed to \code{qtlAim}.
 #'   Required to resolve internal interval indices to marker names and positions.
 #' @export
-print.QTLAim <- function(x, intervalObj, ...) {
+print.qtlAim <- function(x, intervalObj, ...) {
     if (missing(intervalObj))
         stop("intervalObj is a required argument.")
     if (!inherits(intervalObj, "interval"))

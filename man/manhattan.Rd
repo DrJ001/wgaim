@@ -2,12 +2,12 @@
 % Please edit documentation in R/manhattan.R
 \name{manhattan}
 \alias{manhattan}
-\alias{manhattan.GWASAim}
-\title{Manhattan Plot for GWASAim Objects}
+\alias{manhattan.gwasAim}
+\title{Manhattan Plot for gwasAim Objects}
 \usage{
 manhattan(object, ...)
 
-\method{manhattan}{GWASAim}(
+\method{manhattan}{gwasAim}(
   object,
   panelObj,
   iter = NULL,
@@ -19,11 +19,11 @@ manhattan(object, ...)
 )
 }
 \arguments{
-\item{object}{A \code{GWASAim} object.}
+\item{object}{A \code{gwasAim} object.}
 
 \item{\dots}{Additional arguments passed to methods.}
 
-\item{panelObj}{The \code{"panel"} object passed to \code{GWASAim}, used
+\item{panelObj}{The \code{"panel"} object passed to \code{gwasAim}, used
 to look up marker cM positions for the x-axis.}
 
 \item{iter}{Integer vector of iterations to display. Default is all stored
@@ -48,7 +48,7 @@ A \code{\link[ggplot2]{ggplot}} object. The y-axis shows the raw
 }
 \description{
 Produces a genome-wide Manhattan plot of outlier statistics from a
-\code{\link{GWASAim}} forward-selection analysis, with one facet per
+\code{\link{gwasAim}} forward-selection analysis, with one facet per
 requested iteration. Each facet shows the outlier statistic for all active
 markers at that iteration, with the marker selected as significant at that
 iteration highlighted and labelled. No significance threshold line is drawn:
@@ -57,6 +57,6 @@ likelihood ratio test.
 }
 \section{Methods (by class)}{
 \itemize{
-\item \code{manhattan(GWASAim)}: Manhattan plot for a \code{GWASAim} object.
+\item \code{manhattan(gwasAim)}: Manhattan plot for a \code{gwasAim} object.
 
 }}

@@ -1,17 +1,17 @@
 # =============================================================================
-# summary.GPAim.R
-# S3 summary method for GPAim objects.
+# summary.gpAim.R
+# S3 summary method for gpAim objects.
 # Returns the GEBV data frame sorted descending by GEBV value.
 # =============================================================================
 
-#' @describeIn GPAim Return and print the full GEBV table, sorted from highest
+#' @describeIn gpAim Return and print the full GEBV table, sorted from highest
 #'   to lowest GEBV. The returned \code{data.frame} contains the line
 #'   identifier column, \code{GEBV} (genomic estimated breeding value), and
 #'   \code{SE} (standard error of the GEBV). A header line reports the
 #'   estimated heritability, number of lines, and number of markers.
-#' @param object A \code{GPAim} object.
+#' @param object A \code{gpAim} object.
 #' @export
-summary.GPAim <- function(object, ...) {
+summary.gpAim <- function(object, ...) {
     gp   <- object$GP
     gebv <- gp$gebv
     gebv <- gebv[order(gebv$GEBV, decreasing = TRUE), ]

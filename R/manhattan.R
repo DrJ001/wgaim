@@ -1,6 +1,6 @@
 # =============================================================================
 # manhattan.R
-# S3 generic and GWASAim method for Manhattan plots.
+# S3 generic and gwasAim method for Manhattan plots.
 #
 # Plots per-iteration outlier statistics across the genome, faceted by
 # iteration. The marker selected as significant at iteration k is labelled
@@ -8,18 +8,18 @@
 # already been determined by the forward selection algorithm.
 # =============================================================================
 
-#' Manhattan Plot for GWASAim Objects
+#' Manhattan Plot for gwasAim Objects
 #'
 #' @description
 #' Produces a genome-wide Manhattan plot of outlier statistics from a
-#' \code{\link{GWASAim}} forward-selection analysis, with one facet per
+#' \code{\link{gwasAim}} forward-selection analysis, with one facet per
 #' requested iteration. Each facet shows the outlier statistic for all active
 #' markers at that iteration, with the marker selected as significant at that
 #' iteration highlighted and labelled. No significance threshold line is drawn:
 #' significant markers have already been determined by the forward-selection
 #' likelihood ratio test.
 #'
-#' @param object A \code{GWASAim} object.
+#' @param object A \code{gwasAim} object.
 #' @param \dots Additional arguments passed to methods.
 #'
 #' @name manhattan
@@ -27,9 +27,9 @@
 manhattan <- function(object, ...)
     UseMethod("manhattan")
 
-#' @describeIn manhattan Manhattan plot for a \code{GWASAim} object.
-#' @param object A \code{GWASAim} object.
-#' @param panelObj The \code{"panel"} object passed to \code{GWASAim}, used
+#' @describeIn manhattan Manhattan plot for a \code{gwasAim} object.
+#' @param object A \code{gwasAim} object.
+#' @param panelObj The \code{"panel"} object passed to \code{gwasAim}, used
 #'   to look up marker cM positions for the x-axis.
 #' @param iter Integer vector of iterations to display. Default is all stored
 #'   iterations (\code{NULL}). Each iteration produces one facet panel.
@@ -45,7 +45,7 @@ manhattan <- function(object, ...)
 #'   p-value). The selected marker in each iteration is shown as a larger
 #'   coloured diamond with its marker name as a label.
 #' @export
-manhattan.GWASAim <- function(object, panelObj,
+manhattan.gwasAim <- function(object, panelObj,
                                iter    = NULL,
                                chr     = NULL,
                                pt.col  = c("steelblue", "grey50"),

@@ -1,5 +1,5 @@
 # =============================================================================
-# QTLAim.R
+# qtlAim.R
 # Whole Genome QTL Analyses via Integrated Modelling.
 #
 # User-facing orchestrator for QTL detection using a forward-selection
@@ -137,7 +137,7 @@
 #' \code{mbf('ints')} and is equivalent but more efficient when lines \eqn{\ge}
 #' markers. Both paths produce identical QTL selections.
 #'
-#' @return An object of class \code{c("QTLAim","asreml")} — the final fitted
+#' @return An object of class \code{c("qtlAim","asreml")} — the final fitted
 #'   ASReml model augmented with a \code{$QTL} list containing:
 #' \describe{
 #'   \item{\code{$qtl}}{Character vector of internal names of detected QTL
@@ -166,10 +166,10 @@
 #' high-dimensional random whole genome average (QTL) interval mapping approach.
 #' \emph{Genetics Research}, \bold{94}, 291--306.
 #'
-#' @seealso \code{\link{summary.QTLAim}}, \code{\link{print.QTLAim}},
-#'   \code{\link{tr.QTLAim}}, \code{\link{linkMap.QTLAim}},
+#' @seealso \code{\link{summary.qtlAim}}, \code{\link{print.qtlAim}},
+#'   \code{\link{tr.qtlAim}}, \code{\link{linkMap.qtlAim}},
 #'   \code{\link[wgaim]{cross2int}}, \code{\link[wgaim]{outStat}},
-#'   \code{\link{GWASAim}}, \code{\link{GPAim}}
+#'   \code{\link{gwasAim}}, \code{\link{gpAim}}
 #'
 #' @examples
 #' \dontrun{
@@ -188,7 +188,7 @@
 #'                    data     = phenoRxK)
 #'
 #' # Forward-selection QTL analysis
-#' qtl.fit <- QTLAim(base.mod, intervalObj = genoRxK,
+#' qtl.fit <- qtlAim(base.mod, intervalObj = genoRxK,
 #'                   merge.by = "Genotype",
 #'                   trace    = "trace.txt",
 #'                   na.action = na.method(x = "include"))
@@ -201,17 +201,17 @@
 #' outStat(qtl.fit, intervalObj = genoRxK)
 #' }
 #'
-#' @name QTLAim
+#' @name qtlAim
 #' @export
-QTLAim <- function(baseModel, ...)
-    UseMethod("QTLAim")
+qtlAim <- function(baseModel, ...)
+    UseMethod("qtlAim")
 
 #' @exportS3Method
-QTLAim.default <- function(baseModel, ...)
+qtlAim.default <- function(baseModel, ...)
     stop("Currently the only supported method is \"asreml\".")
 
 #' @exportS3Method
-QTLAim.asreml <- function(baseModel, intervalObj, merge.by = NULL, fix.lines = TRUE,
+qtlAim.asreml <- function(baseModel, intervalObj, merge.by = NULL, fix.lines = TRUE,
                            gen.type = "interval", method = "fixed",
                            selection = "interval", force = FALSE,
                            exclusion.window = 20, breakout = -1,
@@ -220,7 +220,7 @@ QTLAim.asreml <- function(baseModel, intervalObj, merge.by = NULL, fix.lines = T
     # Capture calling environment early — needed for assign() calls in engine
     caller.env <- parent.frame()
 
-    # Trace/sink setup must live here so on.exit fires when QTLAim.asreml() returns
+    # Trace/sink setup must live here so on.exit fires when qtlAim.asreml() returns
     if (is.character(trace)) {
         ftrace <- file(trace, "w")
         sink(trace, type = "output", append = FALSE)
@@ -340,6 +340,6 @@ QTLAim.asreml <- function(baseModel, intervalObj, merge.by = NULL, fix.lines = T
     assign(data.name, phenoData, envir = caller.env)
     qtlModel <- .envFix(qtlModel, asremlEnv)
     qtlModel$QTL <- qtl.list
-    class(qtlModel) <- c("QTLAim", "asreml")
+    class(qtlModel) <- c("qtlAim", "asreml")
     qtlModel
 }

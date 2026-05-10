@@ -1,15 +1,15 @@
 # =============================================================================
-# GWASAim.R
+# gwasAim.R
 # Whole Genome GWAS Analyses via Integrated Modelling.
 #
 # Forward-selection marker association analysis using the shared wgAim engine.
-# Differences from QTLAim:
+# Differences from qtlAim:
 #   - Takes a 'panel' object (from makePanel()) instead of an 'interval' object
 #   - gen.type is always 'marker'  — no interval midpoints in GWAS
 #   - method is always 'fixed'     — GWAS tests marker effects as fixed effects
 #   - selection is always 'interval' — best individual marker, not chromosome
 #   - Bonferroni correction applied to TypeI threshold by default
-#   - Returns class c('GWASAim', 'asreml')
+#   - Returns class c('gwasAim', 'asreml')
 # =============================================================================
 
 #' GWAS Analyses via Integrated Modelling
@@ -23,7 +23,7 @@
 #' ratio test (LRT). Significant markers are added as fixed effects and the
 #' process repeats until no further associations are detected.
 #'
-#' \code{GWASAim} differs from \code{\link{QTLAim}} in three important ways:
+#' \code{gwasAim} differs from \code{\link{qtlAim}} in three important ways:
 #' \enumerate{
 #'   \item Input is a \code{"panel"} object from \code{\link{makePanel}}
 #'     rather than an \code{"interval"} object from \code{cross2int}.
@@ -49,7 +49,7 @@
 #' @param fix.lines Logical. If \code{TRUE} (default), phenotyped lines absent
 #'   from \code{panelObj} are handled by adding a fixed \code{Gomit} factor,
 #'   restricting variance estimation to genotyped lines only. See
-#'   \code{\link{QTLAim}} for full details.
+#'   \code{\link{qtlAim}} for full details.
 #' @param force Logical. If \code{FALSE} (default), the algorithm
 #'   automatically uses the \strong{vm} path (genomic relationship matrix)
 #'   when markers exceed lines, and the \strong{mbf} path otherwise. In
@@ -83,7 +83,7 @@
 #' \strong{Why TypeI = 0.05 without Bonferroni:}
 #' In standard single-marker GWAS, \eqn{n} LRTs are performed (one per
 #' marker) and a Bonferroni correction (\eqn{\alpha / n}) is needed. In the
-#' \code{GWASAim} forward-selection framework, at each iteration \emph{only
+#' \code{gwasAim} forward-selection framework, at each iteration \emph{only
 #' one} LRT is performed: it tests whether the additive variance parameter of
 #' the \emph{entire composite genome-wide term} (all remaining markers
 #' simultaneously) is significantly greater than zero. This single omnibus
@@ -98,11 +98,11 @@
 #' is derived from conditional BLUPs in the genome-wide model and should not
 #' be converted to per-marker p-values via a chi-squared distribution.
 #' Formal significance comes only from the LRT. Visualise the selection
-#' process with \code{\link{manhattan.GWASAim}}.
+#' process with \code{\link{manhattan.gwasAim}}.
 #'
-#' @return An object of class \code{c("GWASAim","asreml")} — the final fitted
+#' @return An object of class \code{c("gwasAim","asreml")} — the final fitted
 #'   ASReml model augmented with a \code{$QTL} list (structured identically
-#'   to \code{\link{QTLAim}}) plus GWAS-specific fields:
+#'   to \code{\link{qtlAim}}) plus GWAS-specific fields:
 #' \describe{
 #'   \item{\code{$TypeI}}{The significance threshold used.}
 #'   \item{\code{$n.markers}}{Total number of markers in the panel.}
@@ -117,9 +117,9 @@
 #' high-dimensional random whole genome average (QTL) interval mapping approach.
 #' \emph{Genetics Research}, \bold{94}, 291--306.
 #'
-#' @seealso \code{\link{makePanel}}, \code{\link{summary.GWASAim}},
-#'   \code{\link{print.GWASAim}}, \code{\link{manhattan.GWASAim}},
-#'   \code{\link{QTLAim}}, \code{\link{GPAim}}
+#' @seealso \code{\link{makePanel}}, \code{\link{summary.gwasAim}},
+#'   \code{\link{print.gwasAim}}, \code{\link{manhattan.gwasAim}},
+#'   \code{\link{qtlAim}}, \code{\link{gpAim}}
 #'
 #' @examples
 #' \dontrun{
@@ -136,7 +136,7 @@
 #'                    data     = pheno.df)
 #'
 #' # Forward-selection GWAS
-#' gwas.fit <- GWASAim(base.mod, panelObj = panel,
+#' gwas.fit <- gwasAim(base.mod, panelObj = panel,
 #'                     merge.by = "line", TypeI = 0.05,
 #'                     trace    = "trace.txt",
 #'                     na.action = na.method(x = "include"))
@@ -146,17 +146,17 @@
 #' manhattan(gwas.fit, panelObj = panel)
 #' }
 #'
-#' @name GWASAim
+#' @name gwasAim
 #' @export
-GWASAim <- function(baseModel, ...)
-    UseMethod("GWASAim")
+gwasAim <- function(baseModel, ...)
+    UseMethod("gwasAim")
 
 #' @exportS3Method
-GWASAim.default <- function(baseModel, ...)
+gwasAim.default <- function(baseModel, ...)
     stop("Currently the only supported method is \"asreml\".")
 
 #' @exportS3Method
-GWASAim.asreml <- function(baseModel, panelObj, merge.by = NULL,
+gwasAim.asreml <- function(baseModel, panelObj, merge.by = NULL,
                             fix.lines = TRUE, force = FALSE,
                             exclusion.window = 20, breakout = -1,
                             TypeI = 0.05,
@@ -303,6 +303,6 @@ GWASAim.asreml <- function(baseModel, panelObj, merge.by = NULL,
     assign(data.name, phenoData, envir = caller.env)
     qtlModel <- .envFix(qtlModel, asremlEnv)
     qtlModel$QTL <- qtl.list
-    class(qtlModel) <- c("GWASAim", "asreml")
+    class(qtlModel) <- c("gwasAim", "asreml")
     qtlModel
 }
