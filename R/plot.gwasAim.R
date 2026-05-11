@@ -119,8 +119,11 @@ plot.gwasAim <- function(x, genObj,
         ggplot2::scale_colour_identity() +
         ggplot2::scale_x_continuous(
             breaks = cp$chr.mid, labels = names(cp$chr.mid)) +
+        ggplot2::scale_y_continuous(
+            expand = ggplot2::expansion(mult = c(0.02, 0.18))) +
         ggplot2::ylab(y.lab) +
         ggplot2::xlab("") +
+        ggplot2::coord_cartesian(clip = "off") +
         theme_scatter()
 
     if (chr.lines && length(chr) > 1)

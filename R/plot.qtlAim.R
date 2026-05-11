@@ -118,8 +118,11 @@ plot.qtlAim <- function(x, genObj,
                           linewidth = 0.3) +
         ggplot2::scale_colour_identity() +
         ggplot2::scale_x_continuous(breaks = cp$chr.mid, labels = names(cp$chr.mid)) +
+        ggplot2::scale_y_continuous(
+            expand = ggplot2::expansion(mult = c(0.02, 0.18))) +
         ggplot2::ylab(y.lab) +
         ggplot2::xlab("") +
+        ggplot2::coord_cartesian(clip = "off") +
         theme_scatter()
 
     # Chromosome boundary lines
@@ -182,7 +185,7 @@ plot.qtlAim <- function(x, genObj,
     rows <- lapply(seq_along(diag_data), function(i) {
         el    <- diag_data[[i]]
         echr  <- sapply(strsplit(names(el), "\\."), "[", 2)
-        whc   <- echr %in% chr & el != 0
+        whc   <- echr %in% chr
         if (!any(whc)) return(NULL)
         data.frame(
             values    = as.numeric(el[whc]),
@@ -195,7 +198,7 @@ plot.qtlAim <- function(x, genObj,
     })
     rows <- rows[!sapply(rows, is.null)]
     if (length(rows) == 0L)
-        stop("No non-zero statistic values found for the requested iterations/chromosomes.")
+        stop("No statistic values found for the requested iterations/chromosomes.")
 
     df            <- do.call(rbind, rows)
     all.iters     <- paste0("Iteration: ", iter)
