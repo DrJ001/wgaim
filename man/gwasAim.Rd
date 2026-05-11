@@ -26,9 +26,9 @@ gwasAim(baseModel, ...)
   row.chr = NULL
 )
 
-\method{print}{gwasAim}(x, panelObj, ...)
+\method{print}{gwasAim}(x, genObj, ...)
 
-\method{summary}{gwasAim}(object, panelObj, LOD = TRUE, ...)
+\method{summary}{gwasAim}(object, genObj, LOD = TRUE, ...)
 }
 \arguments{
 \item{baseModel}{A converged \code{asreml} model object representing the
@@ -42,8 +42,8 @@ automatically.}
 
 \item{object}{A \code{gwasAim} object.}
 
-\item{genObj}{The \code{"wgPanel"} object produced by \code{primePanel()}
-used in the analysis.}
+\item{genObj}{The \code{"wgPanel"} object passed to \code{gwasAim},
+produced by \code{\link{primePanel}}.}
 
 \item{chr}{Optional character vector of chromosomes to display.}
 
@@ -69,8 +69,6 @@ Defaults to \code{marker.colour}.}
 \item{row.chr}{Optional list of character vectors for manual row layout.}
 
 \item{x}{A \code{gwasAim} object.}
-
-\item{panelObj}{The \code{"panel"} object passed to \code{gwasAim}.}
 
 \item{LOD}{Logical. If \code{TRUE} (default), a LOD score column is appended.}
 

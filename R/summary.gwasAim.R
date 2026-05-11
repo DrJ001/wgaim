@@ -10,14 +10,15 @@
 #'   of phenotypic variance explained, and (optionally) LOD score. The
 #'   significance threshold and marker count are stored as an attribute.
 #' @param object A \code{gwasAim} object.
-#' @param panelObj The \code{"panel"} object passed to \code{gwasAim}.
+#' @param genObj The \code{"wgPanel"} object passed to \code{gwasAim},
+#'   produced by \code{\link{primePanel}}.
 #' @param LOD Logical. If \code{TRUE} (default), a LOD score column is appended.
 #' @export
-summary.gwasAim <- function(object, panelObj, LOD = TRUE, ...) {
-    if (missing(panelObj))
-        stop("panelObj is a required argument.")
-    if (!inherits(panelObj, "panel"))
-        stop("panelObj must be of class \"panel\".")
+summary.gwasAim <- function(object, genObj, LOD = TRUE, ...) {
+    if (missing(genObj))
+        stop("genObj is a required argument.")
+    if (!inherits(genObj, "wgPanel"))
+        stop("genObj must be of class \"wgPanel\" produced by primePanel().")
     if (is.null(qtle <- object$QTL$effects)) {
         cat("No significant markers detected.\n")
         return(invisible(NULL))
@@ -27,11 +28,11 @@ summary.gwasAim <- function(object, panelObj, LOD = TRUE, ...) {
         sigma2 <- 1
 
     # Always marker mode for GWAS
-    gdat     <- lapply(panelObj$geno, function(el) el$imputed.data)
+    gdat     <- lapply(genObj$geno, function(el) el$imputed.data)
     genoData <- do.call("cbind", gdat)
     gterm    <- object$QTL$diag$genetic.term
     scale    <- object$QTL$diag$rel.scale
-    dimnames(genoData) <- list(as.character(panelObj$pheno[[gterm]]),
+    dimnames(genoData) <- list(as.character(genObj$pheno[[gterm]]),
                                names(object$QTL$diag$state))
     genoSub <- genoData[, as.logical(object$QTL$diag$state), drop = FALSE]
     if ("Gsave" %in% names(object$mf)) gterm <- "Gsave"
@@ -62,7 +63,7 @@ summary.gwasAim <- function(object, panelObj, LOD = TRUE, ...) {
         pvalue[as.numeric(pvalue) < 1e-6] <- "<1e-06"
     }
     lod  <- round(0.5 * log10(exp(zrat^2)), 2)
-    qtlm <- getQTL(object, panelObj)   # reuses existing getQTL (marker mode)
+    qtlm <- getQTL(object, genObj)   # reuses existing getQTL (marker mode)
 
     qtab <- data.frame(
         Chromosome = qtlm[, 1],

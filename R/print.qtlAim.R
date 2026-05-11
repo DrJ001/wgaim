@@ -7,18 +7,19 @@
 #'   listing the chromosome, interval number, and flanking marker names for
 #'   each significant QTL. If no QTL were detected, a message is printed.
 #' @param x A \code{qtlAim} object.
-#' @param intervalObj The \code{"interval"} object passed to \code{qtlAim}.
-#'   Required to resolve internal interval indices to marker names and positions.
+#' @param genObj The \code{"wgCross"} object passed to \code{qtlAim},
+#'   produced by \code{\link{primeCross}}. Required to resolve internal
+#'   interval indices to marker names and positions.
 #' @export
-print.qtlAim <- function(x, intervalObj, ...) {
-    if (missing(intervalObj))
-        stop("intervalObj is a required argument.")
-    if (!inherits(intervalObj, "interval"))
-        stop("intervalObj must be of class \"interval\".")
+print.qtlAim <- function(x, genObj, ...) {
+    if (missing(genObj))
+        stop("genObj is a required argument.")
+    if (!inherits(genObj, "wgCross"))
+        stop("genObj must be of class \"wgCross\" produced by primeCross().")
     if (is.null(x$QTL$effects)) {
         cat("There are no significant putative QTL's\n")
     } else {
-        qtlm <- getQTL(x, intervalObj)
+        qtlm <- getQTL(x, genObj)
         for (z in 1:nrow(qtlm)) {
             int <- paste(qtlm[z, 1], qtlm[z, 2], sep = ".")
             if (x$QTL$type == "interval")

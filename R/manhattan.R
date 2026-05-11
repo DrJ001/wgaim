@@ -29,8 +29,9 @@ manhattan <- function(object, ...)
 
 #' @describeIn manhattan Manhattan plot for a \code{gwasAim} object.
 #' @param object A \code{gwasAim} object.
-#' @param panelObj The \code{"panel"} object passed to \code{gwasAim}, used
-#'   to look up marker cM positions for the x-axis.
+#' @param genObj The \code{"wgPanel"} object passed to \code{gwasAim},
+#'   produced by \code{\link{primePanel}}. Used to look up marker cM positions
+#'   for the x-axis.
 #' @param iter Integer vector of iterations to display. Default is all stored
 #'   iterations (\code{NULL}). Each iteration produces one facet panel.
 #' @param chr Optional character vector of chromosome names to display. Default
@@ -45,17 +46,17 @@ manhattan <- function(object, ...)
 #'   p-value). The selected marker in each iteration is shown as a larger
 #'   coloured diamond with its marker name as a label.
 #' @export
-manhattan.gwasAim <- function(object, panelObj,
+manhattan.gwasAim <- function(object, genObj,
                                iter    = NULL,
                                chr     = NULL,
                                pt.col  = c("steelblue", "grey50"),
                                sig.col = "red",
                                pt.cex  = 0.6, ...) {
 
-    if (missing(panelObj))
-        stop("panelObj is a required argument.")
-    if (!inherits(panelObj, "panel"))
-        stop("panelObj must be of class \"panel\".")
+    if (missing(genObj))
+        stop("genObj is a required argument.")
+    if (!inherits(genObj, "wgPanel"))
+        stop("genObj must be of class \"wgPanel\" produced by primePanel().")
 
     # Default: all stored iterations
     n.stored <- length(object$QTL$diag$oint)
@@ -67,10 +68,10 @@ manhattan.gwasAim <- function(object, panelObj,
     # -------------------------------------------------------------------------
     # Chromosome subset
     # -------------------------------------------------------------------------
-    chr.names <- names(panelObj$geno)
+    chr.names <- names(genObj$geno)
     if (!is.null(chr)) {
         if (!all(chr %in% chr.names))
-            stop("Some chromosome names not found in panelObj.")
+            stop("Some chromosome names not found in genObj.")
         chr.names <- chr
     }
 
@@ -84,7 +85,7 @@ manhattan.gwasAim <- function(object, panelObj,
     gap.cM      <- 5    # gap between chromosomes on x-axis
 
     for (ch in chr.names) {
-        map.pos <- as.numeric(panelObj$geno[[ch]]$map)
+        map.pos <- as.numeric(genObj$geno[[ch]]$map)
         n.mk    <- length(map.pos)
         span    <- map.pos[n.mk] - map.pos[1]
         for (k in seq_len(n.mk)) {
@@ -144,7 +145,7 @@ manhattan.gwasAim <- function(object, panelObj,
             echr <- strsplit(qn, "\\.")[[1]][2]
             if (!echr %in% chr.names) return(NULL)
             idx  <- as.integer(strsplit(qn, "\\.")[[1]][3])
-            mkr  <- names(panelObj$geno[[echr]]$map)[idx]
+            mkr  <- names(genObj$geno[[echr]]$map)[idx]
             val  <- object$QTL$diag$oint[[it]][qn]
             if (is.null(val) || is.na(val)) return(NULL)
             data.frame(

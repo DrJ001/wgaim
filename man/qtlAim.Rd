@@ -30,11 +30,11 @@
   row.chr = NULL
 )
 
-\method{print}{qtlAim}(x, intervalObj, ...)
+\method{print}{qtlAim}(x, genObj, ...)
 
 qtlAim(baseModel, ...)
 
-\method{summary}{qtlAim}(object, intervalObj, LOD = TRUE, ...)
+\method{summary}{qtlAim}(object, genObj, LOD = TRUE, ...)
 
 tr.qtlAim(object, iter = 1:length(object$QTL$effects), lik.out = TRUE, ...)
 }
@@ -44,10 +44,8 @@ tr.qtlAim(object, iter = 1:length(object$QTL$effects), lik.out = TRUE, ...)
 \item{...}{Additional \code{qtlAim} models (positional, unnamed) and/or
 arguments passed to \code{\link{linkMap.cross}}.}
 
-\item{genObj}{An object of class \code{"wgCross"} produced by
-\code{\link[wgaim]{primeCross}}. Contains per-chromosome interval midpoint
-data (\code{$interval.data}) and imputed marker data
-(\code{$imputed.data}) used according to \code{gen.type}.}
+\item{genObj}{The \code{"wgCross"} object passed to \code{qtlAim},
+produced by \code{\link{primeCross}}. Required to resolve QTL positions.}
 
 \item{chr}{Optional character vector of chromosome names to display.}
 
@@ -79,9 +77,6 @@ model).}
 \item{row.chr}{Optional list of character vectors for manual row layout.}
 
 \item{x}{A \code{qtlAim} object.}
-
-\item{intervalObj}{The \code{"interval"} or \code{"cross"} object used in
-the analysis, required to resolve QTL positions.}
 
 \item{baseModel}{A converged \code{asreml} model object representing the
 null model (no QTL effects). Must include the genetic line term in the

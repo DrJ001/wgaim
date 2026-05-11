@@ -1,4 +1,4 @@
-﻿# =============================================================================
+# =============================================================================
 # primePanel.R
 # Convert association panel marker data into a 'panel'/'interval' class object
 # for use with gwasAim() and gpAim().
@@ -12,7 +12,7 @@
 #'
 #' @description
 #' Converts a matrix or data frame of marker genotypes and an associated
-#' genetic map into a \code{c("panel","interval")} object suitable for use with
+#' genetic map into a \code{"wgPanel"} object suitable for use with
 #' \code{\link{gwasAim}} and \code{\link{gpAim}}.
 #'
 #' @param geno A numeric matrix (\code{lines x markers}) with row names
@@ -103,7 +103,7 @@
 #' the full dosage information is preserved for use in the relationship
 #' matrix or marker effect model.
 #'
-#' @return An object of class \code{c("panel","interval")} â€” a list with:
+#' @return An object of class \code{c("wgPanel", "wgCross")} -- a list with:
 #' \describe{
 #'   \item{\code{$pheno}}{A \code{data.frame} with the line identifier column.}
 #'   \item{\code{$geno}}{A named list (one element per chromosome) each
@@ -318,4 +318,5 @@ primePanel <- function(geno, map, id = "id",
             n.final, " markers across ", length(chrs), " chromosomes.")
     panel
 }
+
 

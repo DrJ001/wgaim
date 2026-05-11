@@ -85,7 +85,7 @@ are handled \emph{after} encoding and MAF filtering:
 }}
 }
 \value{
-An object of class \code{c("panel","interval")} â€” a list with:
+An object of class \code{c("wgPanel", "wgCross")} -- a list with:
 \describe{
   \item{\code{$pheno}}{A \code{data.frame} with the line identifier column.}
   \item{\code{$geno}}{A named list (one element per chromosome) each
@@ -102,7 +102,7 @@ An object of class \code{c("panel","interval")} â€” a list with:
 }
 \description{
 Converts a matrix or data frame of marker genotypes and an associated
-genetic map into a \code{c("panel","interval")} object suitable for use with
+genetic map into a \code{"wgPanel"} object suitable for use with
 \code{\link{gwasAim}} and \code{\link{gpAim}}.
 }
 \details{

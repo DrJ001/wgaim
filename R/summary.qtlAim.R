@@ -10,17 +10,17 @@
 #'   phenotypic variance explained, and (optionally) LOD score. Returns
 #'   \code{NULL} invisibly if no QTL were detected.
 #' @param object A \code{qtlAim} object.
-#' @param intervalObj The \code{"interval"} or \code{"cross"} object used in
-#'   the analysis, required to resolve QTL positions.
+#' @param genObj The \code{"wgCross"} object passed to \code{qtlAim},
+#'   produced by \code{\link{primeCross}}. Required to resolve QTL positions.
 #' @param LOD Logical. If \code{TRUE} (default), a LOD score column is
 #'   appended to the summary table. LOD is computed from the Wald z-statistic
 #'   as \eqn{0.5 \log_{10}(\exp(z^2))}.
 #' @export
-summary.qtlAim <- function(object, intervalObj, LOD = TRUE, ...) {
-    if (missing(intervalObj))
-        stop("intervalObj is a required argument.")
-    if (!inherits(intervalObj, "cross"))
-        stop("intervalObj must be of class \"cross\".")
+summary.qtlAim <- function(object, genObj, LOD = TRUE, ...) {
+    if (missing(genObj))
+        stop("genObj is a required argument.")
+    if (!inherits(genObj, "wgCross"))
+        stop("genObj must be of class \"wgCross\" produced by primeCross().")
     if (is.null(qtle <- object$QTL$effects)) {
         cat("There are no significant putative QTL's\n")
         return()
@@ -29,13 +29,13 @@ summary.qtlAim <- function(object, intervalObj, LOD = TRUE, ...) {
     if (object$vparameters.con[length(object$vparameters.con)] == 4)
         sigma2 <- 1
     if (object$QTL$type == "interval")
-        gdat <- lapply(intervalObj$geno, function(el) el$interval.data)
+        gdat <- lapply(genObj$geno, function(el) el$interval.data)
     else
-        gdat <- lapply(intervalObj$geno, function(el) el$imputed.data)
+        gdat <- lapply(genObj$geno, function(el) el$imputed.data)
     genoData <- do.call("cbind", gdat)
     gterm <- object$QTL$diag$genetic.term
     scale <- object$QTL$diag$rel.scale
-    dimnames(genoData) <- list(as.character(intervalObj$pheno[[gterm]]),
+    dimnames(genoData) <- list(as.character(genObj$pheno[[gterm]]),
                                names(object$QTL$diag$state))
     genoSub <- genoData[, as.logical(object$QTL$diag$state), drop = FALSE]
     if ("Gsave" %in% names(object$mf))
@@ -64,7 +64,7 @@ summary.qtlAim <- function(object, intervalObj, LOD = TRUE, ...) {
         pvalue[as.numeric(pvalue) < 0.0001] <- "<0.0001"
     }
     lod <- round(0.5 * log10(exp(zrat^2)), 2)
-    qtlm <- getQTL(object, intervalObj)
+    qtlm <- getQTL(object, genObj)
     if (object$QTL$type == "interval") {
         qtab <- data.frame(
             Chromosome    = qtlm[, 1],

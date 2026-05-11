@@ -9,7 +9,7 @@ manhattan(object, ...)
 
 \method{manhattan}{gwasAim}(
   object,
-  panelObj,
+  genObj,
   iter = NULL,
   chr = NULL,
   pt.col = c("steelblue", "grey50"),
@@ -23,8 +23,9 @@ manhattan(object, ...)
 
 \item{\dots}{Additional arguments passed to methods.}
 
-\item{panelObj}{The \code{"panel"} object passed to \code{gwasAim}, used
-to look up marker cM positions for the x-axis.}
+\item{genObj}{The \code{"wgPanel"} object passed to \code{gwasAim},
+produced by \code{\link{primePanel}}. Used to look up marker cM positions
+for the x-axis.}
 
 \item{iter}{Integer vector of iterations to display. Default is all stored
 iterations (\code{NULL}). Each iteration produces one facet panel.}

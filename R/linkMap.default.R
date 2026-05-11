@@ -3,15 +3,15 @@
 # Backward-compatible dispatcher for list-based multi-model calls.
 #
 # Handles:
-#   linkMap(list(qtl_yld, qtl_tgw), intervalObj = x)  # old qtlAim API
-#   linkMap(list(gwas1, gwas2),      panelObj   = x)  # old gwasAim API
+#   linkMap(list(qtl_yld, qtl_tgw), genObj = x)  # old qtlAim API
+#   linkMap(list(gwas1, gwas2),      genObj = x)  # old gwasAim API
 #
 # Unwraps the list and delegates to the appropriate typed method, which
 # detects the extra models via its own ... inspection path.
 #
 # The preferred new API passes models directly:
-#   linkMap(qtl_yld, qtl_tgw, intervalObj = x)
-#   linkMap(gwas1,   gwas2,   panelObj   = x)
+#   linkMap(qtl_yld, qtl_tgw, genObj = x)
+#   linkMap(gwas1,   gwas2,   genObj = x)
 # =============================================================================
 
 #' @describeIn qtlAim Backward-compatible dispatcher. Accepts a named list of
@@ -33,7 +33,7 @@ linkMap.default <- function(object, ...) {
         gwasAim = linkMap.gwasAim,
         stop("No multi-model linkMap method for class '", types, "'.")
     )
-    ## Because ... precedes intervalObj/panelObj in the typed method signatures,
+    ## Because ... precedes genObj in the typed method signatures,
     ## those params must be named in every call.  Positional extras therefore
     ## land safely in ..., never accidentally matching a named parameter.
     extras <- unname(object[-1L])
