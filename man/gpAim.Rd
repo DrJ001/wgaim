@@ -18,7 +18,6 @@ gpAim(baseModel, ...)
   top.n = 20,
   threshold = NULL,
   prop.select = 0.1,
-  max.labels = 20,
   pt.col = c("steelblue", "firebrick"),
   pt.cex = 0.8,
   ...
@@ -63,11 +62,6 @@ is used instead.}
 
 \item{prop.select}{Numeric proportion of lines to select, used when
 \code{threshold = NULL}. Default \code{0.10} (top 10\%).}
-
-\item{max.labels}{Integer. Maximum number of selected lines to label by
-name in the density plot. Labels are drawn for the top \code{max.labels}
-lines above the selection threshold using \code{ggrepel}. Default
-\code{20}. Set to \code{0} to suppress all labels.}
 
 \item{pt.col}{Character vector of length 2: \code{pt.col[1]} is used for
 selected lines / high relatedness / positive GEBVs;

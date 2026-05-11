@@ -73,10 +73,6 @@
 #'   \code{pt.col[2]} for unselected lines / low relatedness / negative GEBVs.
 #'   Default \code{c("steelblue","firebrick")}.
 #' @param pt.cex Numeric point size. Default \code{0.8}.
-#' @param max.labels Integer. Maximum number of selected lines to label by
-#'   name in the density plot. Labels are drawn for the top \code{max.labels}
-#'   lines above the selection threshold using \code{ggrepel}. Default
-#'   \code{20}. Set to \code{0} to suppress all labels.
 #' @return A \code{\link[ggplot2]{ggplot}} object.
 #' @export
 plot.gpAim <- function(x,
@@ -88,7 +84,6 @@ plot.gpAim <- function(x,
                        threshold   = NULL,   # selection threshold: value or proportion (0-1)
                        # --- density args ---
                        prop.select = 0.10,   # proportion to select (used if threshold=NULL)
-                       max.labels  = 20,     # max selected lines to label by name
                        # --- shared ---
                        pt.col      = c("steelblue", "firebrick"),
                        pt.cex      = 0.8,
@@ -109,7 +104,7 @@ plot.gpAim <- function(x,
         caterpillar = .plot_gp_caterpillar(gp, alpha, top.n, threshold,
                                            prop.select, pt.col, pt.cex),
         heatmap     = .plot_gp_heatmap(gp, pt.col),
-        density     = .plot_gp_density(gp, threshold, prop.select, max.labels, pt.col)
+        density     = .plot_gp_density(gp, threshold, prop.select, pt.col)
     )
 }
 
@@ -224,14 +219,12 @@ plot.gpAim <- function(x,
 }
 
 # =============================================================================
-# Internal: GEBV density with selection threshold, rain-cloud, and labels
+# Internal: GEBV density with selection threshold and rain-cloud strip
 # =============================================================================
-.plot_gp_density <- function(gp, threshold, prop.select, max.labels, pt.col) {
+.plot_gp_density <- function(gp, threshold, prop.select, pt.col) {
 
-    gebv.df   <- gp$gebv                     # data frame: line, GEBV, SE
-    line.col  <- gp$genetic.term             # name of the line ID column
+    gebv.df   <- gp$gebv
     gebv.vals <- gebv.df$GEBV
-    line.ids  <- as.character(gebv.df[[line.col]])
 
     thr      <- .gp_threshold(gebv.vals, threshold, prop.select)
     n.sel    <- sum(gebv.vals >= thr)
@@ -271,27 +264,6 @@ plot.gpAim <- function(x,
         col  = pt.cols,
         stringsAsFactors = FALSE
     )
-
-    # -------------------------------------------------------------------------
-    # ggrepel labels for selected lines (top max.labels by GEBV)
-    # -------------------------------------------------------------------------
-    label.df <- NULL
-    if (max.labels > 0 && n.sel > 0) {
-        sel.df   <- data.frame(
-            x    = gebv.vals[sel.flag],
-            line = line.ids[sel.flag],
-            stringsAsFactors = FALSE
-        )
-        # Keep top max.labels by GEBV
-        sel.df <- sel.df[order(sel.df$x, decreasing = TRUE), ]
-        sel.df <- utils::head(sel.df, max.labels)
-        label.df <- data.frame(
-            x     = sel.df$x,
-            y     = strip.y + jit.height,   # repel upward from strip top
-            label = sel.df$line,
-            stringsAsFactors = FALSE
-        )
-    }
 
     # -------------------------------------------------------------------------
     # Summary annotation
@@ -363,24 +335,6 @@ plot.gpAim <- function(x,
 
         ggplot2::coord_cartesian(clip = "off") +
         theme_scatter()
-
-    # ggrepel labels for selected lines — repel upward into the density
-    if (!is.null(label.df) && nrow(label.df) > 0L)
-        gp.obj <- gp.obj +
-            ggrepel::geom_text_repel(
-                data               = label.df,
-                ggplot2::aes(x = .data$x, y = .data$y, label = .data$label),
-                colour             = pt.col[1],
-                size               = 2.5,
-                nudge_y            = max.dens * 0.55,
-                direction          = "both",
-                segment.colour     = pt.col[1],
-                segment.alpha      = 0.4,
-                segment.size       = 0.3,
-                min.segment.length = 0,
-                max.overlaps       = Inf,
-                inherit.aes        = FALSE
-            )
 
     gp.obj
 }
