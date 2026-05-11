@@ -73,6 +73,10 @@
 #'   \code{pt.col[2]} for unselected lines / low relatedness / negative GEBVs.
 #'   Default \code{c("steelblue","firebrick")}.
 #' @param pt.cex Numeric point size. Default \code{0.8}.
+#' @param max.labels Integer. Maximum number of selected lines to label by
+#'   name in the density plot. Labels are drawn for the top \code{max.labels}
+#'   lines above the selection threshold using \code{ggrepel}. Default
+#'   \code{20}. Set to \code{0} to suppress all labels.
 #' @return A \code{\link[ggplot2]{ggplot}} object.
 #' @export
 plot.gpAim <- function(x,
@@ -84,6 +88,7 @@ plot.gpAim <- function(x,
                        threshold   = NULL,   # selection threshold: value or proportion (0-1)
                        # --- density args ---
                        prop.select = 0.10,   # proportion to select (used if threshold=NULL)
+                       max.labels  = 20,     # max selected lines to label by name
                        # --- shared ---
                        pt.col      = c("steelblue", "firebrick"),
                        pt.cex      = 0.8,
@@ -104,7 +109,7 @@ plot.gpAim <- function(x,
         caterpillar = .plot_gp_caterpillar(gp, alpha, top.n, threshold,
                                            prop.select, pt.col, pt.cex),
         heatmap     = .plot_gp_heatmap(gp, pt.col),
-        density     = .plot_gp_density(gp, threshold, prop.select, pt.col)
+        density     = .plot_gp_density(gp, threshold, prop.select, max.labels, pt.col)
     )
 }
 
@@ -219,54 +224,165 @@ plot.gpAim <- function(x,
 }
 
 # =============================================================================
-# Internal: GEBV density with selection threshold
+# Internal: GEBV density with selection threshold, rain-cloud, and labels
 # =============================================================================
-.plot_gp_density <- function(gp, threshold, prop.select, pt.col) {
-    gebv.vals <- gp$gebv$GEBV
-    thr       <- .gp_threshold(gebv.vals, threshold, prop.select)
-    n.sel     <- sum(gebv.vals >= thr)
-    prop.sel  <- n.sel / length(gebv.vals)
-    sel.dif   <- mean(gebv.vals[gebv.vals >= thr]) - mean(gebv.vals)
+.plot_gp_density <- function(gp, threshold, prop.select, max.labels, pt.col) {
 
-    df <- data.frame(GEBV = gebv.vals)
+    gebv.df   <- gp$gebv                     # data frame: line, GEBV, SE
+    line.col  <- gp$genetic.term             # name of the line ID column
+    gebv.vals <- gebv.df$GEBV
+    line.ids  <- as.character(gebv.df[[line.col]])
 
-    # Build density for shading the selected region
-    dens      <- density(gebv.vals)
-    dens.df   <- data.frame(x = dens$x, y = dens$y)
-    shade.df  <- dens.df[dens.df$x >= thr, ]
-    # Close the shaded polygon at y = 0
-    shade.df  <- rbind(
-        data.frame(x = thr, y = 0),
-        shade.df,
-        data.frame(x = max(shade.df$x), y = 0))
+    thr      <- .gp_threshold(gebv.vals, threshold, prop.select)
+    n.sel    <- sum(gebv.vals >= thr)
+    prop.sel <- n.sel / length(gebv.vals)
+    sel.dif  <- mean(gebv.vals[gebv.vals >= thr]) - mean(gebv.vals)
 
+    # Per-line colour and selection flag
+    sel.flag <- gebv.vals >= thr
+    pt.cols  <- ifelse(sel.flag, pt.col[1], pt.col[2])
+
+    # -------------------------------------------------------------------------
+    # Density curve
+    # -------------------------------------------------------------------------
+    dens     <- density(gebv.vals)
+    dens.df  <- data.frame(x = dens$x, y = dens$y)
+    max.dens <- max(dens$y)
+
+    # Shaded selected polygon — closed at y = 0
+    shade.df <- dens.df[dens.df$x >= thr, ]
+    shade.df <- rbind(data.frame(x = thr,             y = 0),
+                      shade.df,
+                      data.frame(x = max(shade.df$x), y = 0))
+
+    # -------------------------------------------------------------------------
+    # Rain-cloud strip: jitter + rug at a fixed position below the x-axis.
+    # strip.y is expressed in density units; jitter adds a small vertical
+    # spread so overlapping lines separate visually.
+    # -------------------------------------------------------------------------
+    strip.y    <- -max.dens * 0.12          # centre of the rain-cloud strip
+    jit.height <- max.dens * 0.05           # half-height of the jitter band
+
+    set.seed(1L)                            # reproducible jitter
+    rain.df <- data.frame(
+        x    = gebv.vals,
+        y    = strip.y + stats::runif(length(gebv.vals),
+                                      -jit.height, jit.height),
+        col  = pt.cols,
+        stringsAsFactors = FALSE
+    )
+
+    # -------------------------------------------------------------------------
+    # ggrepel labels for selected lines (top max.labels by GEBV)
+    # -------------------------------------------------------------------------
+    label.df <- NULL
+    if (max.labels > 0 && n.sel > 0) {
+        sel.df   <- data.frame(
+            x    = gebv.vals[sel.flag],
+            line = line.ids[sel.flag],
+            stringsAsFactors = FALSE
+        )
+        # Keep top max.labels by GEBV
+        sel.df <- sel.df[order(sel.df$x, decreasing = TRUE), ]
+        sel.df <- utils::head(sel.df, max.labels)
+        label.df <- data.frame(
+            x     = sel.df$x,
+            y     = strip.y + jit.height,   # repel upward from strip top
+            label = sel.df$line,
+            stringsAsFactors = FALSE
+        )
+    }
+
+    # -------------------------------------------------------------------------
+    # Summary annotation
+    # -------------------------------------------------------------------------
     ann.label <- sprintf(
-        "Selected: %d  (%.0f%%)\nSel. differential: %+.3f\nh² = %.3f",
+        "Selected: %d  (%.0f%%)\nSel. differential: %+.3f\nh\u00b2 = %.3f",
         n.sel, round(100 * prop.sel), sel.dif, gp$heritability)
 
-    ggplot(df, aes_string(x = "GEBV")) +
-        geom_polygon(data = shade.df, aes_string(x = "x", y = "y"),
-                     fill = pt.col[1], alpha = 0.3, inherit.aes = FALSE) +
-        geom_line(data = dens.df, aes_string(x = "x", y = "y"),
-                  colour = "grey30", linewidth = 0.7, inherit.aes = FALSE) +
-        geom_vline(xintercept = thr, colour = pt.col[1],
-                   linetype = "dashed", linewidth = 0.7) +
-        annotate("text",
-                 x     = thr + diff(range(gebv.vals)) * 0.02,
-                 y     = max(dens$y) * 0.95,
-                 label = ann.label,
-                 hjust = 0, vjust = 1,
-                 size  = 3, colour = "grey20") +
-        labs(x     = "GEBV",
-             y     = "Density",
-             title = sprintf("GEBV Distribution  [%s path]", gp$path),
-             caption = sprintf(
-                 "Selection threshold: %.4f  (%s)",
-                 thr,
-                 if (!is.null(threshold) && threshold < 1 && threshold > 0)
-                     sprintf("top %.0f%%", 100 * (1 - threshold))
-                 else sprintf("top %.0f%%", 100 * prop.select))) +
+    # -------------------------------------------------------------------------
+    # Build plot
+    # -------------------------------------------------------------------------
+    gp.obj <- ggplot2::ggplot() +
+
+        # Shaded selected region
+        ggplot2::geom_polygon(
+            data        = shade.df,
+            ggplot2::aes(x = .data$x, y = .data$y),
+            fill        = pt.col[1], alpha = 0.25) +
+
+        # Density curve
+        ggplot2::geom_line(
+            data        = dens.df,
+            ggplot2::aes(x = .data$x, y = .data$y),
+            colour      = "grey30", linewidth = 0.7) +
+
+        # Selection threshold line
+        ggplot2::geom_vline(
+            xintercept  = thr, colour = pt.col[1],
+            linetype    = "dashed", linewidth = 0.7) +
+
+        # Rain-cloud: jittered dots
+        ggplot2::geom_point(
+            data        = rain.df,
+            ggplot2::aes(x = .data$x, y = .data$y, colour = .data$col),
+            size        = 0.9, alpha = 0.7, show.legend = FALSE) +
+        ggplot2::scale_colour_identity() +
+
+        # Rain-cloud: rug ticks at the strip centre
+        ggplot2::geom_rug(
+            data        = data.frame(x = gebv.vals, col = pt.cols),
+            ggplot2::aes(x = .data$x, colour = .data$col),
+            sides       = "b",
+            length      = ggplot2::unit(0.025, "npc"),
+            linewidth   = 0.3,
+            alpha       = 0.8,
+            inherit.aes = FALSE,
+            show.legend = FALSE) +
+
+        # Summary annotation
+        ggplot2::annotate(
+            "text",
+            x      = thr + diff(range(gebv.vals)) * 0.02,
+            y      = max.dens * 0.95,
+            label  = ann.label,
+            hjust  = 0, vjust = 1,
+            size   = 3, colour = "grey20") +
+
+        ggplot2::labs(
+            x       = "GEBV",
+            y       = "Density",
+            title   = sprintf("GEBV Distribution  [%s path]", gp$path),
+            caption = sprintf(
+                "Selection threshold: %.4f  (%s)",
+                thr,
+                if (!is.null(threshold) && threshold > 0 && threshold < 1)
+                    sprintf("top %.0f%%", 100 * (1 - threshold))
+                else
+                    sprintf("top %.0f%%", 100 * prop.select))) +
+
+        ggplot2::coord_cartesian(clip = "off") +
         theme_scatter()
+
+    # ggrepel labels for selected lines — repel upward into the density
+    if (!is.null(label.df) && nrow(label.df) > 0L)
+        gp.obj <- gp.obj +
+            ggrepel::geom_text_repel(
+                data            = label.df,
+                ggplot2::aes(x = .data$x, y = .data$y, label = .data$label),
+                colour          = pt.col[1],
+                size            = 2.5,
+                nudge_y         = max.dens * 0.08,
+                direction       = "x",
+                segment.colour  = pt.col[1],
+                segment.alpha   = 0.5,
+                segment.size    = 0.3,
+                min.segment.length = 0,
+                max.overlaps    = Inf,
+                inherit.aes     = FALSE
+            )
+
+    gp.obj
 }
 
 # =============================================================================
