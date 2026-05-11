@@ -78,9 +78,6 @@ linkMap.gwasAim <- function(object, ...,
     if (!inherits(genObj, "wgPanel"))
         stop("'genObj' must be of class \"wgPanel\".")
 
-    ## Build fake_cross once — shared by both paths
-    fake_cross <- list(geno = genObj$geno)
-    class(fake_cross) <- "cross"
     panel_map <- lapply(genObj$geno, function(ch) ch$map)
 
     ## Internal: resolve marker keys → (chr, name, pos) data frame
@@ -144,7 +141,7 @@ linkMap.gwasAim <- function(object, ...,
         if (!any(has_sig)) {
             warning("No significant markers in any model — plotting map only.")
             return(invisible(do.call(linkMap, .lm_base_args(
-                fake_cross, chr = if (missing(chr)) NULL else chr,
+                genObj, chr = if (missing(chr)) NULL else chr,
                 row.chr = row.chr, nrow = nrow,
                 marker.names = "none", m.cex = m.cex,
                 pass_args = pass_args))))
@@ -163,7 +160,7 @@ linkMap.gwasAim <- function(object, ...,
 
         show_marks <- !is.null(marker.names) && !identical(marker.names, "none")
         fm         <- if (show_marks) flank_marks else NULL
-        base_args  <- .lm_base_args(fake_cross,
+        base_args  <- .lm_base_args(genObj,
                                      chr = if (is.null(row.chr)) chr else NULL,
                                      row.chr = row.chr, nrow = nrow,
                                      flanking_marks = fm,
@@ -220,7 +217,7 @@ linkMap.gwasAim <- function(object, ...,
 
     if (!length(object$QTL$effects)) {
         warning("No significant GWAS markers — plotting map only.")
-        base_args <- .lm_base_args(fake_cross,
+        base_args <- .lm_base_args(genObj,
                                     chr = if (missing(chr)) NULL else chr,
                                     row.chr = row.chr, nrow = nrow,
                                     marker.names = "none", m.cex = m.cex,
@@ -231,7 +228,7 @@ linkMap.gwasAim <- function(object, ...,
     marker_df <- .resolve_markers(object)
     if (is.null(marker_df)) {
         warning("Could not resolve cM positions for any significant marker.")
-        return(invisible(linkMap(fake_cross, ...)))
+        return(invisible(linkMap(genObj, ...)))
     }
 
     ## --- Chromosomes + base map ----------------------------------------------
@@ -240,7 +237,7 @@ linkMap.gwasAim <- function(object, ...,
 
     show_marks <- !is.null(marker.names) && !identical(marker.names, "none")
     fm         <- if (show_marks) unique(marker_df$name) else NULL
-    base_args  <- .lm_base_args(fake_cross,
+    base_args  <- .lm_base_args(genObj,
                                   chr = if (is.null(row.chr)) chr else NULL,
                                   row.chr = row.chr, nrow = nrow,
                                   flanking_marks = fm,

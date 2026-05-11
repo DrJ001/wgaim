@@ -311,7 +311,7 @@ primePanel <- function(geno, map, id = "id",
         pheno = setNames(data.frame(ids, stringsAsFactors = FALSE), id),
         geno  = geno.list
     )
-    class(panel) <- c("wgPanel", "wgCross")
+    class(panel) <- c("wgPanel", "wgCross", "cross")
 
     n.final <- sum(sapply(geno.list, function(el) ncol(el$imputed.data)))
     message("wgPanel object created: ", length(ids), " lines, ",
