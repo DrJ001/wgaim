@@ -67,18 +67,18 @@ Default \code{c("steelblue","firebrick")}.}
 
 \item{object}{A \code{gpAim} object.}
 
-\item{genoObj}{A genotypic data object of class \code{"interval"} (from
-\code{\link[wgaim]{cross2int}}, for biparental populations) or class
-\code{"panel"} (from \code{\link{makePanel}}, for diversity panels).
+\item{genObj}{A genotypic data object of class \code{"wgCross"} (from
+\code{\link[wgaim]{primeCross}}, for biparental populations) or class
+\code{"wgPanel"} (from \code{\link{primePanel}}, for diversity panels).
 Must contain per-chromosome genotype matrices accessible at
 \code{$geno[[chr]]$imputed.data} (marker mode) or
 \code{$geno[[chr]]$interval.data} (interval mode).}
 
 \item{merge.by}{Character string naming the column present in both the
-phenotypic data and \code{genoObj} linking lines across datasets.}
+phenotypic data and \code{genObj} linking lines across datasets.}
 
 \item{fix.lines}{Logical. If \code{TRUE} (default), lines in the
-phenotypic data that are absent from \code{genoObj} are accommodated
+phenotypic data that are absent from \code{genObj} are accommodated
 by adding a fixed \code{Gomit} factor and restricting the genomic
 random effect to genotyped lines only. See \code{\link{qtlAim}} for
 full details.}
@@ -87,9 +87,9 @@ full details.}
 \code{"interval"}. Determines which genotype scores are used to build
 the marker matrix \eqn{M}. \code{"marker"} uses imputed marker
 scores (\code{$imputed.data}); \code{"interval"} uses interval
-midpoint scores (\code{$interval.data}) and requires an
-\code{"interval"} class \code{genoObj}. For diversity panels
-(\code{"panel"} class), \code{gen.type = "marker"} is required.}
+midpoint scores (\code{$interval.data}) and requires a
+\code{"wgCross"} class \code{genObj}. For diversity panels
+(\code{"wgPanel"} class), \code{gen.type = "marker"} is required.}
 
 \item{force}{Logical. If \code{FALSE} (default), the vm path is used when
 markers exceed lines and the mbf path otherwise (automatic selection).
@@ -218,11 +218,11 @@ estimated heritability, number of lines, and number of markers.
 library(asreml)
 
 # --- Diversity panel (vm path, markers > lines) ---
-panel <- makePanel(geno = geno.mat, map = map.df, encoding = "012")
+panel <- primePanel(geno = geno.mat, map = map.df, encoding = "012")
 panel$pheno$line <- factor(line.ids)
 base.mod <- asreml(yield ~ rep, random = ~ line, data = pheno.df)
 
-gp.fit <- gpAim(base.mod, genoObj = panel, merge.by = "line",
+gp.fit <- gpAim(base.mod, genObj = panel, merge.by = "line",
                 trace = "trace.txt",
                 na.action = na.method(x = "include"))
 
@@ -234,17 +234,17 @@ plot(gp.fit, type = "density", prop.select = 0.10)
 
 # --- Biparental population (interval mode) ---
 data(genoRxK, package = "wgaim")
-genoRxK <- cross2int(genoRxK, impute = "Martinez", id = "Genotype")
+genoRxK <- primeCross(genoRxK, impute = "Martinez", id = "Genotype")
 base.mod2 <- asreml(yld ~ Type, random = ~ Genotype, data = phenoRxK)
 
-gp.fit2 <- gpAim(base.mod2, genoObj = genoRxK,
+gp.fit2 <- gpAim(base.mod2, genObj = genoRxK,
                  merge.by = "Genotype", gen.type = "interval")
 }
 
 }
 \seealso{
 \code{\link{print.gpAim}}, \code{\link{summary.gpAim}},
-  \code{\link{plot.gpAim}}, \code{\link{makePanel}},
-  \code{\link[wgaim]{cross2int}}, \code{\link{qtlAim}},
+  \code{\link{plot.gpAim}}, \code{\link{primePanel}},
+  \code{\link[wgaim]{primeCross}}, \code{\link{qtlAim}},
   \code{\link{gwasAim}}
 }

@@ -19,7 +19,7 @@
 }
 \arguments{
 \item{object}{A \code{"cross"} object produced by
-\code{\link[qtl]{read.cross}} or \code{\link[wgaim]{cross2int}}.}
+\code{\link[qtl]{read.cross}} or \code{\link{primeCross}}.}
 
 \item{chr}{Optional character vector of chromosome names to display.
 Defaults to all chromosomes.}

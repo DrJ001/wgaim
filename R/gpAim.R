@@ -13,6 +13,9 @@
 #            where M is the marker matrix and q̂ are the marker effect BLUPs.
 #            The mbf path avoids the singularity of G when lines >= markers.
 #
+# genObj must be of class "wgCross" (from primeCross()) or "wgPanel"
+# (from primePanel()).
+#
 # Arguments intentionally absent (vs qtlAim/gwasAim):
 #   method          - always 'random' (GEBVs are random effects by definition)
 #   selection       - no selection; no loop
@@ -51,16 +54,16 @@
 #'   term should be included in the random formula; it is removed internally
 #'   and replaced by the genomic term. If the model has not converged, one
 #'   update attempt is made automatically.
-#' @param genoObj A genotypic data object of class \code{"interval"} (from
-#'   \code{\link[wgaim]{cross2int}}, for biparental populations) or class
-#'   \code{"panel"} (from \code{\link{makePanel}}, for diversity panels).
+#' @param genObj A genotypic data object of class \code{"wgCross"} (from
+#'   \code{\link[wgaim]{primeCross}}, for biparental populations) or class
+#'   \code{"wgPanel"} (from \code{\link{primePanel}}, for diversity panels).
 #'   Must contain per-chromosome genotype matrices accessible at
 #'   \code{$geno[[chr]]$imputed.data} (marker mode) or
 #'   \code{$geno[[chr]]$interval.data} (interval mode).
 #' @param merge.by Character string naming the column present in both the
-#'   phenotypic data and \code{genoObj} linking lines across datasets.
+#'   phenotypic data and \code{genObj} linking lines across datasets.
 #' @param fix.lines Logical. If \code{TRUE} (default), lines in the
-#'   phenotypic data that are absent from \code{genoObj} are accommodated
+#'   phenotypic data that are absent from \code{genObj} are accommodated
 #'   by adding a fixed \code{Gomit} factor and restricting the genomic
 #'   random effect to genotyped lines only. See \code{\link{qtlAim}} for
 #'   full details.
@@ -68,9 +71,9 @@
 #'   \code{"interval"}. Determines which genotype scores are used to build
 #'   the marker matrix \eqn{M}. \code{"marker"} uses imputed marker
 #'   scores (\code{$imputed.data}); \code{"interval"} uses interval
-#'   midpoint scores (\code{$interval.data}) and requires an
-#'   \code{"interval"} class \code{genoObj}. For diversity panels
-#'   (\code{"panel"} class), \code{gen.type = "marker"} is required.
+#'   midpoint scores (\code{$interval.data}) and requires a
+#'   \code{"wgCross"} class \code{genObj}. For diversity panels
+#'   (\code{"wgPanel"} class), \code{gen.type = "marker"} is required.
 #' @param force Logical. If \code{FALSE} (default), the vm path is used when
 #'   markers exceed lines and the mbf path otherwise (automatic selection).
 #'   Set \code{force = TRUE} to always use the mbf path regardless of the
@@ -132,8 +135,8 @@
 #' to \code{<response>.data} in the calling environment.
 #'
 #' @seealso \code{\link{print.gpAim}}, \code{\link{summary.gpAim}},
-#'   \code{\link{plot.gpAim}}, \code{\link{makePanel}},
-#'   \code{\link[wgaim]{cross2int}}, \code{\link{qtlAim}},
+#'   \code{\link{plot.gpAim}}, \code{\link{primePanel}},
+#'   \code{\link[wgaim]{primeCross}}, \code{\link{qtlAim}},
 #'   \code{\link{gwasAim}}
 #'
 #' @examples
@@ -141,11 +144,11 @@
 #' library(asreml)
 #'
 #' # --- Diversity panel (vm path, markers > lines) ---
-#' panel <- makePanel(geno = geno.mat, map = map.df, encoding = "012")
+#' panel <- primePanel(geno = geno.mat, map = map.df, encoding = "012")
 #' panel$pheno$line <- factor(line.ids)
 #' base.mod <- asreml(yield ~ rep, random = ~ line, data = pheno.df)
 #'
-#' gp.fit <- gpAim(base.mod, genoObj = panel, merge.by = "line",
+#' gp.fit <- gpAim(base.mod, genObj = panel, merge.by = "line",
 #'                 trace = "trace.txt",
 #'                 na.action = na.method(x = "include"))
 #'
@@ -157,10 +160,10 @@
 #'
 #' # --- Biparental population (interval mode) ---
 #' data(genoRxK, package = "wgaim")
-#' genoRxK <- cross2int(genoRxK, impute = "Martinez", id = "Genotype")
+#' genoRxK <- primeCross(genoRxK, impute = "Martinez", id = "Genotype")
 #' base.mod2 <- asreml(yld ~ Type, random = ~ Genotype, data = phenoRxK)
 #'
-#' gp.fit2 <- gpAim(base.mod2, genoObj = genoRxK,
+#' gp.fit2 <- gpAim(base.mod2, genObj = genoRxK,
 #'                  merge.by = "Genotype", gen.type = "interval")
 #' }
 #'
@@ -174,7 +177,7 @@ gpAim.default <- function(baseModel, ...)
     stop("Currently the only supported method is \"asreml\".")
 
 #' @exportS3Method
-gpAim.asreml <- function(baseModel, genoObj, merge.by = NULL,
+gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
                           fix.lines = TRUE, gen.type = "marker",
                           force = FALSE, trace = TRUE, ...) {
 
@@ -206,16 +209,17 @@ gpAim.asreml <- function(baseModel, genoObj, merge.by = NULL,
     if (!(gen.type %in% c("marker", "interval")))
         stop("gen.type must be \"marker\" or \"interval\".")
 
-    # genoObj: accept either 'interval' (from cross2int) or 'panel' (from makePanel)
-    if (missing(genoObj))
-        stop("genoObj is a required argument. Supply an 'interval' or 'panel' object.")
-    if (!inherits(genoObj, "interval"))
-        stop("genoObj must be of class \"interval\" or \"panel\".")
-    if (gen.type == "interval" && inherits(genoObj, "panel"))
-        stop("gen.type = \"interval\" requires an 'interval' object from cross2int(), ",
-             "not a 'panel' object. Use gen.type = \"marker\" with makePanel() output.")
+    # genObj: accept either 'wgCross' (from primeCross) or 'wgPanel' (from primePanel)
+    if (missing(genObj))
+        stop("genObj is a required argument.")
+    if (!inherits(genObj, c("wgCross", "wgPanel")))
+        stop("genObj must be of class \"wgCross\" (from primeCross()) or ",
+             "\"wgPanel\" (from primePanel()).")
+    if (gen.type == "interval" && inherits(genObj, "wgPanel"))
+        stop("gen.type = \"interval\" requires a 'wgCross' object from primeCross(), ",
+             "not a 'wgPanel' object. Use gen.type = \"marker\" with primePanel() output.")
 
-    glines <- genoObj$pheno[, merge.by]
+    glines <- genObj$pheno[, merge.by]
     if (is.null(glines))
         stop("Genotypic data does not contain column \"", merge.by, "\".")
     plines <- phenoData[, merge.by]
@@ -228,7 +232,7 @@ gpAim.asreml <- function(baseModel, genoObj, merge.by = NULL,
     # -------------------------------------------------------------------------
     # Phase 2: Build genotype data matrix
     # -------------------------------------------------------------------------
-    gd       <- .buildGenoData(genoObj, gen.type, glines, plines)
+    gd       <- .buildGenoData(genObj, gen.type, glines, plines)
     genoData <- gd$genoData
 
     fl           <- .fixLines(baseModel, phenoData, genoData, merge.by, plines, fix.lines, ...)

@@ -3,13 +3,15 @@
 # S3 linkMap() method for gwasAim objects — single model OR multiple models.
 #
 # Multiple models are passed as extra positional arguments in ...:
-#   linkMap(gwas1, gwas2, panelObj = my_panel)
+#   linkMap(gwas1, gwas2, genObj = my_panel)
 #
 # Any unnamed ... arg that inherits "gwasAim" is treated as an additional
 # model.  Named ... args are passed through to linkMap.cross().
 #
 # The old list-based API still works via linkMap.default (backward compat):
-#   linkMap(list(gwas1, gwas2), panelObj = my_panel)
+#   linkMap(list(gwas1, gwas2), genObj = my_panel)
+#
+# genObj must be a "wgPanel" object produced by primePanel().
 #
 # Shared helpers (.lm_base_args, .lm_left_labels, .lm_right_labels) live in
 # linkMap.cross.R.
@@ -19,11 +21,12 @@
 #' @describeIn gwasAim Plot the genetic linkage map with significant GWAS
 #'   markers overlaid as coloured horizontal bands.  Accepts a single
 #'   \code{gwasAim} object or multiple models as extra positional arguments —
-#'   e.g. \code{linkMap(gwas1, gwas2, panelObj = my_panel)} — for a
+#'   e.g. \code{linkMap(gwas1, gwas2, genObj = my_panel)} — for a
 #'   multi-trait overlay with automatic colour legend.  Returns a
 #'   \code{ggplot} object.
 #' @param object A \code{gwasAim} object, or the first of several.
-#' @param panelObj The \code{"panel"} object used in the analysis.
+#' @param genObj The \code{"wgPanel"} object produced by \code{primePanel()}
+#'   used in the analysis.
 #' @param chr Optional character vector of chromosomes to display.
 #' @param marker.names \code{"markers"} (default), \code{"dist"},
 #'   \code{"none"} or \code{NULL}.
@@ -42,7 +45,7 @@
 #' @return A \code{ggplot} object.
 #' @export
 linkMap.gwasAim <- function(object, ...,
-                             panelObj,
+                             genObj,
                              chr,
                              marker.names  = "markers",
                              marker.colour = "firebrick",
@@ -70,15 +73,15 @@ linkMap.gwasAim <- function(object, ...,
     ## -------------------------------------------------------------------------
     ## Guards (shared across both paths)
     ## -------------------------------------------------------------------------
-    if (missing(panelObj))
-        stop("'panelObj' is a required argument.")
-    if (!inherits(panelObj, "interval"))
-        stop("'panelObj' must be of class \"panel\" / \"interval\".")
+    if (missing(genObj))
+        stop("'genObj' is a required argument.")
+    if (!inherits(genObj, "wgPanel"))
+        stop("'genObj' must be of class \"wgPanel\".")
 
     ## Build fake_cross once — shared by both paths
-    fake_cross <- list(geno = panelObj$geno)
+    fake_cross <- list(geno = genObj$geno)
     class(fake_cross) <- "cross"
-    panel_map <- lapply(panelObj$geno, function(ch) ch$map)
+    panel_map <- lapply(genObj$geno, function(ch) ch$map)
 
     ## Internal: resolve marker keys → (chr, name, pos) data frame
     .resolve_markers <- function(gwas_obj) {

@@ -78,7 +78,7 @@ linkMap <- function(object, ...) UseMethod("linkMap")
 #' with \code{+}.
 #'
 #' @param object A \code{"cross"} object produced by
-#'   \code{\link[qtl]{read.cross}} or \code{\link[wgaim]{cross2int}}.
+#'   \code{\link[qtl]{read.cross}} or \code{\link{primeCross}}.
 #' @param chr Optional character vector of chromosome names to display.
 #'   Defaults to all chromosomes.
 #' @param chr.dist Optional named list with elements \code{$start} and/or

@@ -15,7 +15,7 @@
 \method{linkMap}{qtlAim}(
   object,
   ...,
-  intervalObj,
+  genObj,
   chr,
   chr.dist,
   marker.names = "markers",
@@ -44,8 +44,10 @@ tr.qtlAim(object, iter = 1:length(object$QTL$effects), lik.out = TRUE, ...)
 \item{...}{Additional \code{qtlAim} models (positional, unnamed) and/or
 arguments passed to \code{\link{linkMap.cross}}.}
 
-\item{intervalObj}{The \code{"interval"} or \code{"cross"} object used in
-the analysis, required to resolve QTL positions.}
+\item{genObj}{An object of class \code{"wgCross"} produced by
+\code{\link[wgaim]{primeCross}}. Contains per-chromosome interval midpoint
+data (\code{$interval.data}) and imputed marker data
+(\code{$imputed.data}) used according to \code{gen.type}.}
 
 \item{chr}{Optional character vector of chromosome names to display.}
 
@@ -78,6 +80,9 @@ model).}
 
 \item{x}{A \code{qtlAim} object.}
 
+\item{intervalObj}{The \code{"interval"} or \code{"cross"} object used in
+the analysis, required to resolve QTL positions.}
+
 \item{baseModel}{A converged \code{asreml} model object representing the
 null model (no QTL effects). Must include the genetic line term in the
 random formula. If the model has not converged, a single update attempt
@@ -95,12 +100,12 @@ table is also printed, showing the base and full model log-likelihoods,
 the LRT statistic, and its p-value at each iteration.}
 
 \item{merge.by}{Character string naming the column present in both the
-phenotypic data (extracted from \code{baseModel}) and \code{intervalObj}
+phenotypic data (extracted from \code{baseModel}) and \code{genObj}
 that links lines across the two datasets. This is typically the genetic
 line identifier (e.g. \code{"Genotype"}).}
 
 \item{fix.lines}{Logical. If \code{TRUE} (default), lines present in the
-phenotypic data but absent from \code{intervalObj} are accommodated by
+phenotypic data but absent from \code{genObj} are accommodated by
 adding a fixed factor (\code{Gomit}) to the model and restricting the
 genetic random effect to genotyped lines only (\code{Gsave}). This
 ensures that additive and non-additive genetic variance components are
@@ -249,7 +254,7 @@ markers. Both paths produce identical QTL selections.
 \item \code{linkMap(qtlAim)}: Plot the genetic linkage map with detected QTL overlaid.
 Accepts a single \code{qtlAim} object or multiple models passed as extra
 positional arguments — e.g.
-\code{linkMap(qtl_yld, qtl_tgw, intervalObj = my_int)} — for a
+\code{linkMap(qtl_yld, qtl_tgw, genObj = my_int)} — for a
 multi-trait overlay.  QTL intervals are drawn as coloured fills inside
 the chromosome bar; flanking markers are annotated on the right; trait
 labels sit to the left.  Returns a \code{ggplot} object.
@@ -287,9 +292,9 @@ library(asreml)
 data(phenoRxK, package = "wgaim")
 data(genoRxK,  package = "wgaim")
 
-# Prepare interval object
+# Prepare wgCross object
 genoRxK <- subset(genoRxK, chr = c("1A","2D1","2D2","3B"))
-genoRxK <- cross2int(genoRxK, impute = "Martinez", id = "Genotype")
+genoRxK <- primeCross(genoRxK, impute = "Martinez", id = "Genotype")
 
 # Fit null base model
 base.mod <- asreml(yld ~ Type + lrow,
@@ -298,17 +303,17 @@ base.mod <- asreml(yld ~ Type + lrow,
                    data     = phenoRxK)
 
 # Forward-selection QTL analysis
-qtl.fit <- qtlAim(base.mod, intervalObj = genoRxK,
+qtl.fit <- qtlAim(base.mod, genObj = genoRxK,
                   merge.by = "Genotype",
                   trace    = "trace.txt",
                   na.action = na.method(x = "include"))
 
 # Results
-print(qtl.fit,   intervalObj = genoRxK)
-summary(qtl.fit, intervalObj = genoRxK)
+print(qtl.fit,   genObj = genoRxK)
+summary(qtl.fit, genObj = genoRxK)
 tr(qtl.fit)
-linkMap(qtl.fit, intervalObj = genoRxK)
-outStat(qtl.fit, intervalObj = genoRxK)
+linkMap(qtl.fit, genObj = genoRxK)
+outStat(qtl.fit, genObj = genoRxK)
 }
 
 }
@@ -324,6 +329,6 @@ high-dimensional random whole genome average (QTL) interval mapping approach.
 \seealso{
 \code{\link{summary.qtlAim}}, \code{\link{print.qtlAim}},
   \code{\link{tr.qtlAim}}, \code{\link{linkMap.qtlAim}},
-  \code{\link[wgaim]{cross2int}}, \code{\link[wgaim]{outStat}},
+  \code{\link[wgaim]{primeCross}}, \code{\link[wgaim]{outStat}},
   \code{\link{gwasAim}}, \code{\link{gpAim}}
 }

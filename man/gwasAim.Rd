@@ -13,7 +13,7 @@ gwasAim(baseModel, ...)
 \method{linkMap}{gwasAim}(
   object,
   ...,
-  panelObj,
+  genObj,
   chr,
   marker.names = "markers",
   marker.colour = "firebrick",
@@ -42,7 +42,8 @@ automatically.}
 
 \item{object}{A \code{gwasAim} object.}
 
-\item{panelObj}{The \code{"panel"} object passed to \code{gwasAim}.}
+\item{genObj}{The \code{"wgPanel"} object produced by \code{primePanel()}
+used in the analysis.}
 
 \item{chr}{Optional character vector of chromosomes to display.}
 
@@ -69,13 +70,15 @@ Defaults to \code{marker.colour}.}
 
 \item{x}{A \code{gwasAim} object.}
 
+\item{panelObj}{The \code{"panel"} object passed to \code{gwasAim}.}
+
 \item{LOD}{Logical. If \code{TRUE} (default), a LOD score column is appended.}
 
 \item{merge.by}{Character string naming the column present in both the
-phenotypic data and \code{panelObj} that links lines across datasets.}
+phenotypic data and \code{genObj} that links lines across datasets.}
 
 \item{fix.lines}{Logical. If \code{TRUE} (default), phenotyped lines absent
-from \code{panelObj} are handled by adding a fixed \code{Gomit} factor,
+from \code{genObj} are handled by adding a fixed \code{Gomit} factor,
 restricting variance estimation to genotyped lines only. See
 \code{\link{qtlAim}} for full details.}
 
@@ -136,8 +139,8 @@ process repeats until no further associations are detected.
 
 \code{gwasAim} differs from \code{\link{qtlAim}} in three important ways:
 \enumerate{
-  \item Input is a \code{"panel"} object from \code{\link{makePanel}}
-    rather than an \code{"interval"} object from \code{cross2int}.
+  \item Input is a \code{"wgPanel"} object from \code{\link{primePanel}}
+    rather than a \code{"wgCross"} object from \code{primeCross}.
   \item Marker effects are always treated as fixed effects
     (\code{method = "fixed"} is hard-coded), consistent with standard
     GWAS practice.
@@ -172,7 +175,7 @@ process with \code{\link{manhattan.gwasAim}}.
 \item \code{linkMap(gwasAim)}: Plot the genetic linkage map with significant GWAS
 markers overlaid as coloured horizontal bands.  Accepts a single
 \code{gwasAim} object or multiple models as extra positional arguments —
-e.g. \code{linkMap(gwas1, gwas2, panelObj = my_panel)} — for a
+e.g. \code{linkMap(gwas1, gwas2, genObj = my_panel)} — for a
 multi-trait overlay with automatic colour legend.  Returns a
 \code{ggplot} object.
 
@@ -192,9 +195,9 @@ significance threshold and marker count are stored as an attribute.
 \dontrun{
 library(asreml)
 
-# Build panel object from 0/1/2 encoded genotype matrix
-panel <- makePanel(geno = geno.mat, map = map.df,
-                   encoding = "012", maf = 0.05)
+# Build wgPanel object from 0/1/2 encoded genotype matrix
+panel <- primePanel(geno = geno.mat, map = map.df,
+                    encoding = "012", maf = 0.05)
 panel$pheno$line <- factor(line.ids)
 
 # Null base model capturing experimental structure
@@ -203,14 +206,14 @@ base.mod <- asreml(yield ~ rep,
                    data     = pheno.df)
 
 # Forward-selection GWAS
-gwas.fit <- gwasAim(base.mod, panelObj = panel,
+gwas.fit <- gwasAim(base.mod, genObj = panel,
                     merge.by = "line", TypeI = 0.05,
                     trace    = "trace.txt",
                     na.action = na.method(x = "include"))
 
-print(gwas.fit,   panelObj = panel)
-summary(gwas.fit, panelObj = panel)
-manhattan(gwas.fit, panelObj = panel)
+print(gwas.fit,   genObj = panel)
+summary(gwas.fit, genObj = panel)
+manhattan(gwas.fit, genObj = panel)
 }
 
 }
@@ -224,7 +227,7 @@ high-dimensional random whole genome average (QTL) interval mapping approach.
 \emph{Genetics Research}, \bold{94}, 291--306.
 }
 \seealso{
-\code{\link{makePanel}}, \code{\link{summary.gwasAim}},
+\code{\link{primePanel}}, \code{\link{summary.gwasAim}},
   \code{\link{print.gwasAim}}, \code{\link{manhattan.gwasAim}},
   \code{\link{qtlAim}}, \code{\link{gpAim}}
 }

@@ -1,14 +1,14 @@
-# =============================================================================
-# makePanel.R
+﻿# =============================================================================
+# primePanel.R
 # Convert association panel marker data into a 'panel'/'interval' class object
 # for use with gwasAim() and gpAim().
 #
 # The resulting object has the same internal structure as an 'interval' object
-# from cross2int(), so it feeds directly into the shared wgAim engine pieces
+# from primeCross(), so it feeds directly into the shared wgAim engine pieces
 # without modification.
 # =============================================================================
 
-#' Convert Marker Panel Data to a Panel Object for gwasAim and gpAim
+#' Prepare Marker Panel Data for Whole-Genome Analysis for gwasAim and gpAim
 #'
 #' @description
 #' Converts a matrix or data frame of marker genotypes and an associated
@@ -27,7 +27,7 @@
 #'   \eqn{x \mapsto x - 1} is applied to all values whether or not they
 #'   are integers, yielding dosage values in \eqn{[-1, 1]}. A pre-imputed
 #'   dosage matrix therefore requires no further imputation inside
-#'   \code{makePanel}.
+#'   \code{primePanel}.
 #'
 #' @param map A \code{data.frame} containing the genetic map with at minimum
 #'   three columns: marker names (\code{map.id}), chromosome identifiers
@@ -52,7 +52,7 @@
 #'       homozygote, 1 = AB heterozygote, 2 = BB homozygote. Values are
 #'       shifted by \eqn{-1} to produce additive \eqn{\pm 1} coding. This
 #'       also accepts fractional dosage values in \eqn{[0, 2]} output by
-#'       imputation software — no additional handling is required.}
+#'       imputation software â€” no additional handling is required.}
 #'     \item{\code{"pm1"}}{Genotypes already in additive \eqn{\pm 1}
 #'       coding. No transformation is applied. Fractional values in
 #'       \eqn{[-1, 1]} are accepted.}
@@ -64,7 +64,7 @@
 #'   are handled \emph{after} encoding and MAF filtering:
 #'   \describe{
 #'     \item{\code{"none"} (default)}{No imputation is performed. If any
-#'       \code{NA}s remain, \code{makePanel} stops with an informative error
+#'       \code{NA}s remain, \code{primePanel} stops with an informative error
 #'       recommending pre-imputation with dedicated software. This is the
 #'       recommended path for large panels.}
 #'     \item{\code{"mean"}}{Missing values are replaced with the column mean
@@ -79,11 +79,11 @@
 #' \strong{Missing data and imputation:}
 #'
 #' For real association panels, missing genotypes should be imputed using
-#' dedicated software \emph{before} calling \code{makePanel}. Tools such as
+#' dedicated software \emph{before} calling \code{primePanel}. Tools such as
 #' Beagle (\url{https://faculty.washington.edu/browning/beagle/beagle.html}),
 #' IMPUTE2, or Minimac use haplotype reference panels and linkage
 #' disequilibrium information to produce well-calibrated dosage values.
-#' Their output can be supplied directly to \code{makePanel} as a matrix
+#' Their output can be supplied directly to \code{primePanel} as a matrix
 #' of dosage values in \eqn{[0, 2]} with \code{encoding = "012"} and
 #' \code{impute = "none"}.
 #'
@@ -103,7 +103,7 @@
 #' the full dosage information is preserved for use in the relationship
 #' matrix or marker effect model.
 #'
-#' @return An object of class \code{c("panel","interval")} — a list with:
+#' @return An object of class \code{c("panel","interval")} â€” a list with:
 #' \describe{
 #'   \item{\code{$pheno}}{A \code{data.frame} with the line identifier column.}
 #'   \item{\code{$geno}}{A named list (one element per chromosome) each
@@ -119,7 +119,7 @@
 #' }
 #'
 #' @seealso \code{\link{gwasAim}}, \code{\link{gpAim}},
-#'   \code{\link[wgaim]{cross2int}}
+#'   \code{\link[wgaim]{primeCross}}
 #'
 #' @examples
 #' \dontrun{
@@ -133,18 +133,18 @@
 #'   chr    = rep(paste0("Chr", 1:5), each = 100),
 #'   pos    = rep(seq(1, 100), times = 5))
 #'
-#' panel <- makePanel(geno.mat, map.df, encoding = "012", maf = 0.05)
+#' panel <- primePanel(geno.mat, map.df, encoding = "012", maf = 0.05)
 #'
 #' # --- Dosage values from Beagle (fractional, no NAs) ---
 #' # dosage.mat is a matrix of values in [0, 2] from Beagle output
-#' panel <- makePanel(dosage.mat, map.df, encoding = "012", impute = "none")
+#' panel <- primePanel(dosage.mat, map.df, encoding = "012", impute = "none")
 #'
 #' # --- Small panel with some missingness (mean imputation, with warning) ---
-#' panel <- makePanel(geno.mat, map.df, encoding = "012", impute = "mean")
+#' panel <- primePanel(geno.mat, map.df, encoding = "012", impute = "mean")
 #' }
 #'
 #' @export
-makePanel <- function(geno, map, id = "id",
+primePanel <- function(geno, map, id = "id",
                       map.id   = "marker",
                       map.chr  = "chr",
                       map.pos  = "pos",
@@ -196,13 +196,13 @@ makePanel <- function(geno, map, id = "id",
     map      <- map[map[[map.id]] %in% common, , drop = FALSE]
 
     # -------------------------------------------------------------------------
-    # 4. Encode genotypes to additive ±1 / dosage coding
+    # 4. Encode genotypes to additive Â±1 / dosage coding
     # -------------------------------------------------------------------------
     if (encoding == "012") {
         # Shift by -1: integers 0/1/2 -> -1/0/+1
         # Fractional dosage values in [0,2] -> [-1,+1]; no rounding applied.
         geno.mat <- geno.mat - 1
-        # Soft range check — values outside [-1.05, 1.05] suggest wrong encoding
+        # Soft range check â€” values outside [-1.05, 1.05] suggest wrong encoding
         rng <- range(geno.mat, na.rm = TRUE)
         if (rng[1] < -1.05 || rng[2] > 1.05)
             warning("After encoding, some values lie outside [-1, 1] ",
@@ -223,7 +223,7 @@ makePanel <- function(geno, map, id = "id",
     # 5. MAF filter
     # -------------------------------------------------------------------------
     if (!is.null(maf) && maf > 0) {
-        # In ±1 coding: mean = 2p - 1, so p = (mean + 1) / 2
+        # In Â±1 coding: mean = 2p - 1, so p = (mean + 1) / 2
         allele.freq <- colMeans(geno.mat, na.rm = TRUE)
         p           <- (allele.freq + 1) / 2
         minor.freq  <- pmin(p, 1 - p)
@@ -244,7 +244,7 @@ makePanel <- function(geno, map, id = "id",
             pct <- round(100 * n.missing / length(geno.mat), 2)
             stop(
                 n.missing, " missing genotype(s) remain (", pct, "% of values). ",
-                "makePanel does not impute by default.\n\n",
+                "primePanel does not impute by default.\n\n",
                 "Options:\n",
                 "  1. Pre-impute using dedicated software (recommended):\n",
                 "       Beagle  : https://faculty.washington.edu/browning/beagle/\n",
@@ -252,7 +252,7 @@ makePanel <- function(geno, map, id = "id",
                 "       Minimac : https://genome.sph.umich.edu/wiki/Minimac\n",
                 "     Supply the resulting dosage matrix with encoding = '012'.\n\n",
                 "  2. Use column-mean imputation for small panels / exploration:\n",
-                "       makePanel(..., impute = 'mean')\n",
+                "       primePanel(..., impute = 'mean')\n",
                 "     Warning: mean imputation ignores LD and haplotype structure.\n",
                 "     Not recommended for missing rates above 1-2%."
             )
@@ -263,7 +263,7 @@ makePanel <- function(geno, map, id = "id",
                 "Column-mean imputation ignores LD and haplotype structure. ",
                 "Results may be biased, especially at high missing rates. ",
                 "For publication-quality analyses, use dedicated imputation software ",
-                "(Beagle, IMPUTE2, Minimac) prior to calling makePanel()."
+                "(Beagle, IMPUTE2, Minimac) prior to calling primePanel()."
             )
             col.means <- colMeans(geno.mat, na.rm = TRUE)
             for (j in seq_len(ncol(geno.mat))) {
@@ -311,10 +311,11 @@ makePanel <- function(geno, map, id = "id",
         pheno = setNames(data.frame(ids, stringsAsFactors = FALSE), id),
         geno  = geno.list
     )
-    class(panel) <- c("panel", "interval")
+    class(panel) <- c("wgPanel", "wgCross")
 
     n.final <- sum(sapply(geno.list, function(el) ncol(el$imputed.data)))
-    message("Panel object created: ", length(ids), " lines, ",
+    message("wgPanel object created: ", length(ids), " lines, ",
             n.final, " markers across ", length(chrs), " chromosomes.")
     panel
 }
+

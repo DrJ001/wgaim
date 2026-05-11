@@ -4,7 +4,7 @@
 #
 # Forward-selection marker association analysis using the shared wgAim engine.
 # Differences from qtlAim:
-#   - Takes a 'panel' object (from makePanel()) instead of an 'interval' object
+#   - Takes a 'wgPanel' object (from primePanel()) instead of a 'wgCross' object
 #   - gen.type is always 'marker'  — no interval midpoints in GWAS
 #   - method is always 'fixed'     — GWAS tests marker effects as fixed effects
 #   - selection is always 'interval' — best individual marker, not chromosome
@@ -25,8 +25,8 @@
 #'
 #' \code{gwasAim} differs from \code{\link{qtlAim}} in three important ways:
 #' \enumerate{
-#'   \item Input is a \code{"panel"} object from \code{\link{makePanel}}
-#'     rather than an \code{"interval"} object from \code{cross2int}.
+#'   \item Input is a \code{"wgPanel"} object from \code{\link{primePanel}}
+#'     rather than a \code{"wgCross"} object from \code{primeCross}.
 #'   \item Marker effects are always treated as fixed effects
 #'     (\code{method = "fixed"} is hard-coded), consistent with standard
 #'     GWAS practice.
@@ -40,14 +40,14 @@
 #'   effects, experimental design terms) and any known population structure
 #'   covariates. If the model has not converged, one update is attempted
 #'   automatically.
-#' @param panelObj An object of class \code{"panel"} produced by
-#'   \code{\link{makePanel}}. Contains per-chromosome marker genotype matrices
+#' @param genObj An object of class \code{"wgPanel"} produced by
+#'   \code{\link{primePanel}}. Contains per-chromosome marker genotype matrices
 #'   in additive \eqn{\pm 1} coding, used to construct the genome-wide
 #'   composite term.
 #' @param merge.by Character string naming the column present in both the
-#'   phenotypic data and \code{panelObj} that links lines across datasets.
+#'   phenotypic data and \code{genObj} that links lines across datasets.
 #' @param fix.lines Logical. If \code{TRUE} (default), phenotyped lines absent
-#'   from \code{panelObj} are handled by adding a fixed \code{Gomit} factor,
+#'   from \code{genObj} are handled by adding a fixed \code{Gomit} factor,
 #'   restricting variance estimation to genotyped lines only. See
 #'   \code{\link{qtlAim}} for full details.
 #' @param force Logical. If \code{FALSE} (default), the algorithm
@@ -117,7 +117,7 @@
 #' high-dimensional random whole genome average (QTL) interval mapping approach.
 #' \emph{Genetics Research}, \bold{94}, 291--306.
 #'
-#' @seealso \code{\link{makePanel}}, \code{\link{summary.gwasAim}},
+#' @seealso \code{\link{primePanel}}, \code{\link{summary.gwasAim}},
 #'   \code{\link{print.gwasAim}}, \code{\link{manhattan.gwasAim}},
 #'   \code{\link{qtlAim}}, \code{\link{gpAim}}
 #'
@@ -125,9 +125,9 @@
 #' \dontrun{
 #' library(asreml)
 #'
-#' # Build panel object from 0/1/2 encoded genotype matrix
-#' panel <- makePanel(geno = geno.mat, map = map.df,
-#'                    encoding = "012", maf = 0.05)
+#' # Build wgPanel object from 0/1/2 encoded genotype matrix
+#' panel <- primePanel(geno = geno.mat, map = map.df,
+#'                     encoding = "012", maf = 0.05)
 #' panel$pheno$line <- factor(line.ids)
 #'
 #' # Null base model capturing experimental structure
@@ -136,14 +136,14 @@
 #'                    data     = pheno.df)
 #'
 #' # Forward-selection GWAS
-#' gwas.fit <- gwasAim(base.mod, panelObj = panel,
+#' gwas.fit <- gwasAim(base.mod, genObj = panel,
 #'                     merge.by = "line", TypeI = 0.05,
 #'                     trace    = "trace.txt",
 #'                     na.action = na.method(x = "include"))
 #'
-#' print(gwas.fit,   panelObj = panel)
-#' summary(gwas.fit, panelObj = panel)
-#' manhattan(gwas.fit, panelObj = panel)
+#' print(gwas.fit,   genObj = panel)
+#' summary(gwas.fit, genObj = panel)
+#' manhattan(gwas.fit, genObj = panel)
 #' }
 #'
 #' @name gwasAim
@@ -156,7 +156,7 @@ gwasAim.default <- function(baseModel, ...)
     stop("Currently the only supported method is \"asreml\".")
 
 #' @exportS3Method
-gwasAim.asreml <- function(baseModel, panelObj, merge.by = NULL,
+gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
                             fix.lines = TRUE, force = FALSE,
                             exclusion.window = 20, breakout = -1,
                             TypeI = 0.05,
@@ -187,12 +187,12 @@ gwasAim.asreml <- function(baseModel, panelObj, merge.by = NULL,
     asremlEnv <- vd$asremlEnv
     phenoData <- vd$phenoData
 
-    # GWAS-specific: panelObj validation and line matching
-    if (missing(panelObj))
-        stop("panelObj is a required argument. Use makePanel() to create one.")
-    if (!inherits(panelObj, "panel"))
-        stop("panelObj must be of class \"panel\". Use makePanel() to create one.")
-    glines <- panelObj$pheno[, merge.by]
+    # GWAS-specific: genObj validation and line matching
+    if (missing(genObj))
+        stop("genObj is a required argument. Use primePanel() to create one.")
+    if (!inherits(genObj, "wgPanel"))
+        stop("genObj must be of class \"wgPanel\" produced by primePanel().")
+    glines <- genObj$pheno[, merge.by]
     if (is.null(glines))
         stop("Panel data does not contain column \"", merge.by, "\".")
     plines <- phenoData[, merge.by]
@@ -205,7 +205,7 @@ gwasAim.asreml <- function(baseModel, panelObj, merge.by = NULL,
     # -------------------------------------------------------------------------
     # Phase 2a: Build genotype data matrix (marker mode forced for GWAS)
     # -------------------------------------------------------------------------
-    gd       <- .buildGenoData(panelObj, "marker", glines, plines)
+    gd       <- .buildGenoData(genObj, "marker", glines, plines)
     genoData <- gd$genoData
     mnams    <- gd$mnams
     state    <- gd$state
@@ -230,9 +230,9 @@ gwasAim.asreml <- function(baseModel, panelObj, merge.by = NULL,
     # Phase 3: Build and fit initial genome-wide marker model (vm or mbf path)
     # -------------------------------------------------------------------------
     gm        <- .buildGenomeModel(baseModel, genoData, phenoData, merge.by,
-                                   panelObj, force, rterms, caller.env, ...)
+                                   genObj, force, rterms, caller.env, ...)
     qtlModel  <- gm$qtlModel
-    panelObj  <- gm$intervalObj   # may have env attribute set (vm path)
+    genObj    <- gm$intervalObj   # may have env attribute set (vm path)
     cov.env   <- gm$cov.env
     vm        <- gm$vm
     vmterms   <- gm$vmterms
@@ -246,7 +246,7 @@ gwasAim.asreml <- function(baseModel, panelObj, merge.by = NULL,
 
     repeat {
         # Compute outlier statistics and select best marker
-        selq               <- .qtlSelect(qtlModel, phenoData, panelObj, "marker",
+        selq               <- .qtlSelect(qtlModel, phenoData, genObj, "marker",
                                          selection, exclusion.window, state, verboseLev)
         state              <- selq$state
         ldiag$oint[[iter]] <- selq$oint
@@ -271,10 +271,10 @@ gwasAim.asreml <- function(baseModel, panelObj, merge.by = NULL,
         qtl.x     <- me$qtl.x
 
         # Rebuild covariance object with selected marker excluded
-        rc        <- .rebuildCovObj(genoData, state, merge.by, panelObj,
+        rc        <- .rebuildCovObj(genoData, state, merge.by, genObj,
                                     force, vm, vmterms, qtlModel, caller.env)
         cov.env   <- rc$cov.env
-        panelObj  <- rc$intervalObj
+        genObj    <- rc$intervalObj
         qtlModel  <- rc$qtlModel
 
         qtlModel$call$data <- baseModel$call$data <- quote(phenoData)

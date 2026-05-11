@@ -30,11 +30,10 @@ random effect (\code{mbf} path, when lines equal or exceed markers).
 
 \strong{Data preparation:}
 \itemize{
-  \item Biparental mapping populations: use \code{cross2int} from the
-    \code{wgaim} package to prepare an \code{"interval"} object for
-    \code{qtlAim} or \code{gpAim}.
-  \item Diversity panels: use \code{\link{makePanel}} to prepare a
-    \code{"panel"} object for \code{gwasAim} or \code{gpAim}.
+  \item Biparental mapping populations: use \code{\link{primeCross}} to
+    prepare a \code{"wgCross"} object for \code{qtlAim} or \code{gpAim}.
+  \item Diversity panels: use \code{\link{primePanel}} to prepare a
+    \code{"wgPanel"} object for \code{gwasAim} or \code{gpAim}.
 }
 }
 \references{

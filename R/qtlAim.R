@@ -5,7 +5,7 @@
 # User-facing orchestrator for QTL detection using a forward-selection
 # iterative approach. All heavy lifting is delegated to the shared engine
 # pieces in engine_*.R. This function is responsible only for:
-#   - QTL-specific argument validation
+#   - QTL-specific argument validation (genObj must be class "wgCross" from primeCross())
 #   - trace/sink setup (on.exit must be in the outermost frame)
 #   - Calling engine pieces in the correct order
 #   - Assigning results back to the calling environment
@@ -28,16 +28,16 @@
 #'   null model (no QTL effects). Must include the genetic line term in the
 #'   random formula. If the model has not converged, a single update attempt
 #'   is made automatically before proceeding.
-#' @param intervalObj An object of class \code{"interval"} produced by
-#'   \code{\link[wgaim]{cross2int}}. Contains per-chromosome interval midpoint
+#' @param genObj An object of class \code{"wgCross"} produced by
+#'   \code{\link[wgaim]{primeCross}}. Contains per-chromosome interval midpoint
 #'   data (\code{$interval.data}) and imputed marker data
 #'   (\code{$imputed.data}) used according to \code{gen.type}.
 #' @param merge.by Character string naming the column present in both the
-#'   phenotypic data (extracted from \code{baseModel}) and \code{intervalObj}
+#'   phenotypic data (extracted from \code{baseModel}) and \code{genObj}
 #'   that links lines across the two datasets. This is typically the genetic
 #'   line identifier (e.g. \code{"Genotype"}).
 #' @param fix.lines Logical. If \code{TRUE} (default), lines present in the
-#'   phenotypic data but absent from \code{intervalObj} are accommodated by
+#'   phenotypic data but absent from \code{genObj} are accommodated by
 #'   adding a fixed factor (\code{Gomit}) to the model and restricting the
 #'   genetic random effect to genotyped lines only (\code{Gsave}). This
 #'   ensures that additive and non-additive genetic variance components are
@@ -168,7 +168,7 @@
 #'
 #' @seealso \code{\link{summary.qtlAim}}, \code{\link{print.qtlAim}},
 #'   \code{\link{tr.qtlAim}}, \code{\link{linkMap.qtlAim}},
-#'   \code{\link[wgaim]{cross2int}}, \code{\link[wgaim]{outStat}},
+#'   \code{\link[wgaim]{primeCross}}, \code{\link[wgaim]{outStat}},
 #'   \code{\link{gwasAim}}, \code{\link{gpAim}}
 #'
 #' @examples
@@ -177,9 +177,9 @@
 #' data(phenoRxK, package = "wgaim")
 #' data(genoRxK,  package = "wgaim")
 #'
-#' # Prepare interval object
+#' # Prepare wgCross object
 #' genoRxK <- subset(genoRxK, chr = c("1A","2D1","2D2","3B"))
-#' genoRxK <- cross2int(genoRxK, impute = "Martinez", id = "Genotype")
+#' genoRxK <- primeCross(genoRxK, impute = "Martinez", id = "Genotype")
 #'
 #' # Fit null base model
 #' base.mod <- asreml(yld ~ Type + lrow,
@@ -188,17 +188,17 @@
 #'                    data     = phenoRxK)
 #'
 #' # Forward-selection QTL analysis
-#' qtl.fit <- qtlAim(base.mod, intervalObj = genoRxK,
+#' qtl.fit <- qtlAim(base.mod, genObj = genoRxK,
 #'                   merge.by = "Genotype",
 #'                   trace    = "trace.txt",
 #'                   na.action = na.method(x = "include"))
 #'
 #' # Results
-#' print(qtl.fit,   intervalObj = genoRxK)
-#' summary(qtl.fit, intervalObj = genoRxK)
+#' print(qtl.fit,   genObj = genoRxK)
+#' summary(qtl.fit, genObj = genoRxK)
 #' tr(qtl.fit)
-#' linkMap(qtl.fit, intervalObj = genoRxK)
-#' outStat(qtl.fit, intervalObj = genoRxK)
+#' linkMap(qtl.fit, genObj = genoRxK)
+#' outStat(qtl.fit, genObj = genoRxK)
 #' }
 #'
 #' @name qtlAim
@@ -211,8 +211,8 @@ qtlAim.default <- function(baseModel, ...)
     stop("Currently the only supported method is \"asreml\".")
 
 #' @exportS3Method
-qtlAim.asreml <- function(baseModel, intervalObj, merge.by = NULL, fix.lines = TRUE,
-                           gen.type = "interval", method = "fixed",
+qtlAim.asreml <- function(baseModel, genObj, merge.by = NULL, fix.lines = TRUE,
+                           gen.type = NULL, method = "fixed",
                            selection = "interval", force = FALSE,
                            exclusion.window = 20, breakout = -1,
                            TypeI = 0.05, trace = TRUE, verboseLev = 0, ...) {
@@ -236,12 +236,12 @@ qtlAim.asreml <- function(baseModel, intervalObj, merge.by = NULL, fix.lines = T
     asremlEnv <- vd$asremlEnv
     phenoData <- vd$phenoData
 
-    # QTL-specific: intervalObj validation and line matching
-    if (missing(intervalObj))
-        stop("intervalObj is a required argument.")
-    if (!inherits(intervalObj, "interval"))
-        stop("intervalObj must be of class \"interval\".")
-    glines <- intervalObj$pheno[, merge.by]
+    # QTL-specific: genObj validation and line matching
+    if (missing(genObj))
+        stop("genObj is a required argument.")
+    if (!inherits(genObj, "wgCross"))
+        stop("genObj must be of class \"wgCross\" produced by primeCross().")
+    glines <- genObj$pheno[, merge.by]
     if (is.null(glines))
         stop("Genotypic data does not contain column \"", merge.by, "\".")
     plines <- phenoData[, merge.by]
@@ -254,7 +254,9 @@ qtlAim.asreml <- function(baseModel, intervalObj, merge.by = NULL, fix.lines = T
     # -------------------------------------------------------------------------
     # Phase 2a: Build genotype data matrix
     # -------------------------------------------------------------------------
-    gd       <- .buildGenoData(intervalObj, gen.type, glines, plines)
+    if (missing(gen.type) || is.null(gen.type))
+        gen.type <- genObj$type
+    gd       <- .buildGenoData(genObj, gen.type, glines, plines)
     genoData <- gd$genoData
     mnams    <- gd$mnams
     state    <- gd$state
@@ -271,9 +273,9 @@ qtlAim.asreml <- function(baseModel, intervalObj, merge.by = NULL, fix.lines = T
     # Phase 3: Build and fit initial genome-wide model (vm or mbf path)
     # -------------------------------------------------------------------------
     gm          <- .buildGenomeModel(baseModel, genoData, phenoData, merge.by,
-                                     intervalObj, force, rterms, caller.env, ...)
+                                     genObj, force, rterms, caller.env, ...)
     qtlModel    <- gm$qtlModel
-    intervalObj <- gm$intervalObj
+    genObj      <- gm$intervalObj
     cov.env     <- gm$cov.env
     vm          <- gm$vm
     vmterms     <- gm$vmterms
@@ -287,7 +289,7 @@ qtlAim.asreml <- function(baseModel, intervalObj, merge.by = NULL, fix.lines = T
 
     repeat {
         # Compute outlier statistics and select best interval/marker
-        selq               <- .qtlSelect(qtlModel, phenoData, intervalObj, gen.type,
+        selq               <- .qtlSelect(qtlModel, phenoData, genObj, gen.type,
                                          selection, exclusion.window, state, verboseLev)
         state              <- selq$state
         ldiag$oint[[iter]] <- selq$oint
@@ -311,10 +313,10 @@ qtlAim.asreml <- function(baseModel, intervalObj, merge.by = NULL, fix.lines = T
         qtl.x     <- me$qtl.x
 
         # Rebuild covariance object with selected interval excluded
-        rc          <- .rebuildCovObj(genoData, state, merge.by, intervalObj,
+        rc          <- .rebuildCovObj(genoData, state, merge.by, genObj,
                                       force, vm, vmterms, qtlModel, caller.env)
         cov.env     <- rc$cov.env
-        intervalObj <- rc$intervalObj
+        genObj      <- rc$intervalObj
         qtlModel    <- rc$qtlModel
 
         qtlModel$call$data <- baseModel$call$data <- quote(phenoData)

@@ -3,13 +3,15 @@
 # S3 linkMap() method for qtlAim objects — single model OR multiple models.
 #
 # Multiple models are passed as extra positional arguments in ...:
-#   linkMap(qtl_yld, qtl_tgw, intervalObj = my_int)
+#   linkMap(qtl_yld, qtl_tgw, genObj = my_int)
 #
 # Any unnamed ... arg that inherits "qtlAim" is treated as an additional model.
 # Named ... args (e.g. ggrepel options) are passed through to linkMap.cross().
 #
 # The old list-based API still works via linkMap.default (backward compat):
-#   linkMap(list(qtl_yld, qtl_tgw), intervalObj = my_int)
+#   linkMap(list(qtl_yld, qtl_tgw), genObj = my_int)
+#
+# genObj must be a "wgCross" object produced by primeCross().
 #
 # Shared helpers (.lm_base_args, .lm_left_labels, .lm_right_labels) live in
 # linkMap.cross.R.
@@ -19,14 +21,14 @@
 #' @describeIn qtlAim Plot the genetic linkage map with detected QTL overlaid.
 #'   Accepts a single \code{qtlAim} object or multiple models passed as extra
 #'   positional arguments — e.g.
-#'   \code{linkMap(qtl_yld, qtl_tgw, intervalObj = my_int)} — for a
+#'   \code{linkMap(qtl_yld, qtl_tgw, genObj = my_int)} — for a
 #'   multi-trait overlay.  QTL intervals are drawn as coloured fills inside
 #'   the chromosome bar; flanking markers are annotated on the right; trait
 #'   labels sit to the left.  Returns a \code{ggplot} object.
 #' @param object A \code{qtlAim} object, or the first of several when multiple
 #'   models are passed.
-#' @param intervalObj The \code{"cross"} / \code{"interval"} object used in
-#'   the analysis.
+#' @param genObj The \code{"wgCross"} object produced by \code{primeCross()}
+#'   used in the analysis.
 #' @param chr Optional character vector of chromosome names to display.
 #' @param chr.dist Optional named list with \code{$start} / \code{$end}
 #'   restricting the displayed cM range.
@@ -49,7 +51,7 @@
 #' @return A \code{ggplot} object.
 #' @export
 linkMap.qtlAim <- function(object, ...,
-                            intervalObj,
+                            genObj,
                             chr, chr.dist,
                             marker.names  = "markers",
                             flanking      = TRUE,
@@ -86,10 +88,10 @@ linkMap.qtlAim <- function(object, ...,
         n_models   <- length(all_models)
 
         ## --- Validate --------------------------------------------------------
-        if (missing(intervalObj))
-            stop("'intervalObj' is a required argument.")
-        if (!inherits(intervalObj, "cross"))
-            stop("'intervalObj' must be of class \"cross\".")
+        if (missing(genObj))
+            stop("'genObj' is a required argument.")
+        if (!inherits(genObj, "wgCross"))
+            stop("'genObj' must be of class \"wgCross\".")
 
         types <- vapply(all_models, function(m) m$QTL$type, character(1L))
         if (length(unique(types)) > 1L)
@@ -118,7 +120,7 @@ linkMap.qtlAim <- function(object, ...,
         qtl_list <- lapply(seq_len(n_models), function(i) {
             mod <- all_models[[i]]
             if (!length(mod$QTL$effects)) return(NULL)
-            qtlm <- getQTL(mod, intervalObj)
+            qtlm <- getQTL(mod, genObj)
             wchr <- qtlm[, 1L]
             if (qtl_type == "interval") {
                 data.frame(chr = wchr, lh.mark = qtlm[, 3L],
@@ -140,7 +142,7 @@ linkMap.qtlAim <- function(object, ...,
         has_qtl <- !vapply(qtl_list, is.null, logical(1L))
         if (!any(has_qtl)) {
             warning("No QTL found in any model — plotting map only.")
-            return(invisible(linkMap(intervalObj, ...)))
+            return(invisible(linkMap(genObj, ...)))
         }
         if (!any(has_qtl))
             warning("No QTL in: ",
@@ -161,7 +163,7 @@ linkMap.qtlAim <- function(object, ...,
         ## --- Base map --------------------------------------------------------
         show_marks <- !is.null(marker.names) && !identical(marker.names, "none")
         fm         <- if (flanking && show_marks) flank_marks else NULL
-        base_args  <- .lm_base_args(intervalObj, chr = if (is.null(row.chr)) chr else NULL,
+        base_args  <- .lm_base_args(genObj, chr = if (is.null(row.chr)) chr else NULL,
                                      row.chr = row.chr, nrow = nrow,
                                      flanking_marks = fm,
                                      marker.names = marker.names, m.cex = m.cex,
@@ -216,17 +218,17 @@ linkMap.qtlAim <- function(object, ...,
     ## SINGLE-MODEL PATH
     ## =========================================================================
 
-    if (missing(intervalObj))
-        stop("'intervalObj' is a required argument.")
-    if (!inherits(intervalObj, "cross"))
-        stop("'intervalObj' must be of class \"cross\".")
+    if (missing(genObj))
+        stop("'genObj' is a required argument.")
+    if (!inherits(genObj, "wgCross"))
+        stop("'genObj' must be of class \"wgCross\".")
     if (!length(object$QTL$effects)) {
         warning("No significant QTL detected — plotting map only.")
-        return(invisible(linkMap(intervalObj, ...)))
+        return(invisible(linkMap(genObj, ...)))
     }
 
     ## --- Extract QTL positions -----------------------------------------------
-    qtlm <- getQTL(object, intervalObj)
+    qtlm <- getQTL(object, genObj)
     wchr <- qtlm[, 1L]
 
     if (object$QTL$type == "interval") {
@@ -266,7 +268,7 @@ linkMap.qtlAim <- function(object, ...,
 
     show_marks <- !is.null(marker.names) && !identical(marker.names, "none")
     fm         <- if (flanking && show_marks) flank_marks else NULL
-    base_args  <- .lm_base_args(intervalObj,
+    base_args  <- .lm_base_args(genObj,
                                   chr = if (is.null(row.chr)) chr else NULL,
                                   row.chr = row.chr, nrow = nrow,
                                   flanking_marks = fm,
