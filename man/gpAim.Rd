@@ -12,7 +12,8 @@ gpAim(baseModel, ...)
 
 \method{plot}{gpAim}(
   x,
-  type = c("caterpillar", "heatmap", "density"),
+  genObj = NULL,
+  type = c("caterpillar", "heatmap", "density", "blups"),
   alpha = 0.05,
   top.n = 20,
   threshold = NULL,
@@ -39,8 +40,12 @@ update attempt is made automatically.}
 
 \item{x}{A \code{gpAim} object.}
 
-\item{type}{Character string specifying the plot type: \code{"caterpillar"}
-(default), \code{"heatmap"}, or \code{"density"}.}
+\item{genObj}{The \code{"wgCross"} or \code{"wgPanel"} object passed to
+\code{gpAim}. Required only when \code{type = "blups"}.}
+
+\item{type}{Character string specifying the plot type:
+\code{"caterpillar"} (default), \code{"heatmap"}, \code{"density"},
+or \code{"blups"}.}
 
 \item{alpha}{Numeric significance level used to compute half-HSD bar widths
 in the caterpillar plot. Default \code{0.05}.}
@@ -66,13 +71,6 @@ Default \code{c("steelblue","firebrick")}.}
 \item{pt.cex}{Numeric point size. Default \code{0.8}.}
 
 \item{object}{A \code{gpAim} object.}
-
-\item{genObj}{A genotypic data object of class \code{"wgCross"} (from
-\code{\link[wgaim]{primeCross}}, for biparental populations) or class
-\code{"wgPanel"} (from \code{\link{primePanel}}, for diversity panels).
-Must contain per-chromosome genotype matrices accessible at
-\code{$geno[[chr]]$imputed.data} (marker mode) or
-\code{$geno[[chr]]$interval.data} (interval mode).}
 
 \item{merge.by}{Character string naming the column present in both the
 phenotypic data and \code{genObj} linking lines across datasets.}
@@ -181,6 +179,14 @@ is computed as \eqn{MM'/s} from the fitted marker matrix.
   object, selected via the \code{type} argument.
 
   \describe{
+    \item{\code{"blups"}}{Genome-wide marker effect plot. Back-computed
+      marker effect BLUPs \eqn{\hat{q}} are plotted as points across the
+      genome using cumulative cM positions. For the \strong{mbf} path,
+      effects are the direct BLUP solutions; for the \strong{vm} path they
+      are back-computed as \eqn{\hat{q} = T \hat{g}}, where \eqn{T} is the
+      transformation matrix from \code{constructCM} and \eqn{\hat{g}} are
+      the GEBVs. Requires the \code{genObj} used in the original
+      \code{gpAim()} call.}
     \item{\code{"caterpillar"} (default)}{Ranked GEBV dot plot with
       half-HSD comparison bars for the top and bottom \code{top.n} lines.
       Half-HSD bars are defined as \eqn{t_\alpha \times SE_i / \sqrt{2}};

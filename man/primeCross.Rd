@@ -19,8 +19,8 @@ primeCross(
 \code{"bc"}, \code{"dh"}, \code{"f2"}, and \code{"riself"}.}
 
 \item{type}{Character string, either \code{"interval"} (default) or
-\code{"marker"}. Controls whether interval midpoint scores are generated
-in addition to imputed marker scores.}
+\code{"marker"}. Controls whether interval markers are generated
+according to the rules of the argument \code{infer} below in addition to imputed marker scores.}
 
 \item{impute}{Character string selecting the imputation method for missing
 marker genotypes. One of \code{"MartinezCurnow"} (default) or

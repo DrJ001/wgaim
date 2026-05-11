@@ -336,6 +336,22 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     h2 <- as.numeric(var.genetic / (var.genetic + var.resid))
 
     # -------------------------------------------------------------------------
+    # Marker effects for blups plot
+    # vm path:  q.hat = trans %*% g.hat  (back-computed from GEBVs)
+    # mbf path: q.hat directly from model coefficients
+    # -------------------------------------------------------------------------
+    if (use.vm) {
+        g.hat  <- gebv$GEBV
+        q.hat  <- as.numeric(cov.env$trans %*% g.hat)
+    }
+    # q.hat already set for mbf path above; marker names from genoData cols
+    marker.effects <- data.frame(
+        marker = colnames(genoData),
+        effect = as.numeric(q.hat),
+        stringsAsFactors = FALSE
+    )
+
+    # -------------------------------------------------------------------------
     # Package results and clean up
     # -------------------------------------------------------------------------
     # Genomic relationship matrix — stored for heatmap plot.
@@ -350,16 +366,17 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     }
 
     gp.list <- list(
-        gebv         = gebv,
-        gen.type     = gen.type,
-        path         = ifelse(use.vm, "vm", "mbf"),
-        var.genetic  = as.numeric(var.genetic),
-        var.resid    = as.numeric(var.resid),
-        heritability = h2,
-        n.markers    = n.markers,
-        rel.scale    = if (use.vm) cov.env$scale else rel.scale2,
-        rel.matrix   = rel.matrix,
-        genetic.term = genetic.term
+        gebv           = gebv,
+        marker.effects = marker.effects,
+        gen.type       = gen.type,
+        path           = ifelse(use.vm, "vm", "mbf"),
+        var.genetic    = as.numeric(var.genetic),
+        var.resid      = as.numeric(var.resid),
+        heritability   = h2,
+        n.markers      = n.markers,
+        rel.scale      = if (use.vm) cov.env$scale else rel.scale2,
+        rel.matrix     = rel.matrix,
+        genetic.term   = genetic.term
     )
 
     data.name <- paste(as.character(baseModel$call$fixed[2]), "data", sep = ".")

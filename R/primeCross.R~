@@ -36,8 +36,8 @@
 #' @param object A \code{qtl} cross object. Supported population types are
 #'   \code{"bc"}, \code{"dh"}, \code{"f2"}, and \code{"riself"}.
 #' @param type Character string, either \code{"interval"} (default) or
-#'   \code{"marker"}. Controls whether interval markers are generated
-#'   according to the rules of the argument \code{infer} below in addition to imputed marker scores.
+#'   \code{"marker"}. Controls whether interval midpoint scores are generated
+#'   in addition to imputed marker scores.
 #' @param impute Character string selecting the imputation method for missing
 #'   marker genotypes. One of \code{"MartinezCurnow"} (default) or
 #'   \code{"Broman"}. Partial matching is allowed.

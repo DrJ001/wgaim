@@ -23,6 +23,14 @@
 #'   object, selected via the \code{type} argument.
 #'
 #'   \describe{
+#'     \item{\code{"blups"}}{Genome-wide marker effect plot. Back-computed
+#'       marker effect BLUPs \eqn{\hat{q}} are plotted as points across the
+#'       genome using cumulative cM positions. For the \strong{mbf} path,
+#'       effects are the direct BLUP solutions; for the \strong{vm} path they
+#'       are back-computed as \eqn{\hat{q} = T \hat{g}}, where \eqn{T} is the
+#'       transformation matrix from \code{constructCM} and \eqn{\hat{g}} are
+#'       the GEBVs. Requires the \code{genObj} used in the original
+#'       \code{gpAim()} call.}
 #'     \item{\code{"caterpillar"} (default)}{Ranked GEBV dot plot with
 #'       half-HSD comparison bars for the top and bottom \code{top.n} lines.
 #'       Half-HSD bars are defined as \eqn{t_\alpha \times SE_i / \sqrt{2}};
@@ -43,8 +51,11 @@
 #'   }
 #'
 #' @param x A \code{gpAim} object.
-#' @param type Character string specifying the plot type: \code{"caterpillar"}
-#'   (default), \code{"heatmap"}, or \code{"density"}.
+#' @param genObj The \code{"wgCross"} or \code{"wgPanel"} object passed to
+#'   \code{gpAim}. Required only when \code{type = "blups"}.
+#' @param type Character string specifying the plot type:
+#'   \code{"caterpillar"} (default), \code{"heatmap"}, \code{"density"},
+#'   or \code{"blups"}.
 #' @param alpha Numeric significance level used to compute half-HSD bar widths
 #'   in the caterpillar plot. Default \code{0.05}.
 #' @param top.n Integer. Number of highest- and lowest-ranked lines for which
@@ -65,7 +76,8 @@
 #' @return A \code{\link[ggplot2]{ggplot}} object.
 #' @export
 plot.gpAim <- function(x,
-                       type        = c("caterpillar", "heatmap", "density"),
+                       genObj      = NULL,
+                       type        = c("caterpillar", "heatmap", "density", "blups"),
                        # --- caterpillar args ---
                        alpha       = 0.05,   # significance level for half-HSD bars
                        top.n       = 20,     # show bars for top and bottom n lines only
@@ -79,6 +91,14 @@ plot.gpAim <- function(x,
 
     type <- match.arg(type)
     gp   <- x$GP
+
+    if (type == "blups") {
+        if (is.null(genObj))
+            stop("genObj is required for type = \"blups\".")
+        if (!inherits(genObj, c("wgCross", "wgPanel")))
+            stop("genObj must be of class \"wgCross\" or \"wgPanel\".")
+        return(.plot_gp_blups(gp, genObj, pt.col, pt.cex))
+    }
 
     switch(type,
         caterpillar = .plot_gp_caterpillar(gp, alpha, top.n, threshold,
@@ -247,6 +267,79 @@ plot.gpAim <- function(x,
                      sprintf("top %.0f%%", 100 * (1 - threshold))
                  else sprintf("top %.0f%%", 100 * prop.select))) +
         theme_scatter()
+}
+
+# =============================================================================
+# Internal: genome-wide marker effect BLUPs (blups type)
+# =============================================================================
+.plot_gp_blups <- function(gp, genObj, pt.col, pt.cex) {
+
+    me <- gp$marker.effects
+    if (is.null(me))
+        stop("No marker effects found in gpAim result. ",
+             "Please re-run gpAim() to generate marker effects.")
+
+    # Build cumulative position lookup from genObj
+    gen.type  <- gp$gen.type
+    chr.names <- names(genObj$geno)
+    cp        <- .build_cumpos(genObj, gen.type, chr.names)
+
+    # Parse internal marker key "Chr.CHRNAME.IDX" -> cumulative position
+    parts     <- strsplit(me$marker, "\\.")
+    mk.chr    <- sapply(parts, "[", 2L)
+    mk.dist   <- cp$pos_lookup[me$marker]
+
+    # Drop markers not in the cumulative lookup (e.g. excluded chromosomes)
+    valid     <- !is.na(mk.dist)
+    me        <- me[valid, , drop = FALSE]
+    mk.chr    <- mk.chr[valid]
+    mk.dist   <- mk.dist[valid]
+
+    chr.idx   <- match(mk.chr, chr.names)
+    me$dist   <- mk.dist
+    me$chr    <- mk.chr
+    me$col    <- pt.col[(chr.idx %% 2) + 1L]
+
+    # Chromosome band backgrounds
+    band.col <- c("grey92", "white")
+    band.df  <- data.frame(
+        xmin = c(0, cp$chr.end[-length(cp$chr.end)] + 5),
+        xmax = cp$chr.end,
+        fill = band.col[(seq_along(chr.names) %% 2) + 1L],
+        stringsAsFactors = FALSE
+    )
+
+    ggplot2::ggplot(me, ggplot2::aes(x = .data$dist, y = .data$effect)) +
+        ggplot2::geom_rect(
+            data        = band.df,
+            ggplot2::aes(xmin = .data$xmin, xmax = .data$xmax,
+                         ymin = -Inf,        ymax  = Inf,
+                         fill = .data$fill),
+            inherit.aes = FALSE, show.legend = FALSE
+        ) +
+        ggplot2::scale_fill_identity() +
+        ggplot2::geom_hline(yintercept = 0, colour = "grey70",
+                            linewidth = 0.4) +
+        ggplot2::geom_point(
+            ggplot2::aes(colour = .data$col),
+            size = pt.cex, show.legend = FALSE
+        ) +
+        ggplot2::scale_colour_identity() +
+        ggplot2::scale_x_continuous(
+            breaks = cp$chr.mid, labels = names(cp$chr.mid)) +
+        ggplot2::labs(
+            x       = "Chromosome",
+            y       = "Marker Effect BLUP",
+            title   = sprintf("Genome-wide Marker Effects  [%s path]", gp$path),
+            caption = sprintf(
+                "h\u00b2 = %.3f  |  %d markers  |  %s path",
+                gp$heritability, gp$n.markers, gp$path)
+        ) +
+        theme_scatter() +
+        ggplot2::theme(
+            panel.background = ggplot2::element_rect(fill = "white", colour = NA),
+            panel.border     = ggplot2::element_rect(fill = NA, colour = "grey70")
+        )
 }
 
 # =============================================================================
