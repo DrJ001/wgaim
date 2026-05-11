@@ -218,6 +218,9 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     if (gen.type == "interval" && inherits(genObj, "wgPanel"))
         stop("gen.type = \"interval\" requires a 'wgCross' object from primeCross(), ",
              "not a 'wgPanel' object. Use gen.type = \"marker\" with primePanel() output.")
+    if (gen.type == "interval" && genObj$type == "marker")
+        stop("gen.type = \"interval\" requested but genObj contains no interval data.\n",
+             "Re-run primeCross() with type = \"interval\".")
 
     glines <- genObj$pheno[, merge.by]
     if (is.null(glines))

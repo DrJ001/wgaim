@@ -256,6 +256,9 @@ qtlAim.asreml <- function(baseModel, genObj, merge.by = NULL, fix.lines = TRUE,
     # -------------------------------------------------------------------------
     if (missing(gen.type) || is.null(gen.type))
         gen.type <- genObj$type
+    if (gen.type == "interval" && genObj$type == "marker")
+        stop("gen.type = \"interval\" requested but genObj contains no interval data.\n",
+             "Re-run primeCross() with type = \"interval\".")
     gd       <- .buildGenoData(genObj, gen.type, glines, plines)
     genoData <- gd$genoData
     mnams    <- gd$mnams
