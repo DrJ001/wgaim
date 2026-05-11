@@ -368,18 +368,18 @@ plot.gpAim <- function(x,
     if (!is.null(label.df) && nrow(label.df) > 0L)
         gp.obj <- gp.obj +
             ggrepel::geom_text_repel(
-                data            = label.df,
+                data               = label.df,
                 ggplot2::aes(x = .data$x, y = .data$y, label = .data$label),
-                colour          = pt.col[1],
-                size            = 2.5,
-                nudge_y         = max.dens * 0.08,
-                direction       = "x",
-                segment.colour  = pt.col[1],
-                segment.alpha   = 0.5,
-                segment.size    = 0.3,
+                colour             = pt.col[1],
+                size               = 2.5,
+                nudge_y            = max.dens * 0.55,
+                direction          = "both",
+                segment.colour     = pt.col[1],
+                segment.alpha      = 0.4,
+                segment.size       = 0.3,
                 min.segment.length = 0,
-                max.overlaps    = Inf,
-                inherit.aes     = FALSE
+                max.overlaps       = Inf,
+                inherit.aes        = FALSE
             )
 
     gp.obj
