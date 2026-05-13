@@ -394,7 +394,7 @@ high-dimensional random whole genome average (QTL) interval mapping approach.
 }
 \seealso{
 \code{\link{summary.qtlAim}}, \code{\link{print.qtlAim}},
-  \code{\link{tr.qtlAim}}, \code{\link{linkMap.qtlAim}},
+  \code{\link{aimTrace}}, \code{\link{linkMap.qtlAim}},
   \code{\link[wgaim]{primeCross}}, \code{\link[wgaim]{outStat}},
   \code{\link{gwasAim}}, \code{\link{gpAim}}
 }

@@ -391,31 +391,6 @@ linkMap.cross <- function(object, chr, chr.dist,
 }
 
 # -----------------------------------------------------------------------------
-# linkMap.default — backward-compatible dispatcher for list-based calls
-# -----------------------------------------------------------------------------
-## Handles the old API:  linkMap(list(qtl1, qtl2), intervalObj = x)
-## Unwraps the list and delegates to the appropriate typed method, which
-## then detects the extra models via the ... inspection path.
-#' @export
-linkMap.default <- function(object, ...) {
-    if (!is.list(object))
-        stop("No linkMap method for class '",
-             paste(class(object), collapse = ", "), "'.")
-    types <- unique(vapply(object, function(x) class(x)[1L], character(1L)))
-    if (length(types) != 1L)
-        stop("All elements of 'object' must have the same class.")
-    ## Unwrap: first element becomes 'object', remainder go into ... where the
-    ## method's ... inspection picks them up as extra models.
-    do.call(
-        switch(types,
-               qtlAim  = linkMap.qtlAim,
-               gwasAim = linkMap.gwasAim,
-               stop("No multi-model linkMap method for class '", types, "'.")),
-        c(list(object[[1L]]), object[-1L], list(...))
-    )
-}
-
-# -----------------------------------------------------------------------------
 # Shared theme for all linkMap variants
 # -----------------------------------------------------------------------------
 .linkMap_theme <- function() {

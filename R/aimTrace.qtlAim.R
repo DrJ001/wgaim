@@ -184,9 +184,10 @@ aimTrace.qtlAim <- function(object,
 # Builds a long-format data frame for the effect stability plot.
 # For each detected QTL k, extracts its effect estimate and ±1 SE at every
 # iteration j >= k (all iterations in which it was in the model).
-# coef.list[[j]] and vcoef.list[[j]] are positionally aligned (both use the
-# same rev() ordering from .addEffect), so element k of each gives QTL k's
-# estimate and variance at iteration j.
+# .addEffect() stores coefs with rev(), so within coef.list[[j]] (which has j
+# elements) the detection order is reversed: element 1 = newest QTL (j),
+# element j = first QTL (1).  To get QTL k's value at iteration j, use
+# index (j - k + 1).
 # =============================================================================
 .build_stability_df <- function(object) {
 
@@ -201,8 +202,9 @@ aimTrace.qtlAim <- function(object,
     rows <- lapply(seq_len(n_qtl), function(k) {
         label <- sub("^Chr\\.", "", object$QTL$qtl[k])
         do.call(rbind, lapply(k:n_qtl, function(j) {
-            eff <- cl[[j]][k]
-            se  <- sqrt(vl[[j]][k] * sigma2)
+            idx <- j - k + 1L          # rev() offset: QTL k is at position j-k+1
+            eff <- cl[[j]][idx]
+            se  <- sqrt(vl[[j]][idx] * sigma2)
             data.frame(qtl_label = label,
                        qtl_idx   = k,
                        iter      = j,

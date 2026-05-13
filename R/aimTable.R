@@ -179,11 +179,13 @@ aimTable <- function(..., genObj, labels = NULL, columns = "all", LOD = TRUE) {
             stop("'columns' must be either \"all\" or a numeric vector of ",
                  "column indices.")
         summ_list <- lapply(summ_list, function(s) {
-            idx <- columns[columns >= 1L & columns <= ncol(s)]
-            if (length(idx) == 0L)
-                stop("'columns' contains no valid column indices for the ",
-                     "summary table (which has ", ncol(s), " columns).")
-            s[, idx, drop = FALSE]
+            bad <- columns[columns < 1L | columns > ncol(s)]
+            if (length(bad))
+                stop("'columns' contains out-of-range indices (", 
+                     paste(bad, collapse = ", "), ") for a summary table ",
+                     "with ", ncol(s), " columns (valid range: 1 to ",
+                     ncol(s), ").")
+            s[, columns, drop = FALSE]
         })
     }
 

@@ -87,7 +87,5 @@ summary.gwasAim <- function(object, genObj, LOD = TRUE, ...) {
                        na.last = TRUE), ]
     rownames(qtab) <- NULL
 
-    attr(qtab, "threshold") <- sprintf("TypeI = %.4f  (%d markers in panel)",
-                                        object$QTL$TypeI, object$QTL$n.markers)
     qtab
 }
