@@ -97,8 +97,7 @@
 #' \emph{ranking} tool that nominates the most likely associated marker; it
 #' is derived from conditional BLUPs in the genome-wide model and should not
 #' be converted to per-marker p-values via a chi-squared distribution.
-#' Formal significance comes only from the LRT. Visualise the selection
-#' process with \code{\link{manhattan.gwasAim}}.
+#' Formal significance comes only from the LRT.
 #'
 #' @return An object of class \code{c("gwasAim","asreml")} — the final fitted
 #'   ASReml model augmented with a \code{$QTL} list (structured identically
@@ -118,7 +117,7 @@
 #' \emph{Genetics Research}, \bold{94}, 291--306.
 #'
 #' @seealso \code{\link{primePanel}}, \code{\link{summary.gwasAim}},
-#'   \code{\link{print.gwasAim}}, \code{\link{manhattan.gwasAim}},
+#'   \code{\link{print.gwasAim}}, \code{\link{plot.gwasAim}},
 #'   \code{\link{qtlAim}}, \code{\link{gpAim}}
 #'
 #' @examples
@@ -143,7 +142,7 @@
 #'
 #' print(gwas.fit,   genObj = panel)
 #' summary(gwas.fit, genObj = panel)
-#' manhattan(gwas.fit, genObj = panel)
+#' plot(gwas.fit, genObj = panel, type = "manhattan")
 #' }
 #'
 #' @name gwasAim
@@ -295,8 +294,7 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     # -------------------------------------------------------------------------
     qtl.list           <- .packResults(qtl, coef.list, vcoef.list, ldiag, state,
                                         iter, breakout, cov.env, genetic.term,
-                                        method, "marker", selection)
-    qtl.list$TypeI     <- TypeI
+                                        method, "marker", selection, TypeI)
     qtl.list$n.markers <- n.markers
 
     data.name <- paste(as.character(baseModel$call$fixed[2]), "data", sep = ".")

@@ -30,7 +30,9 @@ gwasAim(baseModel, ...)
 \method{plot}{gwasAim}(
   x,
   genObj,
-  type = c("manhattan", "outlier", "blups"),
+  type = c("manhattan", "outlier", "blups", "effects", "contrast", "heatmap"),
+  data = NULL,
+  ncol = 1L,
   iter = NULL,
   chr = NULL,
   chr.lines = FALSE,
@@ -38,6 +40,7 @@ gwasAim(baseModel, ...)
   pt.col = c("steelblue", "grey60"),
   band.col = c("grey92", "white"),
   pt.cex = 0.6,
+  cap = NULL,
   ...
 )
 
@@ -60,7 +63,8 @@ automatically.}
 \item{genObj}{The \code{"wgPanel"} object passed to \code{gwasAim},
 produced by \code{\link{primePanel}}.}
 
-\item{chr}{Optional character vector of chromosome names to display.}
+\item{chr}{Optional character vector of chromosome names to display. Not
+used for \code{"effects"} or \code{"contrast"}.}
 
 \item{marker.names}{\code{"markers"} (default), \code{"dist"},
 \code{"none"} or \code{NULL}.}
@@ -86,10 +90,18 @@ Defaults to \code{marker.colour}.}
 \item{x}{A \code{gwasAim} object.}
 
 \item{type}{Character string: \code{"manhattan"} (default), \code{"outlier"},
-or \code{"blups"}.}
+\code{"blups"}, \code{"effects"}, or \code{"contrast"}.}
+
+\item{data}{Data frame. The phenotypic data used in the analysis. Required
+only when \code{type = "contrast"}.}
+
+\item{ncol}{Integer. Number of columns in the \code{facet_wrap} layout for
+\code{type = "contrast"}. Default \code{1} (vertical stack). Set to
+\code{NULL} for automatic layout or any positive integer for a grid.
+Not used for other plot types.}
 
 \item{iter}{Integer vector of iterations to display. Default is all stored
-iterations.}
+iterations. Not used for \code{"effects"} or \code{"contrast"}.}
 
 \item{chr.lines}{Logical. Draw vertical lines at chromosome boundaries in
 \code{"outlier"} and \code{"blups"} types. Default \code{FALSE}.}
@@ -104,6 +116,11 @@ for chromosomes. Default \code{c("steelblue","grey60")}.}
 colours used in the Manhattan plot. Default \code{c("grey92","white")}.}
 
 \item{pt.cex}{Numeric point/line size. Default \code{0.6}.}
+
+\item{cap}{Numeric scalar. Upper limit for the colour scale in
+\code{type = "heatmap"}. Outlier statistics above this value are clamped
+to \code{cap} and rendered in the maximum colour. Default \code{NULL}
+(no capping; full data range used). Not used for other plot types.}
 
 \item{LOD}{Logical. If \code{TRUE} (default), a LOD score column is appended.}
 
@@ -202,8 +219,7 @@ The outlier statistic \eqn{\tilde{q}_i^2 / \tilde{v}_i} is a
 \emph{ranking} tool that nominates the most likely associated marker; it
 is derived from conditional BLUPs in the genome-wide model and should not
 be converted to per-marker p-values via a chi-squared distribution.
-Formal significance comes only from the LRT. Visualise the selection
-process with \code{\link{manhattan.gwasAim}}.
+Formal significance comes only from the LRT.
 }
 \section{Methods (by generic)}{
 \itemize{
@@ -214,19 +230,30 @@ e.g. \code{linkMap(gwas1, gwas2, genObj = my_panel)} — for a
 multi-trait overlay with automatic colour legend.  Returns a
 \code{ggplot} object.
 
-\item \code{plot(gwasAim)}: Produce a diagnostic plot for a \code{gwasAim} object.
-  Three plot types are available via the \code{type} argument.
+\item \code{plot(gwasAim)}: Produce a diagnostic or results plot for a
+  \code{gwasAim} object. Five plot types are available via \code{type}.
 
   \describe{
     \item{\code{"manhattan"} (default)}{Classic Manhattan plot with
       alternating shaded chromosome backgrounds. Points are coloured by
       chromosome; significant markers are highlighted in \code{sig.col}
       and labelled. One facet per requested iteration.}
-    \item{\code{"outlier"}}{Line plot of genome-wide interval/marker outlier
-      statistics \eqn{\tilde{q}_i^2/\tilde{v}_i} per iteration, using the
-      same engine as \code{\link{plot.qtlAim}}.}
+    \item{\code{"outlier"}}{Line plot of genome-wide marker outlier
+      statistics \eqn{\tilde{q}_i^2/\tilde{v}_i} per iteration.}
     \item{\code{"blups"}}{Line plot of genome-wide scaled BLUPs
       \eqn{\tilde{q}_i/\sqrt{|\tilde{v}_i|}} per iteration.}
+    \item{\code{"effects"}}{Lollipop plot of estimated additive effect sizes
+      for each significant marker, with \eqn{\pm} 1 SE error bars and
+      percentage of phenotypic variance annotated. Positive effect = alt
+      allele (dosage 2) favoured; negative = ref allele (dosage 0) favoured.}
+    \item{\code{"contrast"}}{Allele contrast plot showing total line genetic
+      values split by 0/1/2 dosage class at each significant marker. Requires
+      \code{data}.}
+    \item{\code{"heatmap"}}{Genome × iteration heatmap: tile fill encodes
+      the outlier statistic at every marker position across all
+      forward-selection iterations. Excluded positions are shown in grey.
+      Detected significant markers are annotated with a filled diamond.
+      Iteration 1 is at the top.}
   }
 
 \item \code{print(gwasAim)}: Print a brief summary of significant markers to the
@@ -263,7 +290,7 @@ gwas.fit <- gwasAim(base.mod, genObj = panel,
 
 print(gwas.fit,   genObj = panel)
 summary(gwas.fit, genObj = panel)
-manhattan(gwas.fit, genObj = panel)
+plot(gwas.fit, genObj = panel, type = "manhattan")
 }
 
 }
@@ -278,6 +305,6 @@ high-dimensional random whole genome average (QTL) interval mapping approach.
 }
 \seealso{
 \code{\link{primePanel}}, \code{\link{summary.gwasAim}},
-  \code{\link{print.gwasAim}}, \code{\link{manhattan.gwasAim}},
+  \code{\link{print.gwasAim}}, \code{\link{plot.gwasAim}},
   \code{\link{qtlAim}}, \code{\link{gpAim}}
 }

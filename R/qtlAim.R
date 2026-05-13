@@ -339,7 +339,8 @@ qtlAim.asreml <- function(baseModel, genObj, merge.by = NULL, fix.lines = TRUE,
     # Phase 5: Package results and clean up
     # -------------------------------------------------------------------------
     qtl.list <- .packResults(qtl, coef.list, vcoef.list, ldiag, state, iter,
-                              breakout, cov.env, genetic.term, method, gen.type, selection)
+                              breakout, cov.env, genetic.term, method, gen.type,
+                              selection, TypeI)
 
     data.name <- paste(as.character(baseModel$call$fixed[2]), "data", sep = ".")
     assign(data.name, phenoData, envir = caller.env)

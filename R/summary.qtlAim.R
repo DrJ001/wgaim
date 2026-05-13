@@ -94,10 +94,18 @@ summary.qtlAim <- function(object, genObj, LOD = TRUE, ...) {
     }
     if (LOD)
         qtab$LOD <- lod
-    # Sort by chromosome then by inferred/marker position (3rd column for interval, 2nd for marker)
-    pos.col <- if (object$QTL$type == "interval") 3 else 2
-    qtab <- qtab[order(as.numeric(qtab$Chromosome),
-                       as.numeric(qtab[, pos.col]),
+    # Sort by chromosome then by inferred/marker position.
+    # Extract the leading integer from the chromosome name as the primary key
+    # so that alphanumeric names like "1A", "2B", "3D" sort numerically
+    # (1 before 2 before 3) without coercion warnings.  Full chromosome name
+    # breaks ties within the same number (e.g. "3A" before "3B" before "3D").
+    pos.col  <- if (object$QTL$type == "interval") 3 else 2
+    chr_lead <- as.integer(sub("^[^0-9]*([0-9]+).*$", "\\1",
+                               as.character(qtab$Chromosome)))
+    pos_vals <- suppressWarnings(as.numeric(qtab[, pos.col]))
+    qtab <- qtab[order(chr_lead,
+                       as.character(qtab$Chromosome),
+                       pos_vals,
                        na.last = TRUE), ]
     rownames(qtab) <- NULL
     qtab

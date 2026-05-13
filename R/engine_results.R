@@ -5,11 +5,13 @@
 
 #' @keywords internal
 .packResults <- function(qtl, coef.list, vcoef.list, ldiag, state, iter,
-                         breakout, cov.env, genetic.term, method, gen.type, selection) {
+                         breakout, cov.env, genetic.term, method, gen.type,
+                         selection, TypeI) {
     qtl.list <- list()
     qtl.list$selection <- selection
     qtl.list$method <- method
     qtl.list$type <- gen.type
+    qtl.list$TypeI <- TypeI
     qtl.list$diag <- ldiag
     qtl.list$iterations <- iter
     if (length(qtl)) {
