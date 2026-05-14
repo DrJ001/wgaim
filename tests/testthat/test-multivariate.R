@@ -8,7 +8,7 @@
 #   - .lrtTest with ntrait > 1 (engine_select.R)
 #   - .addEffect with Trait non-NULL (engine_effects.R)
 #   - .packResults with Trait non-NULL (engine_results.R)
-#   - .buildGenomeModel Trait suffix (engine_model.R) -- formula string only
+#   - .buildGenomeModel Trait prefix term order (engine_model.R) -- formula string only
 #   - qtlAim.asreml / gwasAim.asreml guard clauses for Trait
 #   - summary.qtlAim / summary.gwasAim Trait-aware Env column
 #   - waldTest.asreml zero-equality path
@@ -270,7 +270,117 @@ test_that(".addEffect Trait non-NULL: fix.form adds qtl.x AND Trait:qtl.x", {
 })
 
 # =============================================================================
-# 6.  .packResults with Trait non-NULL
+# 6.  .buildGenomeModel Trait prefix term order
+# =============================================================================
+#
+# These tests mock out the ASReml update() call and inspect only the
+# formula strings that .buildGenomeModel() constructs, confirming:
+#  (a) Multivariate vm path: diag(Trait):vm(merge.by, covObj)  [genomic]
+#                          + diag(Trait):merge.by              [residual polygenic]
+#  (b) Univariate vm path:  vm(merge.by, covObj) + merge.by    [unchanged]
+#  (c) Multivariate mbf:    diag(Trait):mbf('ints') + diag(Trait):merge.by
+
+.buildGenomeModel <- wgAim:::.buildGenomeModel
+.constructCM      <- wgAim:::.constructCM
+
+test_that(".buildGenomeModel vm path: univariate formula unchanged", {
+    set.seed(1)
+    genObj   <- make_wgCross_interval(n_lines = 5, n_chr = 1, n_mar = 8)
+    gdat     <- lapply(genObj$geno, function(el) el$interval.data)
+    genoData <- do.call("cbind", gdat)
+    rownames(genoData) <- paste0("L", 1:5)
+    # 7 intervals > 5 lines -> vm path
+    base_m   <- make_mock_qtlAim()
+    caller_e <- new.env(parent = globalenv())
+    res <- with_mocked_bindings(
+        update = function(object, ...) object,
+        .package = "wgAim",
+        .buildGenomeModel(base_m, genoData,
+                          data.frame(id = rownames(genoData)), "id",
+                          genObj, FALSE, character(0), caller_e,
+                          Trait = NULL)
+    )
+    # Check vmterms directly rather than the formula string
+    expect_true(grepl("^vm\\(id", res$vmterms[1L]))   # genomic: vm(id, covObj)
+    expect_equal(res$vmterms[2L], "id")                # residual: bare id
+    expect_false(grepl("diag", res$vmterms[1L]))       # no diag prefix
+})
+
+test_that(".buildGenomeModel vm path Trait non-NULL: diag prefix on both terms", {
+    set.seed(2)
+    genObj   <- make_wgCross_interval(n_lines = 5, n_chr = 1, n_mar = 8)
+    gdat     <- lapply(genObj$geno, function(el) el$interval.data)
+    genoData <- do.call("cbind", gdat)
+    rownames(genoData) <- paste0("L", 1:5)
+    phenoData <- data.frame(
+        id   = factor(paste0("L", 1:5)),
+        Site = factor(rep(c("S1","S2"), length.out = 5))
+    )
+    base_m   <- make_mock_qtlAim()
+    caller_e <- new.env(parent = globalenv())
+    captured <- list()
+    with_mocked_bindings(
+        update = function(object, random. = NULL, ...) {
+            if (!is.null(random.)) captured[[1L]] <<- random.
+            object
+        },
+        .package = "wgAim",
+        {
+            .buildGenomeModel(base_m, genoData, phenoData, "id",
+                              genObj, FALSE, character(0), caller_e,
+                              Trait = "Site")
+        }
+    )
+    rhs <- deparse(captured[[1L]][[2]])
+    # First genome-wide term: diag(Site):vm(id, covObj)
+    expect_true(grepl("diag\\(Site\\):vm\\(id", rhs))
+    # Second residual term: diag(Site):id
+    expect_true(grepl("diag\\(Site\\):id", rhs))
+    # Must NOT be vm():diag() (old wrong order)
+    expect_false(grepl("vm\\(id.*\\):diag", rhs))
+})
+
+test_that(".buildGenomeModel: vmterms[2] is diag(Trait):merge.by when Trait non-NULL", {
+    set.seed(3)
+    genObj   <- make_wgCross_interval(n_lines = 5, n_chr = 1, n_mar = 8)
+    gdat     <- lapply(genObj$geno, function(el) el$interval.data)
+    genoData <- do.call("cbind", gdat)
+    rownames(genoData) <- paste0("L", 1:5)
+    phenoData <- data.frame(id = factor(paste0("L", 1:5)),
+                            Site = factor(c("S1","S2","S1","S2","S1")))
+    base_m   <- make_mock_qtlAim()
+    caller_e <- new.env(parent = globalenv())
+    res <- with_mocked_bindings(
+        update = function(object, ...) object,
+        .package = "wgAim",
+        .buildGenomeModel(base_m, genoData, phenoData, "id",
+                          genObj, FALSE, character(0), caller_e,
+                          Trait = "Site")
+    )
+    expect_equal(res$vmterms[2L], "diag(Site):id")
+})
+
+test_that(".buildGenomeModel: vmterms[2] is bare merge.by when Trait=NULL", {
+    set.seed(4)
+    genObj   <- make_wgCross_interval(n_lines = 5, n_chr = 1, n_mar = 8)
+    gdat     <- lapply(genObj$geno, function(el) el$interval.data)
+    genoData <- do.call("cbind", gdat)
+    rownames(genoData) <- paste0("L", 1:5)
+    base_m   <- make_mock_qtlAim()
+    caller_e <- new.env(parent = globalenv())
+    res <- with_mocked_bindings(
+        update = function(object, ...) object,
+        .package = "wgAim",
+        .buildGenomeModel(base_m, genoData,
+                          data.frame(id = rownames(genoData)), "id",
+                          genObj, FALSE, character(0), caller_e,
+                          Trait = NULL)
+    )
+    expect_equal(res$vmterms[2L], "id")
+})
+
+# =============================================================================
+# 7.  .packResults with Trait non-NULL
 # =============================================================================
 
 # Reuse the fixture builder from test-engine.R (loaded via helper-fixtures.R)
@@ -424,7 +534,7 @@ test_that(".packResults Trait=NULL: no Trait slot, qtlModel.pruned unchanged", {
 })
 
 # =============================================================================
-# 7.  qtlAim / gwasAim guard clauses for Trait argument
+# 8.  qtlAim / gwasAim guard clauses for Trait argument
 # =============================================================================
 
 # For Trait guard tests we mock .validateModel so it returns successfully,
@@ -521,7 +631,7 @@ test_that("gwasAim: Trait column not in phenoData triggers stop", {
 })
 
 # =============================================================================
-# 8.  summary.qtlAim Trait-aware Env column
+# 9.  summary.qtlAim Trait-aware Env column
 # =============================================================================
 
 test_that("summary.qtlAim: Trait column present when object$QTL$Trait non-NULL", {
@@ -568,7 +678,7 @@ test_that("summary.gwasAim: no Trait column when Trait=NULL (univariate)", {
 })
 
 # =============================================================================
-# 9.  waldTest.asreml zero-equality path (self-contained)
+# 10. waldTest.asreml zero-equality path (self-contained)
 # =============================================================================
 
 # Build a minimal fake asreml model with a known Cfixed matrix

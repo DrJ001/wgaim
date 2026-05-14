@@ -59,14 +59,15 @@
         # vm path
         rterms.all <- attr(terms.formula(asm$call$random), "term.labels")
         vmterm.raw <- rterms.all[grep("vm.*covObj", rterms.all)]
-        # Strip Trait structure suffix for classify/only (ASReml needs bare term)
-        vmterm.classify <- if (ntrait > 1L)
-            sub(paste0(":.*\\(", Trait, ".*\\)$"), "", vmterm.raw)
-        else
-            vmterm.raw
+        # vmterm.raw is now "diag(Trait):vm(merge.by, covObj)" for multivariate,
+        # or "vm(merge.by, covObj)" for univariate.
+        # For predict():
+        #   classify -- the factor cross to predict over: "merge.by" (univariate)
+        #               or "merge.by:Trait" (multivariate)
+        #   only     -- the full random term label as it appears in the formula
 
         if (ntrait == 1L) {
-            pv      <- predict(asm, classify = vmterm.classify,
+            pv      <- predict(asm, classify = vmterm.raw,
                                only = vmterm.raw, vcov = TRUE, data = phenoData)
             atilde  <- pv$pvals[, "predicted.value"]
             qtilde  <- as.vector(cov.env$trans %*% atilde)
@@ -74,18 +75,20 @@
             qhalf   <- cov.env$trans %*% vatilde
             vqtilde <- colSums(t(qhalf) * t(cov.env$trans))
         } else {
-            classify.term <- paste(vmterm.classify, Trait, sep = ":")
+            # classify: the two factors involved -- merge.by and Trait
+            # only: the full term label (including diag/corh/fa prefix)
+            classify.term <- paste(merge.by, Trait, sep = ":")
             pv   <- predict(asm, classify = classify.term,
                             only = vmterm.raw, vcov = TRUE, data = phenoData)
-            # Sort predicted values: line-major order (all traits for line 1, then line 2 ...)
-            ord    <- order(pv$pvals[[vmterm.classify]], pv$pvals[[Trait]])
+            # Sort: merge.by-major order (all Trait levels for line 1, then line 2 ...)
+            ord    <- order(pv$pvals[[merge.by]], pv$pvals[[Trait]])
             atilde <- matrix(pv$pvals[ord, "predicted.value"],
                              ncol = ntrait, byrow = FALSE)
             atilde[is.na(atilde)] <- 0
             pev    <- as.matrix(pv$vcov)[ord, ord]
             pev[is.na(pev)] <- 0
-            # qtilde: nmarkers vector of multivariate back-transformed BLUPs
-            qtilde.mat <- cov.env$trans %*% atilde          # nmarkers x ntrait
+            # Back-transform via Cholesky inverse: qtilde.mat is nmarkers x ntrait
+            qtilde.mat <- cov.env$trans %*% atilde
             vatilde    <- kronecker(Ga, cov.env$relm) - pev
             vqtilde    <- .compute_vqtilde(cov.env$trans, Ginv, vatilde, ntrait)
             # Scalar outlier stat: t(qtilde_i) %*% Ginv %*% qtilde_i

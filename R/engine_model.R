@@ -36,17 +36,25 @@
     vmterms <- NULL
     cov.env <- NULL
 
-    # Build the Trait variance structure suffix for the genome-wide term.
-    # ntrait == 1 (Trait = NULL): no suffix -- univariate, behaviour unchanged.
-    # ntrait == 2: start with diag(Trait), upgrade to corh(Trait) if n.fa > 0.
-    # ntrait >= 3: start with diag(Trait), upgrade to fa(Trait, k) for k = 1..n.fa.
-    trait.suffix <- if (!is.null(Trait)) paste0(":diag(", Trait, ")") else ""
+    # Build the Trait variance structure for the genome-wide and residual polygenic terms.
+    #
+    # The correct ASReml formula for a multivariate (MET) model is:
+    #   ~ diag(Trait):vm(merge.by, covObj) + diag(Trait):merge.by + <other rterms>
+    # where:
+    #   diag(Trait):vm(merge.by, covObj) -- composite additive G x E term
+    #   diag(Trait):merge.by             -- residual polygenic G x E term
+    #
+    # The Trait variance structure is a PREFIX to both the genomic and
+    # residual terms. When Trait = NULL (univariate) no prefix is applied
+    # and the formula reduces to the existing ~ vm(merge.by, covObj) + merge.by.
+    trait.prefix  <- if (!is.null(Trait)) paste0("diag(", Trait, "):") else ""
+    resid.term    <- paste0(trait.prefix, merge.by)   # residual polygenic term
 
     if ((ncol(genoData) > nrow(genoData)) & !force) {
         cov.env <- .constructCM(genoData)
         covObj  <- cov.env$relm
-        gterm   <- paste0("vm(", merge.by, ", covObj)", trait.suffix)
-        vmterms <- c(gterm, merge.by)
+        gterm   <- paste0(trait.prefix, "vm(", merge.by, ", covObj)")
+        vmterms <- c(gterm, resid.term)
         ran.form <- as.formula(paste(c("~", vmterms, rterms), collapse = " + "))
         attr(intervalObj, "env") <- cov.env
         vm <- TRUE
@@ -55,8 +63,8 @@
         names(covObj)[1] <- merge.by
         qtlModel$call$mbf$ints$key <- rep(merge.by, 2)
         qtlModel$call$mbf$ints$cov <- "covObj"
-        gterm    <- paste0("mbf('ints')", trait.suffix)
-        ran.form <- as.formula(paste(c(paste("~", gterm), merge.by, rterms), collapse = " + "))
+        gterm    <- paste0(trait.prefix, "mbf('ints')")
+        ran.form <- as.formula(paste(c(paste("~", gterm), resid.term, rterms), collapse = " + "))
     }
     assign("covObj", covObj, envir = caller.env)
     cat("\nRandom Effects Interval/Marker Model Iteration (1):\n")
@@ -64,25 +72,33 @@
     qtlModel$call$data <- quote(phenoData)
     qtlModel <- update(qtlModel, random. = ran.form, ...)
 
-    # Multivariate only: upgrade variance structure from diag to corh / fa(k)
+    # Multivariate only: upgrade the genome-wide term's variance structure
+    # from diag to corh (ntrait=2) or fa(k) (ntrait>=3).
+    # Only the genomic term is upgraded; the residual diag(Trait):merge.by stays.
     if (!is.null(Trait) && n.fa > 0L) {
         ntrait <- length(levels(phenoData[[Trait]]))
         rterms.cur <- attr(terms.formula(qtlModel$call$random), "term.labels")
         gterm.cur  <- rterms.cur[grep("vm.*covObj|mbf.*ints", rterms.cur)]
         if (ntrait == 2L) {
-            gterm.new  <- gsub("diag", "corh", gterm.cur)
+            # diag(Trait):vm() --> corh(Trait):vm()
+            gterm.new  <- sub(paste0("^diag\\(", Trait, "\\):"),
+                              paste0("corh(", Trait, "):"), gterm.cur)
             ran.form   <- as.formula(paste(
                 c("~", gterm.new, rterms.cur[rterms.cur != gterm.cur]), collapse = " + "))
             message("\nQTL x ", Trait, " Bivariate (corh) Random Effects Model.")
             cat("===============================================\n")
             qtlModel <- update(qtlModel, random. = ran.form, ...)
+            gterm.cur <- gterm.new
         } else {
             for (k in seq_len(n.fa)) {
-                gterm.new <- if (k == 1L)
-                    gsub("diag\\(", paste0("fa("), gsub("\\)$", paste0(",", 1L, ")"), gterm.cur))
+                # diag(Trait): --> fa(Trait,k):  targeting the exact prefix
+                old.struct <- if (k == 1L)
+                    paste0("^diag\\(", Trait, "\\):")
                 else
-                    gsub(paste0(",", k - 1L, "\\)"), paste0(",", k, ")"), gterm.cur)
-                ran.form  <- as.formula(paste(
+                    paste0("^fa\\(", Trait, ",\\s*", k - 1L, "\\):")
+                new.struct <- paste0("fa(", Trait, ",", k, "):")
+                gterm.new  <- sub(old.struct, new.struct, gterm.cur)
+                ran.form   <- as.formula(paste(
                     c("~", gterm.new, rterms.cur[rterms.cur != gterm.cur]), collapse = " + "))
                 message("\nQTL x ", Trait, " Factor Analytic(", k, ") Random Effects Model.")
                 cat("===================================================\n")
@@ -90,8 +106,9 @@
                 gterm.cur <- gterm.new
             }
         }
-        # Keep vmterms in sync with the upgraded term name
-        if (vm) vmterms <- c(gterm.cur, merge.by)
+        # Keep vmterms[1] in sync with the upgraded genomic term name;
+        # vmterms[2] (residual polygenic) is unchanged.
+        if (vm) vmterms[1L] <- gterm.cur
     }
 
     list(qtlModel = qtlModel, intervalObj = intervalObj,
@@ -112,21 +129,25 @@
         covObj <- cbind.data.frame(rownames(genoSub), genoSub)
         names(covObj)[1] <- merge.by
         if (is.null(qtlModel$call$mbf$ints) & vm) {
-            # vm -> mbf switch: reconstruct the random formula preserving any
-            # Trait variance-structure suffix (e.g. ":diag(Trait)", ":corh(Trait)",
-            # ":fa(Trait,k)") that was appended to the old vm term.
+            # vm -> mbf switch: reconstruct the random formula, preserving the
+            # Trait variance-structure PREFIX (e.g. "diag(Trait):", "corh(Trait):",
+            # "fa(Trait,k):") that precedes the old vm term.
             attr(intervalObj, "env") <- NULL
             all.rterms <- unlist(strsplit(deparse(qtlModel$call$random[[2]]), " \\+ "))
-            # Identify the genome-wide vm term specifically (starts with "vm(")
-            vm.term      <- all.rterms[grep("^vm\\(", all.rterms)][1L]
-            other.rterms <- all.rterms[all.rterms != vm.term]
-            # Extract any Trait suffix from the old vm term and attach it to mbf
-            trait.suffix <- sub(paste0("^vm\\(", merge.by, ",\\s*covObj\\)"), "", vm.term)
-            mbf.term     <- paste0("mbf('ints')", trait.suffix)
+            # Find the genome-wide vm term -- may now start with a variance structure
+            # prefix such as "diag(Site):vm(...)", so match on "vm.*covObj" not "^vm("
+            vm.term      <- all.rterms[grep("vm.*covObj", all.rterms)][1L]
+            # Everything else is kept as-is (includes residual diag(Trait):merge.by)
+            other.rterms <- all.rterms[!(all.rterms %in% vmterms)]
+            # Extract the Trait prefix (e.g. "diag(Site):") from the vm term
+            # and transplant it onto the mbf term.
+            vm.core      <- paste0("vm\\(", merge.by, ",\\s*covObj\\)$")
+            trait.prefix <- sub(vm.core, "", vm.term)
+            mbf.term     <- paste0(trait.prefix, "mbf('ints')")
             qtlModel$call$mbf$ints$key <- rep(merge.by, 2)
             qtlModel$call$mbf$ints$cov <- "covObj"
             ran.form <- as.formula(paste("~",
-                paste(c(mbf.term, merge.by, other.rterms), collapse = " + ")))
+                paste(c(mbf.term, vmterms[2L], other.rterms), collapse = " + ")))
             qtlModel$call$random <- ran.form
         }
     }
