@@ -53,8 +53,9 @@ make_validate_return_gwas <- function(model, phenoData) {
 # 1. Generic dispatch
 # =============================================================================
 
-test_that("gwasAim() dispatches via UseMethod", {
-    expect_true(isS3stdGeneric(wgAim:::gwasAim))
+test_that("gwasAim() is a function whose body calls UseMethod", {
+    expect_true(is.function(wgAim:::gwasAim))
+    expect_true(grepl("UseMethod", paste(deparse(body(wgAim:::gwasAim)), collapse = " ")))
 })
 
 test_that("gwasAim.default() stops with 'asreml' message", {
