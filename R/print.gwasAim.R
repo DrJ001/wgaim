@@ -3,13 +3,29 @@
 # S3 print method for gwasAim objects.
 # =============================================================================
 
-#' @describeIn gwasAim Print a brief summary of significant markers to the
-#'   console, listing the chromosome, marker name, and cM position of each
-#'   detected association. Also reports the significance threshold and total
-#'   number of markers tested.
-#' @param x A \code{gwasAim} object.
-#' @param genObj The \code{"wgPanel"} object passed to \code{gwasAim},
-#'   produced by \code{\link{primePanel}}.
+#' Print a Fitted \code{gwasAim} Object
+#'
+#' @description
+#' Prints a brief narrative of the significant markers detected by
+#' \code{\link{gwasAim}} to the console, listing the chromosome, marker name,
+#' and cM position of each association. Also reports the significance threshold
+#' and the total number of markers in the panel.
+#'
+#' @param x A fitted object of class \code{"gwasAim"}.
+#' @param genObj The \code{"wgPanel"} object used in the original
+#'   \code{\link{gwasAim}} call, produced by \code{\link{primePanel}}.
+#' @param \dots Currently unused.
+#'
+#' @return \code{x} invisibly.
+#'
+#' @seealso \code{\link{gwasAim}}, \code{\link{summary.gwasAim}},
+#'   \code{\link{getQTL}}
+#'
+#' @examples
+#' \dontrun{
+#' print(gwas.fit, genObj = panel)
+#' }
+#'
 #' @export
 print.gwasAim <- function(x, genObj, ...) {
     if (missing(genObj))

@@ -3,11 +3,28 @@
 # S3 print method for aimTable objects.
 # =============================================================================
 
-#' @describeIn aimTable Print a stacked QTL / GWAS summary table to the
-#'   console.  A brief header reports the number of traits included and the
-#'   analysis type (\code{qtlAim} or \code{gwasAim}), followed by the table
-#'   formatted without row names.
+#' Print an \code{aimTable} Object
+#'
+#' @description
+#' Prints a stacked multi-trait QTL or GWAS summary table to the console.
+#' A brief header reports the analysis type (\code{qtlAim} or \code{gwasAim})
+#' and the number of traits included, followed by the table formatted without
+#' row names. Prints a \code{"(no QTL detected)"} notice for empty tables.
+#'
 #' @param x An \code{aimTable} object produced by \code{\link{aimTable}}.
+#' @param \dots Further arguments passed to \code{\link{print.data.frame}}.
+#'
+#' @return \code{x} invisibly.
+#'
+#' @seealso \code{\link{aimTable}}, \code{\link{summary.qtlAim}},
+#'   \code{\link{summary.gwasAim}}
+#'
+#' @examples
+#' \dontrun{
+#' tbl <- aimTable(qtl.yld, qtl.tgw, genObj = genoRxK)
+#' print(tbl)
+#' }
+#'
 #' @export
 print.aimTable <- function(x, ...) {
     obj_class  <- attr(x, "obj.class")

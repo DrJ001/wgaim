@@ -3,13 +3,30 @@
 # S3 print method for qtlAim objects.
 # =============================================================================
 
-#' @describeIn qtlAim Print a brief summary of detected QTL to the console,
-#'   listing the chromosome, interval number, and flanking marker names for
-#'   each significant QTL. If no QTL were detected, a message is printed.
-#' @param x A \code{qtlAim} object.
-#' @param genObj The \code{"wgCross"} object passed to \code{qtlAim},
-#'   produced by \code{\link{primeCross}}. Required to resolve internal
-#'   interval indices to marker names and positions.
+#' Print a Fitted \code{qtlAim} Object
+#'
+#' @description
+#' Prints a brief narrative of the significant QTL detected by
+#' \code{\link{qtlAim}} to the console, listing the chromosome, interval
+#' index, and flanking marker names for each QTL. Prints a message if no
+#' significant QTL were found.
+#'
+#' @param x A fitted object of class \code{"qtlAim"}.
+#' @param genObj The \code{"wgCross"} object used in the original
+#'   \code{\link{qtlAim}} call, produced by \code{\link{primeCross}}.
+#'   Required to resolve internal interval indices to marker names.
+#' @param \dots Currently unused.
+#'
+#' @return \code{x} invisibly.
+#'
+#' @seealso \code{\link{qtlAim}}, \code{\link{summary.qtlAim}},
+#'   \code{\link{getQTL}}
+#'
+#' @examples
+#' \dontrun{
+#' print(qtl.fit, genObj = genoRxK)
+#' }
+#'
 #' @export
 print.qtlAim <- function(x, genObj, ...) {
     if (missing(genObj))

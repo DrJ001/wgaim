@@ -17,33 +17,60 @@
 # linkMap.cross.R.
 # =============================================================================
 
-#' @importFrom ggrepel geom_text_repel
-#' @describeIn gwasAim Plot the genetic linkage map with significant GWAS
-#'   markers overlaid as coloured horizontal bands.  Accepts a single
-#'   \code{gwasAim} object or multiple models as extra positional arguments --
-#'   e.g. \code{linkMap(gwas1, gwas2, genObj = my_panel)} -- for a
-#'   multi-trait overlay with automatic colour legend.  Returns a
-#'   \code{ggplot} object.
-#' @param object A \code{gwasAim} object, or the first of several.
-#' @param genObj The \code{"wgPanel"} object produced by \code{primePanel()}
-#'   used in the analysis.
-#' @param chr Optional character vector of chromosomes to display.
-#' @param marker.names \code{"markers"} (default), \code{"dist"},
-#'   \code{"none"} or \code{NULL}.
-#' @param marker.colour Colour for the significant-marker bands (single model).
-#' @param label.colour Colour for right-side marker name labels.  Defaults to
-#'   \code{marker.colour}.
-#' @param trait.labels Optional character vector of trait names (one per model).
-#' @param trait.colour Colour(s) for left-side trait labels / multi-model bands.
-#'   Defaults to \code{marker.colour}.
-#' @param band.lwd Band linewidth (mm).  Defaults to \code{BAR_FILL_LW}.
-#' @param m.cex Text size (pt) for labels.  Default \code{7}.
-#' @param nrow Integer or \code{"auto"}.  Facet row count.
-#' @param row.chr Optional list of character vectors for manual row layout.
-#' @param \dots Additional \code{gwasAim} models (positional, unnamed) passed
-#'   for multi-trait display, and/or further arguments to
+#' Plot a Linkage Map with Significant Marker Overlay (\code{gwasAim})
+#'
+#' @description
+#' Plots the genetic map for a \code{"wgPanel"} object with significant GWAS
+#' markers overlaid as coloured horizontal bands inside each chromosome bar.
+#' Marker names are annotated on the right; trait labels appear on the left.
+#'
+#' Multiple \code{gwasAim} models can be overlaid by passing them as extra
+#' positional arguments, e.g.\
+#' \code{linkMap(gwas1, gwas2, genObj = my_panel)}, producing a multi-trait
+#' legend with automatic \code{hcl.colors} colour assignment.
+#'
+#' @param object A \code{gwasAim} object, or the first of several when
+#'   multiple models are passed for a multi-trait overlay.
+#' @param \dots Additional \code{gwasAim} models (positional, unnamed) for
+#'   multi-trait display, and/or named arguments passed through to
 #'   \code{\link{linkMap.cross}}.
-#' @return A \code{ggplot} object.
+#' @param genObj The \code{"wgPanel"} object produced by
+#'   \code{\link{primePanel}} used in the analysis.
+#' @param chr Optional character vector of chromosome names to display.
+#' @param marker.names \code{"markers"} (default), \code{"dist"},
+#'   \code{"none"}, or \code{NULL}.
+#' @param marker.colour Colour for significant-marker bands (single-model
+#'   mode). Default \code{"firebrick"}.
+#' @param label.colour Colour for right-side marker name labels. Defaults to
+#'   \code{marker.colour}.
+#' @param trait.labels Optional character vector of trait names (one per
+#'   model). Defaults to the left-hand side of each model's fixed formula.
+#' @param trait.colour Colour(s) for left-side trait labels and multi-model
+#'   bands. Defaults to \code{marker.colour}.
+#' @param band.lwd Band linewidth in mm. Defaults to the internal
+#'   \code{BAR_FILL_LW} constant.
+#' @param m.cex Text size (pt) for labels. Default \code{7}.
+#' @param nrow Integer or \code{"auto"}. Number of facet rows. Default
+#'   \code{1}.
+#' @param row.chr Optional named list of character vectors for manual
+#'   multi-row chromosome layout.
+#'
+#' @return A \code{\link[ggplot2]{ggplot}} object.
+#'
+#' @seealso \code{\link{linkMap}}, \code{\link{linkMap.cross}},
+#'   \code{\link{linkMap.qtlAim}}, \code{\link{gwasAim}}
+#'
+#' @examples
+#' \dontrun{
+#' # Single model
+#' linkMap(gwas.fit, genObj = panel)
+#'
+#' # Multi-trait overlay
+#' linkMap(gwas.yld, gwas.pro, genObj = panel,
+#'         trait.labels = c("Yield", "Protein"))
+#' }
+#'
+#' @importFrom ggrepel geom_text_repel
 #' @export
 linkMap.gwasAim <- function(object, ...,
                              genObj,

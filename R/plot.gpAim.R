@@ -19,8 +19,11 @@
 #   selection differential.
 # =============================================================================
 
-#' @describeIn gpAim Produce one of three diagnostic plots for a \code{gpAim}
-#'   object, selected via the \code{type} argument.
+#' Plot a Fitted \code{gpAim} Object
+#'
+#' @description
+#' Produces one of four diagnostic plots for a \code{gpAim} object, selected
+#' via the \code{type} argument.
 #'
 #'   \describe{
 #'     \item{\code{"blups"}}{Genome-wide marker effect plot. Back-computed
@@ -73,7 +76,20 @@
 #'   \code{pt.col[2]} for unselected lines / low relatedness / negative GEBVs.
 #'   Default \code{c("steelblue","firebrick")}.
 #' @param pt.cex Numeric point size. Default \code{0.8}.
+#' @param \dots Currently unused.
 #' @return A \code{\link[ggplot2]{ggplot}} object.
+#'
+#' @seealso \code{\link{gpAim}}, \code{\link{summary.gpAim}},
+#'   \code{\link{print.gpAim}}
+#'
+#' @examples
+#' \dontrun{
+#' plot(gp.fit)                          # caterpillar (default)
+#' plot(gp.fit, type = "heatmap")
+#' plot(gp.fit, type = "density", prop.select = 0.10)
+#' plot(gp.fit, type = "blups", genObj = genoRxK)
+#' }
+#'
 #' @export
 plot.gpAim <- function(x,
                        genObj      = NULL,

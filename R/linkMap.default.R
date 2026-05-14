@@ -14,10 +14,7 @@
 #   linkMap(gwas1,   gwas2,   genObj = x)
 # =============================================================================
 
-#' @describeIn qtlAim Backward-compatible dispatcher. Accepts a named list of
-#'   \code{qtlAim} or \code{gwasAim} objects and delegates to the appropriate
-#'   typed method. The preferred API is to pass models as positional arguments
-#'   directly to \code{\link{linkMap.qtlAim}} or \code{\link{linkMap.gwasAim}}.
+#' @rdname linkMap
 #' @export
 linkMap.default <- function(object, ...) {
     if (!is.list(object))

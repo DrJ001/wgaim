@@ -16,9 +16,10 @@
 #   .plot_contrast()     -- violin/box allele contrast plot
 # =============================================================================
 
-#' @describeIn qtlAim Plot genome-wide outlier statistics, scaled BLUPs, QTL
-#'   effect sizes, or allele contrast distributions from the forward-selection
-#'   analysis.
+#' Plot a Fitted \code{qtlAim} Object
+#'
+#' @description
+#' Produces one of six diagnostic or results plots for a \code{qtlAim} object.
 #'
 #' @param x A \code{qtlAim} object.
 #' @param genObj The \code{"wgCross"} object passed to \code{qtlAim}, produced
@@ -80,7 +81,20 @@
 #'   across the lower range where most signal variation occurs. Default
 #'   \code{NULL} (no capping; full data range used). Not used for other plot
 #'   types.
+#' @param \dots Currently unused.
 #' @return A \code{\link[ggplot2]{ggplot}} object.
+#'
+#' @seealso \code{\link{qtlAim}}, \code{\link{summary.qtlAim}},
+#'   \code{\link{aimTrace}}, \code{\link{linkMap.qtlAim}}
+#'
+#' @examples
+#' \dontrun{
+#' plot(qtl.fit, genObj = genoRxK)
+#' plot(qtl.fit, genObj = genoRxK, type = "effects")
+#' plot(qtl.fit, genObj = genoRxK, type = "heatmap")
+#' plot(qtl.fit, genObj = genoRxK, type = "contrast", data = yld.data)
+#' }
+#'
 #' @export
 plot.qtlAim <- function(x, genObj,
                          type      = c("outlier", "blups", "chr",

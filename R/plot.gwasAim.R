@@ -15,8 +15,10 @@
 #   Uses the shared engine from plot.qtlAim.R.
 # =============================================================================
 
-#' @describeIn gwasAim Produce a diagnostic or results plot for a
-#'   \code{gwasAim} object. Five plot types are available via \code{type}.
+#' Plot a Fitted \code{gwasAim} Object
+#'
+#' @description
+#' Produces one of six diagnostic or results plots for a \code{gwasAim} object.
 #'
 #'   \describe{
 #'     \item{\code{"manhattan"} (default)}{Classic Manhattan plot with
@@ -69,7 +71,19 @@
 #'   \code{type = "heatmap"}. Outlier statistics above this value are clamped
 #'   to \code{cap} and rendered in the maximum colour. Default \code{NULL}
 #'   (no capping; full data range used). Not used for other plot types.
+#' @param \dots Currently unused.
 #' @return A \code{\link[ggplot2]{ggplot}} object.
+#'
+#' @seealso \code{\link{gwasAim}}, \code{\link{summary.gwasAim}},
+#'   \code{\link{aimTrace}}, \code{\link{linkMap.gwasAim}}
+#'
+#' @examples
+#' \dontrun{
+#' plot(gwas.fit, genObj = panel)
+#' plot(gwas.fit, genObj = panel, type = "effects")
+#' plot(gwas.fit, genObj = panel, type = "heatmap")
+#' }
+#'
 #' @export
 plot.gwasAim <- function(x, genObj,
                           type      = c("manhattan", "outlier", "blups",

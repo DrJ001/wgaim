@@ -7,47 +7,59 @@
 
 #' Trace the forward-selection algorithm
 #'
+#' @description
 #' Prints a p-value matrix and likelihood ratio test (LRT) table showing the
 #' incremental state of the forward-selection algorithm across iterations,
 #' and optionally returns diagnostic plots.
 #'
-#' @param object A fitted object of class \code{"qtlAim"} or
-#'   \code{"gwasAim"}.
-#' @param ... Further arguments passed to methods.
-#' @export
-aimTrace <- function(object, ...) UseMethod("aimTrace")
-
-#' @describeIn aimTrace Trace method for \code{qtlAim} objects.
+#' The \strong{p-value matrix} shows the p-value of each detected QTL (or
+#' marker) at every iteration in which it was present in the model, making it
+#' easy to assess whether effects remain stable as further QTL enter.
 #'
-#'   The \strong{p-value matrix} shows the p-value of each detected QTL at
-#'   every iteration in which it was present in the model, making it easy to
-#'   assess whether QTL effects remain stable as further QTL enter.
+#' The \strong{LRT table} records the base and full model log-likelihoods, the
+#' LRT statistic, and its p-value at every iteration including the final
+#' non-significant one.
 #'
-#'   The \strong{LRT table} records the base and full model log-likelihoods,
-#'   the LRT statistic, and its p-value at every iteration including the final
-#'   non-significant one.
-#'
+#' @param object A fitted object of class \code{"qtlAim"} or \code{"gwasAim"}.
 #' @param iter Integer vector of iterations to include in the p-value matrix.
-#'   Default is all iterations: \code{1:length(object\$QTL\$effects)}.
+#'   Default is all iterations: \code{1:length(object$QTL$effects)}.
 #' @param lik.out Logical. If \code{TRUE} (default), print the LRT table.
 #' @param plot Controls optional diagnostic plot output (console output always
 #'   printed regardless). One of:
 #'   \describe{
-#'     \item{\code{FALSE} (default)}{No plot returned.}
-#'     \item{\code{"lrt"}}{Returns a \code{\link[ggplot2]{ggplot}} of the LRT
-#'       statistic across iterations with the significance threshold marked and
-#'       each detected QTL labelled.}
-#'     \item{\code{"stability"}}{Returns a \code{\link[ggplot2]{ggplot}} of
-#'       QTL effect estimates \eqn{\pm} 1 SE across every iteration in which
-#'       the QTL was in the model, one facet per QTL. Instability (large jumps)
-#'       flags possible confounding between QTL.}
-#'     \item{\code{"both"}}{Returns \code{list(lrt = \ldots, stability =
-#'       \ldots)} invisibly.}
+#'     \item{\code{FALSE} (default)}{No plot is returned.}
+#'     \item{\code{"lrt"}}{Returns a \code{ggplot} of the LRT statistic across
+#'       iterations with the significance threshold marked and each detected
+#'       QTL labelled.}
+#'     \item{\code{"stability"}}{Returns a \code{ggplot} of QTL effect
+#'       estimates \eqn{\pm}1 SE across every iteration in which the QTL was
+#'       in the model, one facet per QTL. Large jumps suggest confounding.}
+#'     \item{\code{"both"}}{Returns a named list
+#'       \code{list(lrt = ..., stability = ...)} invisibly.}
 #'   }
-#' @param sig.col Colour for highlighted points and ribbons in the diagnostic
+#' @param sig.col Colour for highlighted points and ribbons in diagnostic
 #'   plots. Default \code{"firebrick"}.
-#' @return \code{NULL} invisibly when \code{plot = FALSE}; otherwise a
-#'   \code{ggplot} object or named list of two \code{ggplot} objects.
+#' @param \dots Further arguments (e.g.\ \code{digits}) passed to methods.
+#'
+#' @return \code{NULL} invisibly when \code{plot = FALSE}; a \code{ggplot}
+#'   when \code{plot} is \code{"lrt"} or \code{"stability"}; a named list
+#'   \code{list(lrt, stability)} when \code{plot = "both"}.
+#'
+#' @seealso \code{\link{qtlAim}}, \code{\link{gwasAim}},
+#'   \code{\link{summary.qtlAim}}, \code{\link{summary.gwasAim}}
+#'
+#' @examples
+#' \dontrun{
+#' # After running qtlAim():
+#' aimTrace(qtl.fit)
+#' aimTrace(qtl.fit, plot = "lrt")
+#' aimTrace(qtl.fit, plot = "stability")
+#' }
+#'
+#' @export
+aimTrace <- function(object, ...) UseMethod("aimTrace")
+
+#' @rdname aimTrace
 #' @exportS3Method
 aimTrace.qtlAim <- function(object,
                              iter    = 1:length(object$QTL$effects),

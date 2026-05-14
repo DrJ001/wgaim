@@ -27,58 +27,60 @@ aimTrace(object, ...)
 )
 }
 \arguments{
-\item{object}{A fitted object of class \code{"qtlAim"} or
-\code{"gwasAim"}.}
+\item{object}{A fitted object of class \code{"qtlAim"} or \code{"gwasAim"}.}
 
 \item{iter}{Integer vector of iterations to include in the p-value matrix.
-Default is all iterations: \code{1:length(object\$QTL\$effects)}.}
+Default is all iterations: \code{1:length(object$QTL$effects)}.}
 
 \item{lik.out}{Logical. If \code{TRUE} (default), print the LRT table.}
 
 \item{plot}{Controls optional diagnostic plot output (console output always
 printed regardless). One of:
 \describe{
-  \item{\code{FALSE} (default)}{No plot returned.}
-  \item{\code{"lrt"}}{Returns a \code{\link[ggplot2]{ggplot}} of the LRT
-    statistic across iterations with the significance threshold marked and
-    each detected QTL labelled.}
-  \item{\code{"stability"}}{Returns a \code{\link[ggplot2]{ggplot}} of
-    QTL effect estimates \eqn{\pm} 1 SE across every iteration in which
-    the QTL was in the model, one facet per QTL. Instability (large jumps)
-    flags possible confounding between QTL.}
-  \item{\code{"both"}}{Returns \code{list(lrt = \ldots, stability =
-    \ldots)} invisibly.}
+  \item{\code{FALSE} (default)}{No plot is returned.}
+  \item{\code{"lrt"}}{Returns a \code{ggplot} of the LRT statistic across
+    iterations with the significance threshold marked and each detected
+    QTL labelled.}
+  \item{\code{"stability"}}{Returns a \code{ggplot} of QTL effect
+    estimates \eqn{\pm}1 SE across every iteration in which the QTL was
+    in the model, one facet per QTL. Large jumps suggest confounding.}
+  \item{\code{"both"}}{Returns a named list
+    \code{list(lrt = ..., stability = ...)} invisibly.}
 }}
 
-\item{sig.col}{Colour for highlighted points and ribbons in the diagnostic
+\item{sig.col}{Colour for highlighted points and ribbons in diagnostic
 plots. Default \code{"firebrick"}.}
 
-\item{...}{Further arguments passed to methods.}
+\item{\dots}{Further arguments (e.g.\ \code{digits}) passed to methods.}
 }
 \value{
-\code{NULL} invisibly when \code{plot = FALSE}; otherwise a
-  \code{ggplot} object or named list of two \code{ggplot} objects.
+\code{NULL} invisibly when \code{plot = FALSE}; a \code{ggplot}
+  when \code{plot} is \code{"lrt"} or \code{"stability"}; a named list
+  \code{list(lrt, stability)} when \code{plot = "both"}.
 }
 \description{
 Prints a p-value matrix and likelihood ratio test (LRT) table showing the
 incremental state of the forward-selection algorithm across iterations,
 and optionally returns diagnostic plots.
+
+The \strong{p-value matrix} shows the p-value of each detected QTL (or
+marker) at every iteration in which it was present in the model, making it
+easy to assess whether effects remain stable as further QTL enter.
+
+The \strong{LRT table} records the base and full model log-likelihoods, the
+LRT statistic, and its p-value at every iteration including the final
+non-significant one.
 }
-\section{Methods (by class)}{
-\itemize{
-\item \code{aimTrace(gwasAim)}: Trace method for \code{gwasAim} objects.
-Prints the incremental marker p-value matrix and LRT table, and
-optionally returns diagnostic plots. See \code{\link{aimTrace.qtlAim}}
-for full argument details.
+\examples{
+\dontrun{
+# After running qtlAim():
+aimTrace(qtl.fit)
+aimTrace(qtl.fit, plot = "lrt")
+aimTrace(qtl.fit, plot = "stability")
+}
 
-\item \code{aimTrace(qtlAim)}: Trace method for \code{qtlAim} objects.
-
-  The \strong{p-value matrix} shows the p-value of each detected QTL at
-  every iteration in which it was present in the model, making it easy to
-  assess whether QTL effects remain stable as further QTL enter.
-
-  The \strong{LRT table} records the base and full model log-likelihoods,
-  the LRT statistic, and its p-value at every iteration including the final
-  non-significant one.
-
-}}
+}
+\seealso{
+\code{\link{qtlAim}}, \code{\link{gwasAim}},
+  \code{\link{summary.qtlAim}}, \code{\link{summary.gwasAim}}
+}

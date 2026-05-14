@@ -4,10 +4,7 @@
 # Shared plot helpers (.plot_lrt, .plot_stability) live in aimTrace.qtlAim.R.
 # =============================================================================
 
-#' @describeIn aimTrace Trace method for \code{gwasAim} objects.
-#'   Prints the incremental marker p-value matrix and LRT table, and
-#'   optionally returns diagnostic plots. See \code{\link{aimTrace.qtlAim}}
-#'   for full argument details.
+#' @rdname aimTrace
 #' @exportS3Method
 aimTrace.gwasAim <- function(object,
                               iter    = 1:length(object$QTL$effects),
