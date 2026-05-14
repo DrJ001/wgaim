@@ -363,9 +363,11 @@ qtlAim.asreml <- function(baseModel, genObj, merge.by = NULL, fix.lines = TRUE,
     # -------------------------------------------------------------------------
     # Phase 5: Package results and clean up
     # -------------------------------------------------------------------------
+    trait.levels <- if (!is.null(Trait)) levels(phenoData[[Trait]]) else NULL
     pr <- .packResults(qtl, coef.list, vcoef.list, ldiag, state, iter,
                        breakout, cov.env, genetic.term, method, gen.type,
-                       selection, TypeI, Trait = Trait, qtlModel = qtlModel)
+                       selection, TypeI, Trait = Trait, qtlModel = qtlModel,
+                       trait.levels = trait.levels)
     qtl.list <- pr$qtl.list
     qtlModel <- pr$qtlModel.pruned   # may be updated (interaction pruning) or unchanged
 

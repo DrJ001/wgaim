@@ -81,17 +81,10 @@ summary.qtlAim <- function(object, genObj, LOD = TRUE, ...) {
     oth.terms  <- object$vparameters[-grep(mark.terms, names(object$vparameters))]
     var.mark   <- sigma2 * object$vparameters[grep(mark.terms, names(object$vparameters))] / scale
     var.res    <- sigma2 * oth.terms[grep(gterm, names(oth.terms))]
-    if (object$QTL$method == "random") {
-        var.est  <- sigma2 * object$vparameters[grep("X\\.", names(object$vparameters))]
-        coef.est <- apply(genoData[, object$QTL$qtl, drop = FALSE]^2, 2, mean, na.rm = TRUE)
-    } else {
-        var.est  <- qtle^2
-        coef.est <- rep(1, length(qtle))
-    }
-    var.all  <- sum(c(coef.est, coef.mark, 1) * c(var.est, var.mark, var.res))
-    perc.var <- round(100 * (coef.est * var.est) / var.all, 1)
+
     # ------------------------------------------------------------------
     # Multivariate: decompose effects vector into QTL x Trait rows.
+    # This must happen before perc.var so qtl.x is available.
     # effect names are either "X.chr.idx" (main) or "Trait_level:X.chr.idx"
     # (interaction). We label each row with its Trait level, using "MAIN"
     # for main-effect-only QTL.
@@ -109,6 +102,30 @@ summary.qtlAim <- function(object, genObj, LOD = TRUE, ...) {
         prefix <- paste0(object$QTL$Trait, "_")
         trait.lab <- gsub(prefix, "", trait.lab, fixed = TRUE)
     }
+
+    if (object$QTL$method == "random") {
+        var.est  <- sigma2 * object$vparameters[grep("X\\.", names(object$vparameters))]
+        coef.est <- apply(genoData[, object$QTL$qtl, drop = FALSE]^2, 2, mean, na.rm = TRUE)
+    } else {
+        var.est  <- qtle^2
+        coef.est <- rep(1, length(qtle))
+    }
+    # For multivariate analyses the effects vector contains both main and
+    # interaction rows sharing the same underlying QTL. Compute perc.var once
+    # per unique QTL (using the main-effect row) then broadcast to all rows.
+    unique.qtl.x <- unique(qtl.x)   # bare X.chr.idx keys, one per detected QTL
+    var.est.qtl  <- if (object$QTL$method == "random")
+        var.est[unique.qtl.x]
+    else
+        qtle[unique.qtl.x]^2
+    coef.est.qtl <- if (object$QTL$method == "random")
+        coef.est[unique.qtl.x]
+    else
+        rep(1, length(unique.qtl.x))
+    var.all  <- sum(c(coef.est.qtl, coef.mark, 1) * c(var.est.qtl, var.mark, var.res))
+    perc.var.per.qtl <- setNames(
+        round(100 * (coef.est.qtl * var.est.qtl) / var.all, 1), unique.qtl.x)
+    perc.var <- perc.var.per.qtl[match(qtl.x, unique.qtl.x)]
 
     zrat <- qtle / sqrt(object$QTL$veffects * sigma2)
     if (object$QTL$method == "random") {

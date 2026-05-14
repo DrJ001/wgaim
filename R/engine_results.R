@@ -17,7 +17,8 @@
 #' returned as qtlModel.pruned in the output list.
 .packResults <- function(qtl, coef.list, vcoef.list, ldiag, state, iter,
                          breakout, cov.env, genetic.term, method, gen.type,
-                         selection, TypeI, Trait = NULL, qtlModel = NULL) {
+                         selection, TypeI, Trait = NULL, qtlModel = NULL,
+                         trait.levels = NULL) {
     qtl.list <- list()
     qtl.list$selection <- selection
     qtl.list$method    <- method
@@ -79,7 +80,7 @@
 
             # Store multivariate-specific slots
             qtl.list$Trait        <- Trait
-            qtl.list$trait.levels <- levels(qtlModel$call$data[[Trait]])
+            qtl.list$trait.levels <- trait.levels
             qtl.list$wald.test    <- wt$Zero
             qtl.list$final.terms  <- final.terms
             qtl.list$is.interaction <- keep.int

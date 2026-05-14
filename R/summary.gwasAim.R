@@ -70,17 +70,8 @@ summary.gwasAim <- function(object, genObj, LOD = TRUE, ...) {
     var.mark   <- sigma2 * object$vparameters[grep(mark.terms, names(object$vparameters))] / scale
     var.res    <- sigma2 * oth.terms[grep(gterm, names(oth.terms))]
 
-    if (object$QTL$method == "random") {
-        var.est  <- sigma2 * object$vparameters[grep("X\\.", names(object$vparameters))]
-        coef.est <- apply(genoData[, object$QTL$qtl, drop = FALSE]^2, 2, mean, na.rm = TRUE)
-    } else {
-        var.est  <- qtle^2
-        coef.est <- rep(1, length(qtle))
-    }
-    var.all  <- sum(c(coef.est, coef.mark, 1) * c(var.est, var.mark, var.res))
-    perc.var <- round(100 * (coef.est * var.est) / var.all, 1)
-
-    # Multivariate: decompose effect names into QTL x Trait labels
+    # Multivariate: decompose effect names into QTL x Trait labels.
+    # Must happen before perc.var so qtl.x is available.
     is.mv <- !is.null(object$QTL$Trait)
     enams <- names(qtle)
     qtl.x <- sub("^.*:(X\\..*)$", "\\1", enams)
@@ -92,6 +83,28 @@ summary.gwasAim <- function(object, genObj, LOD = TRUE, ...) {
         prefix <- paste0(object$QTL$Trait, "_")
         trait.lab <- gsub(prefix, "", trait.lab, fixed = TRUE)
     }
+
+    if (object$QTL$method == "random") {
+        var.est  <- sigma2 * object$vparameters[grep("X\\.", names(object$vparameters))]
+        coef.est <- apply(genoData[, object$QTL$qtl, drop = FALSE]^2, 2, mean, na.rm = TRUE)
+    } else {
+        var.est  <- qtle^2
+        coef.est <- rep(1, length(qtle))
+    }
+    # Compute perc.var per unique QTL (main-effect row) then broadcast.
+    unique.qtl.x <- unique(qtl.x)
+    var.est.qtl  <- if (object$QTL$method == "random")
+        var.est[unique.qtl.x]
+    else
+        qtle[unique.qtl.x]^2
+    coef.est.qtl <- if (object$QTL$method == "random")
+        coef.est[unique.qtl.x]
+    else
+        rep(1, length(unique.qtl.x))
+    var.all  <- sum(c(coef.est.qtl, coef.mark, 1) * c(var.est.qtl, var.mark, var.res))
+    perc.var.per.qtl <- setNames(
+        round(100 * (coef.est.qtl * var.est.qtl) / var.all, 1), unique.qtl.x)
+    perc.var <- perc.var.per.qtl[match(qtl.x, unique.qtl.x)]
 
     zrat <- qtle / sqrt(object$QTL$veffects * sigma2)
     if (object$QTL$method == "random") {
