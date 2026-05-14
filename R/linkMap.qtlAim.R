@@ -17,39 +17,62 @@
 # linkMap.cross.R.
 # =============================================================================
 
-#' @importFrom ggrepel geom_text_repel
-#' @describeIn qtlAim Plot the genetic linkage map with detected QTL overlaid.
-#'   Accepts a single \code{qtlAim} object or multiple models passed as extra
-#'   positional arguments -- e.g.
-#'   \code{linkMap(qtl_yld, qtl_tgw, genObj = my_int)} -- for a
-#'   multi-trait overlay.  QTL intervals are drawn as coloured fills inside
-#'   the chromosome bar; flanking markers are annotated on the right; trait
-#'   labels sit to the left.  Returns a \code{ggplot} object.
-#' @param object A \code{qtlAim} object, or the first of several when multiple
-#'   models are passed.
-#' @param genObj The \code{"wgCross"} object produced by \code{primeCross()}
-#'   used in the analysis.
+#' Plot a Linkage Map with QTL Overlay (\code{qtlAim})
+#'
+#' @description
+#' Plots the genetic linkage map for a \code{"wgCross"} object with detected
+#' QTL overlaid as coloured fills inside each chromosome bar. Flanking markers
+#' are annotated on the right; trait labels appear on the left.
+#'
+#' Multiple \code{qtlAim} models can be overlaid by passing them as extra
+#' positional arguments, e.g.\
+#' \code{linkMap(qtl_yld, qtl_tgw, genObj = my_int)}, producing a
+#' multi-trait legend with automatic colour assignment.
+#'
+#' @param object A \code{qtlAim} object, or the first of several when
+#'   multiple models are passed for a multi-trait overlay.
+#' @param \dots Additional \code{qtlAim} models (positional, unnamed) for
+#'   multi-trait display, and/or named arguments passed through to
+#'   \code{\link{linkMap.cross}}.
+#' @param genObj The \code{"wgCross"} object produced by
+#'   \code{\link{primeCross}} used in the analysis.
 #' @param chr Optional character vector of chromosome names to display.
 #' @param chr.dist Optional named list with \code{$start} / \code{$end}
-#'   restricting the displayed cM range.
+#'   elements restricting the displayed cM range per chromosome.
 #' @param marker.names \code{"markers"} (default), \code{"dist"},
-#'   \code{"none"} or \code{NULL}.
-#' @param flanking Logical; if \code{TRUE} (default) only QTL flanking markers
-#'   are annotated.
-#' @param qtl.colour Colour(s) for QTL fills.  Recycled across traits.
+#'   \code{"none"}, or \code{NULL}.
+#' @param flanking Logical. If \code{TRUE} (default), only the QTL flanking
+#'   markers are annotated on the right axis.
+#' @param qtl.colour Colour(s) for QTL fills. Recycled across traits in
+#'   multi-model mode.
 #' @param marker.colour Colour for flanking marker labels.
-#' @param trait.colour Colour(s) for left-side trait labels.  Defaults to
+#' @param trait.colour Colour(s) for left-side trait labels. Defaults to
 #'   \code{qtl.colour}.
-#' @param m.cex Text size (pt) for labels.  Default \code{7}.
+#' @param m.cex Text size (pt) for labels. Default \code{7}.
 #' @param trait.labels Optional character vector of trait names (one per
-#'   model).
-#' @param tick Logical.  Unused; retained for back-compatibility.
-#' @param nrow Integer or \code{"auto"}.  Facet row count.
-#' @param row.chr Optional list of character vectors for manual row layout.
-#' @param \dots Additional \code{qtlAim} models (positional, unnamed) passed
-#'   for multi-trait display, and/or further arguments to
-#'   \code{\link{linkMap.cross}}.
-#' @return A \code{ggplot} object.
+#'   model). Defaults to the left-hand side of each model's fixed formula.
+#' @param tick Logical. Unused; retained for backward compatibility.
+#' @param nrow Integer or \code{"auto"}. Number of facet rows. Default
+#'   \code{1}.
+#' @param row.chr Optional named list of character vectors for manual
+#'   multi-row chromosome layout.
+#'
+#' @return A \code{\link[ggplot2]{ggplot}} object.
+#'
+#' @seealso \code{\link{linkMap}}, \code{\link{linkMap.cross}},
+#'   \code{\link{linkMap.gwasAim}}, \code{\link{qtlAim}}
+#'
+#' @examples
+#' \dontrun{
+#' # Single model
+#' linkMap(qtl.fit, genObj = genoRxK)
+#'
+#' # Multi-trait overlay
+#' linkMap(qtl.yld, qtl.tgw, genObj = genoRxK,
+#'         trait.labels = c("Yield", "TGW"))
+#' }
+#'
+#' @importFrom ggrepel geom_text_repel
 #' @export
 linkMap.qtlAim <- function(object, ...,
                             genObj,

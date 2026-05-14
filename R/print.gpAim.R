@@ -3,12 +3,27 @@
 # S3 print method for gpAim objects.
 # =============================================================================
 
-#' @describeIn gpAim Print a concise summary of the genomic prediction to the
-#'   console, reporting the number of genotyped lines and markers, the
-#'   computational path used (\code{"vm"} or \code{"mbf"}), estimated genetic
-#'   and residual variance components, narrow-sense heritability, and the
-#'   range of GEBVs.
-#' @param x A \code{gpAim} object.
+#' Print a Fitted \code{gpAim} Object
+#'
+#' @description
+#' Prints a concise summary of a \code{\link{gpAim}} fit to the console,
+#' reporting the number of genotyped lines and markers, the computational path
+#' used (\code{"vm"} or \code{"mbf"}), estimated genetic and residual variance
+#' components, narrow-sense heritability, and the range of GEBVs.
+#'
+#' @param x A fitted object of class \code{"gpAim"}.
+#' @param \dots Currently unused.
+#'
+#' @return \code{x} invisibly.
+#'
+#' @seealso \code{\link{gpAim}}, \code{\link{summary.gpAim}},
+#'   \code{\link{plot.gpAim}}
+#'
+#' @examples
+#' \dontrun{
+#' print(gp.fit)
+#' }
+#'
 #' @export
 print.gpAim <- function(x, ...) {
     gp <- x$GP
