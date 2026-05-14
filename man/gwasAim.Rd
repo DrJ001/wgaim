@@ -3,6 +3,8 @@
 %   R/plot.gwasAim.R, R/print.gwasAim.R, R/summary.gwasAim.R
 \name{gwasAim}
 \alias{gwasAim}
+\alias{gwasAim.default}
+\alias{gwasAim.asreml}
 \alias{linkMap.gwasAim}
 \alias{plot.gwasAim}
 \alias{print.gwasAim}
@@ -10,6 +12,22 @@
 \title{GWAS Analyses via Integrated Modelling}
 \usage{
 gwasAim(baseModel, ...)
+
+\method{gwasAim}{default}(baseModel, ...)
+
+\method{gwasAim}{asreml}(
+  baseModel,
+  genObj,
+  merge.by = NULL,
+  fix.lines = TRUE,
+  force = FALSE,
+  exclusion.window = 20,
+  breakout = -1,
+  TypeI = 0.05,
+  trace = TRUE,
+  verboseLev = 0,
+  ...
+)
 
 \method{linkMap}{gwasAim}(
   object,
@@ -55,13 +73,54 @@ effects, experimental design terms) and any known population structure
 covariates. If the model has not converged, one update is attempted
 automatically.}
 
-\item{\dots}{Additional arguments passed to \code{update.asreml}, such as
-\code{na.action = na.method(x = "include")}.}
-
-\item{object}{A \code{gwasAim} object.}
+\item{\dots}{Additional \code{gwasAim} models (positional, unnamed) passed
+for multi-trait display, and/or further arguments to
+\code{\link{linkMap.cross}}.}
 
 \item{genObj}{The \code{"wgPanel"} object passed to \code{gwasAim},
 produced by \code{\link{primePanel}}.}
+
+\item{merge.by}{Character string naming the column present in both the
+phenotypic data and \code{genObj} that links lines across datasets.}
+
+\item{fix.lines}{Logical. If \code{TRUE} (default), phenotyped lines absent
+from \code{genObj} are handled by adding a fixed \code{Gomit} factor,
+restricting variance estimation to genotyped lines only. See
+\code{\link{qtlAim}} for full details.}
+
+\item{force}{Logical. If \code{FALSE} (default), the algorithm
+automatically uses the \strong{vm} path (genomic relationship matrix)
+when markers exceed lines, and the \strong{mbf} path otherwise. In
+practice, diversity panels almost always have more markers than lines
+so the vm path is typically taken. Set \code{force = TRUE} to override
+and use the mbf path regardless.}
+
+\item{exclusion.window}{Numeric scalar giving the exclusion distance in
+cM around each detected marker. Markers within this window are excluded
+from selection in subsequent iterations. Default is \code{20} cM.
+In GWAS this is a proxy for linkage disequilibrium-based exclusion;
+users in high-LD populations may wish to increase this value.}
+
+\item{breakout}{Integer. If positive, terminates the algorithm after that
+many iterations, returning diagnostics without adding the final marker
+as a fixed effect. Default is \code{-1} (run to completion).}
+
+\item{TypeI}{Numeric scalar giving the significance level for the LRT.
+Default is \code{0.05}. \strong{No Bonferroni correction is applied.}
+The LRT tests the additive variance parameter of the composite
+genome-wide term — a single test per iteration, not one per marker —
+so \code{TypeI = 0.05} already acts as a family-wise error rate. This
+has been empirically validated for the wgAim algorithm; see Details.}
+
+\item{trace}{Logical or character string. If \code{TRUE} (default),
+ASReml output is printed to the console. If a character string giving
+a file path, output is redirected there (errors, warnings and detection
+messages still appear on screen).}
+
+\item{verboseLev}{Integer, \code{0} (default) or \code{1}. At \code{1},
+per-marker outlier statistics are printed at each iteration.}
+
+\item{object}{A \code{gwasAim} object.}
 
 \item{chr}{Optional character vector of chromosome names to display. Not
 used for \code{"effects"} or \code{"contrast"}.}
@@ -123,49 +182,6 @@ to \code{cap} and rendered in the maximum colour. Default \code{NULL}
 (no capping; full data range used). Not used for other plot types.}
 
 \item{LOD}{Logical. If \code{TRUE} (default), a LOD score column is appended.}
-
-\item{merge.by}{Character string naming the column present in both the
-phenotypic data and \code{genObj} that links lines across datasets.}
-
-\item{fix.lines}{Logical. If \code{TRUE} (default), phenotyped lines absent
-from \code{genObj} are handled by adding a fixed \code{Gomit} factor,
-restricting variance estimation to genotyped lines only. See
-\code{\link{qtlAim}} for full details.}
-
-\item{force}{Logical. If \code{FALSE} (default), the algorithm
-automatically uses the \strong{vm} path (genomic relationship matrix)
-when markers exceed lines, and the \strong{mbf} path otherwise. In
-practice, diversity panels almost always have more markers than lines
-so the vm path is typically taken. Set \code{force = TRUE} to override
-and use the mbf path regardless.}
-
-\item{exclusion.window}{Numeric scalar giving the exclusion distance in
-cM around each detected marker. Markers within this window are excluded
-from selection in subsequent iterations. Default is \code{20} cM.
-In GWAS this is a proxy for linkage disequilibrium-based exclusion;
-users in high-LD populations may wish to increase this value.}
-
-\item{breakout}{Integer. If positive, terminates the algorithm after that
-many iterations, returning diagnostics without adding the final marker
-as a fixed effect. Default is \code{-1} (run to completion).}
-
-\item{TypeI}{Numeric scalar giving the significance level for the LRT.
-Default is \code{0.05}. \strong{No Bonferroni correction is applied.}
-The LRT tests the additive variance parameter of the composite
-genome-wide term — a single test per iteration, not one per marker —
-so \code{TypeI = 0.05} already acts as a family-wise error rate. This
-has been empirically validated for the wgAim algorithm; see Details.}
-
-\item{trace}{Logical or character string. If \code{TRUE} (default),
-ASReml output is printed to the console. If a character string giving
-a file path, output is redirected there (errors, warnings and detection
-messages still appear on screen).}
-
-\item{verboseLev}{Integer, \code{0} (default) or \code{1}. At \code{1},
-per-marker outlier statistics are printed at each iteration.}
-
-\item{...}{Additional \code{gwasAim} models (positional, unnamed) and/or
-arguments passed to \code{\link{linkMap.cross}}.}
 }
 \value{
 An object of class \code{c("gwasAim","asreml")} — the final fitted

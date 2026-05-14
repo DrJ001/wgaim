@@ -7,6 +7,8 @@
 \alias{plot.qtlAim}
 \alias{print.qtlAim}
 \alias{qtlAim}
+\alias{qtlAim.default}
+\alias{qtlAim.asreml}
 \alias{summary.qtlAim}
 \title{QTL Analyses via Integrated Modelling}
 \usage{
@@ -50,13 +52,33 @@
 
 qtlAim(baseModel, ...)
 
+\method{qtlAim}{default}(baseModel, ...)
+
+\method{qtlAim}{asreml}(
+  baseModel,
+  genObj,
+  merge.by = NULL,
+  fix.lines = TRUE,
+  gen.type = NULL,
+  method = "fixed",
+  selection = "interval",
+  force = FALSE,
+  exclusion.window = 20,
+  breakout = -1,
+  TypeI = 0.05,
+  trace = TRUE,
+  verboseLev = 0,
+  ...
+)
+
 \method{summary}{qtlAim}(object, genObj, LOD = TRUE, ...)
 }
 \arguments{
 \item{object}{A \code{qtlAim} object.}
 
-\item{...}{Additional \code{qtlAim} models (positional, unnamed) and/or
-arguments passed to \code{\link{linkMap.cross}}.}
+\item{\dots}{Additional arguments passed to all internal
+\code{\link[asreml]{update.asreml}} calls, such as
+\code{na.action = na.method(x = "include")} or \code{maxit}.}
 
 \item{genObj}{The \code{"wgCross"} object passed to \code{qtlAim},
 produced by \code{\link{primeCross}}. Required to resolve QTL positions.}
@@ -162,10 +184,6 @@ null model (no QTL effects). Must include the genetic line term in the
 random formula. If the model has not converged, a single update attempt
 is made automatically before proceeding.}
 
-\item{LOD}{Logical. If \code{TRUE} (default), a LOD score column is
-appended to the summary table. LOD is computed from the Wald z-statistic
-as \eqn{0.5 \log_{10}(\exp(z^2))}.}
-
 \item{merge.by}{Character string naming the column present in both the
 phenotypic data (extracted from \code{baseModel}) and \code{genObj}
 that links lines across the two datasets. This is typically the genetic
@@ -248,9 +266,9 @@ statistics is printed to the console at each iteration, in addition to
 the standard ASReml fitting output. Useful for diagnosing the selection
 process.}
 
-\item{\dots}{Additional arguments passed to all internal
-\code{\link[asreml]{update.asreml}} calls, such as
-\code{na.action = na.method(x = "include")} or \code{maxit}.}
+\item{LOD}{Logical. If \code{TRUE} (default), a LOD score column is
+appended to the summary table. LOD is computed from the Wald z-statistic
+as \eqn{0.5 \log_{10}(\exp(z^2))}.}
 }
 \value{
 A \code{ggplot} object.
