@@ -4,12 +4,38 @@
 # Returns the GEBV data frame sorted descending by GEBV value.
 # =============================================================================
 
-#' @describeIn gpAim Return and print the full GEBV table, sorted from highest
-#'   to lowest GEBV. The returned \code{data.frame} contains the line
-#'   identifier column, \code{GEBV} (genomic estimated breeding value), and
-#'   \code{SE} (standard error of the GEBV). A header line reports the
-#'   estimated heritability, number of lines, and number of markers.
-#' @param object A \code{gpAim} object.
+#' Summary of a Fitted \code{gpAim} Model
+#'
+#' @description
+#' Returns and prints the full genomic estimated breeding value (GEBV) table
+#' from a \code{\link{gpAim}} fit, sorted from highest to lowest GEBV. A
+#' header line reports the estimated narrow-sense heritability, number of
+#' lines, and number of markers used.
+#'
+#' @param object A fitted object of class \code{"gpAim"}, as returned by
+#'   \code{\link{gpAim}}.
+#' @param \dots Currently unused.
+#'
+#' @return A \code{data.frame} with one row per genotyped line, sorted
+#'   descending by GEBV, containing columns:
+#' \describe{
+#'   \item{(line identifier)}{The genetic line identifier (column name
+#'     matches the \code{merge.by} argument used in \code{gpAim}).}
+#'   \item{GEBV}{Genomic estimated breeding value, rounded to 4 decimal
+#'     places.}
+#'   \item{SE}{Standard error of the GEBV, rounded to 4 decimal places.}
+#' }
+#'
+#' @seealso \code{\link{gpAim}}, \code{\link{print.gpAim}},
+#'   \code{\link{plot.gpAim}}
+#'
+#' @examples
+#' \dontrun{
+#' # After running gpAim():
+#' summary(gp.fit)
+#' top10 <- head(summary(gp.fit), 10)
+#' }
+#'
 #' @export
 summary.gpAim <- function(object, ...) {
     gp   <- object$GP

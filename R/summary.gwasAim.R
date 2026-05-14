@@ -4,15 +4,41 @@
 # Returns a data frame: Chromosome, Marker, dist(cM), Size, Pvalue, %Var, LOD
 # =============================================================================
 
-#' @describeIn gwasAim Produce a summary table of significant markers, sorted
-#'   by chromosome and cM position. Returns a \code{data.frame} with columns
-#'   for chromosome, marker name, cM position, effect size, p-value, percentage
-#'   of phenotypic variance explained, and (optionally) LOD score. The
-#'   significance threshold and marker count are stored as an attribute.
-#' @param object A \code{gwasAim} object.
-#' @param genObj The \code{"wgPanel"} object passed to \code{gwasAim},
-#'   produced by \code{\link{primePanel}}.
-#' @param LOD Logical. If \code{TRUE} (default), a LOD score column is appended.
+#' Summary of a Fitted \code{gwasAim} Model
+#'
+#' @description
+#' Produces a summary table of significant markers detected by
+#' \code{\link{gwasAim}}, sorted by chromosome and cM position.
+#'
+#' The table contains chromosome, marker name, cM position, estimated
+#' additive effect, p-value, percentage of phenotypic variance explained, and
+#' (optionally) a LOD score column. Returns \code{NULL} invisibly (with a
+#' message) when no significant markers were detected.
+#'
+#' @param object A fitted object of class \code{"gwasAim"}, as returned by
+#'   \code{\link{gwasAim}}.
+#' @param genObj The \code{"wgPanel"} object used in the original
+#'   \code{\link{gwasAim}} call, produced by \code{\link{primePanel}}.
+#'   Required to resolve marker names and cM positions.
+#' @param LOD Logical. If \code{TRUE} (default), a LOD score column is
+#'   appended to the summary table. LOD is computed as
+#'   \eqn{0.5 \log_{10}(\exp(z^2))}.
+#' @param \dots Currently unused.
+#'
+#' @return A \code{data.frame} with one row per significant marker and columns
+#'   Chromosome, Marker, dist(cM), Size, Pvalue, Perc.Var, and optionally LOD.
+#'   Returns \code{NULL} invisibly if no markers were detected.
+#'
+#' @seealso \code{\link{gwasAim}}, \code{\link{print.gwasAim}},
+#'   \code{\link{aimTrace}}, \code{\link{getQTL}}
+#'
+#' @examples
+#' \dontrun{
+#' # After running gwasAim():
+#' summary(gwas.fit, genObj = panel)
+#' summary(gwas.fit, genObj = panel, LOD = FALSE)
+#' }
+#'
 #' @export
 summary.gwasAim <- function(object, genObj, LOD = TRUE, ...) {
     if (missing(genObj))
