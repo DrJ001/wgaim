@@ -1,0 +1,48 @@
+#' wgAim: Whole Genome Analyses via Integrated Modelling
+#'
+#' @description
+#' The \pkg{wgAim} package provides a unified framework for three whole-genome
+#' analysis methods in plant breeding populations, all implemented through the
+#' ASReml-R linear mixed modelling engine:
+#'
+#' \describe{
+#'   \item{\code{\link{qtlAim}}}{Forward-selection QTL detection in biparental
+#'     mapping populations using whole-genome average interval mapping.}
+#'   \item{\code{\link{gwasAim}}}{Forward-selection genome-wide association
+#'     analysis in diversity panels using the same composite genome-wide model.}
+#'   \item{\code{\link{gpAim}}}{Genomic best linear unbiased prediction
+#'     (G-BLUP) delivering genomic estimated breeding values (GEBVs) via either
+#'     a genomic relationship matrix (vm path) or direct marker effect
+#'     estimation (mbf path).}
+#' }
+#'
+#' @details
+#' All three analyses share a common internal engine built around ASReml-R.
+#' The unifying statistical idea is that the full complement of markers or
+#' intervals is included simultaneously in the model as a composite
+#' genome-wide random effect, represented either as a genomic relationship
+#' matrix (\code{vm} path, when markers exceed lines) or as a marker-by-file
+#' random effect (\code{mbf} path, when lines equal or exceed markers).
+#'
+#' \strong{Data preparation:}
+#' \itemize{
+#'   \item Biparental mapping populations: use \code{\link{primeCross}} to
+#'     prepare a \code{"wgCross"} object for \code{qtlAim} or \code{gpAim}.
+#'   \item Diversity panels: use \code{\link{primePanel}} to prepare a
+#'     \code{"wgPanel"} object for \code{gwasAim} or \code{gpAim}.
+#' }
+#'
+#' @references
+#' Verbyla, A.P., Taylor, J.D. and Verbyla, K.L. (2012). RWGAIM: An efficient
+#' high-dimensional random whole genome average (QTL) interval mapping approach.
+#' \emph{Genetics Research}, \bold{94}, 291--306.
+#'
+#' Taylor, J. and Verbyla, A.P. (2011). R Package wgaim: QTL Analysis in
+#' Bi-Parental Populations Using Linear Mixed Models. \emph{Journal of
+#' Statistical Software}, \bold{40}(7), 1--18.
+#'
+#' @name wgAim-package
+#' @aliases wgAim
+#'
+#' @import stats utils graphics grDevices qtl ggplot2
+NULL

@@ -1,7 +1,7 @@
-Package: wgaim
+Package: wgAim
 Type: Package
-Title: Whole Genome Average Interval Mapping for QTL Detection and Estimation using ASReml-R
-Version: 2.0-6
+Title: Whole Genome Analyses via Integrated Modelling using ASReml-R
+Version: 0.1-0
 Authors@R: c(person(given = "Julian",
                       family = "Taylor",
                       role = c("aut", "cre"),
@@ -11,11 +11,20 @@ Authors@R: c(person(given = "Julian",
                       role = "aut",
                       email = "averbyla@avdataanalytics.com.au"))
 Depends: R (>= 3.5.0), qtl
-Imports: ggplot2
-Suggests: knitr, rmarkdown, prettydoc
+Imports: ggplot2, ggrepel
+Suggests: knitr, rmarkdown, prettydoc, testthat (>= 3.0.0), covr
 VignetteBuilder: knitr
 SystemRequirements: asreml-R 4.x
-URL: https://github.com/DrJ001/wgaim
-BugReports: https://github.com/DrJ001/wgaim/issues
-Description: A computationally efficient whole genome approach to detecting and estimating significant QTL in linkage maps using the flexible linear mixed modelling functionality of ASReml-R.
+URL: https://github.com/DrJ001/wgAim
+BugReports: https://github.com/DrJ001/wgAim/issues
+Description: A unified whole-genome analysis toolkit for plant breeding
+    populations, built around the ASReml-R linear mixed modelling engine.
+    Provides three integrated analysis pillars: QTL detection in biparental
+    mapping populations (qtlAim), genome-wide association analysis in
+    diversity panels (gwasAim), and genomic prediction via G-BLUP (gpAim).
+    All three methods share a common computational engine and the same
+    composite genome-wide modelling framework.
 License: GPL (>= 2)
+Encoding: UTF-8
+RoxygenNote: 7.3.3
+Config/testthat/edition: 3

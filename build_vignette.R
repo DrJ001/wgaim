@@ -1,11 +1,13 @@
-# Precompile vignettes that depend on ASreml
-# CRAN wants vignettes in raw form (i.e. Rmd files), but they don't have ASreml
-# So we pre-knit the .Rmd.orig file, which outputs it as a plain .Rmd file with
-# no code that needs to be run, and CRAN can just build that.
+# Precompile vignettes that depend on ASReml.
+# CRAN does not have ASReml-R, so vignettes must be pre-knitted to plain Rmd
+# files (no executable code chunks) before submission.
+#
+# Usage: run this script from the package root before submitting to CRAN.
+#   Rscript build_vignette.R
+#
+# TODO: add entries here for each new wgAim vignette as they are created.
 
-knitr::knit("vignettes/wgaim_intro.Rmd_orig", "vignettes/wgaim_intro.Rmd")
-
-# Because the vignette was knit at the top level of the folder, we need to move the
-# images generated from the top level directory to the vignettes folder
-file.copy(list.files(pattern = ".png"), "vignettes/", recursive = T, overwrite = T)
-file.remove(list.files(pattern = ".png"))
+# Example (uncomment when vignette source exists):
+# knitr::knit("vignettes/wgAim_intro.Rmd_orig", "vignettes/wgAim_intro.Rmd")
+# file.copy(list.files(pattern = ".png"), "vignettes/", recursive = TRUE, overwrite = TRUE)
+# file.remove(list.files(pattern = ".png"))
