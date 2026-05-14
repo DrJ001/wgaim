@@ -52,7 +52,7 @@
 #'       homozygote, 1 = AB heterozygote, 2 = BB homozygote. Values are
 #'       shifted by \eqn{-1} to produce additive \eqn{\pm 1} coding. This
 #'       also accepts fractional dosage values in \eqn{[0, 2]} output by
-#'       imputation software â€” no additional handling is required.}
+#'       imputation software -- no additional handling is required.}
 #'     \item{\code{"pm1"}}{Genotypes already in additive \eqn{\pm 1}
 #'       coding. No transformation is applied. Fractional values in
 #'       \eqn{[-1, 1]} are accepted.}
@@ -196,13 +196,13 @@ primePanel <- function(geno, map, id = "id",
     map      <- map[map[[map.id]] %in% common, , drop = FALSE]
 
     # -------------------------------------------------------------------------
-    # 4. Encode genotypes to additive Â±1 / dosage coding
+    # 4. Encode genotypes to additive +/-1 / dosage coding
     # -------------------------------------------------------------------------
     if (encoding == "012") {
         # Shift by -1: integers 0/1/2 -> -1/0/+1
         # Fractional dosage values in [0,2] -> [-1,+1]; no rounding applied.
         geno.mat <- geno.mat - 1
-        # Soft range check â€” values outside [-1.05, 1.05] suggest wrong encoding
+        # Soft range check -- values outside [-1.05, 1.05] suggest wrong encoding
         rng <- range(geno.mat, na.rm = TRUE)
         if (rng[1] < -1.05 || rng[2] > 1.05)
             warning("After encoding, some values lie outside [-1, 1] ",
@@ -223,7 +223,7 @@ primePanel <- function(geno, map, id = "id",
     # 5. MAF filter
     # -------------------------------------------------------------------------
     if (!is.null(maf) && maf > 0) {
-        # In Â±1 coding: mean = 2p - 1, so p = (mean + 1) / 2
+        # In +/-1 coding: mean = 2p - 1, so p = (mean + 1) / 2
         allele.freq <- colMeans(geno.mat, na.rm = TRUE)
         p           <- (allele.freq + 1) / 2
         minor.freq  <- pmin(p, 1 - p)

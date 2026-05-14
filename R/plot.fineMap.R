@@ -56,7 +56,7 @@ plot.fineMap <- function(x, col = "steelblue",
         return(invisible(NULL))
     }
     # Append "(window clipped)" to the facet label for any QTL whose scan
-    # was truncated by a chromosome boundary — using the flag stored by fineMap().
+    # was truncated by a chromosome boundary -- using the flag stored by fineMap().
     qtl_labels <- stats::setNames(names(x), names(x))
     for (nm in names(x)) {
         if (isTRUE(attr(x[[nm]], "clipped")))
@@ -120,7 +120,7 @@ plot.fineMap <- function(x, col = "steelblue",
     }
 
     # -------------------------------------------------------------------------
-    # 5. Vertical reference line — use ref_df$dist (the snapped grid position)
+    # 5. Vertical reference line -- use ref_df$dist (the snapped grid position)
     #    so the line passes exactly through the navy diamond.
     #    Only drawn when the original QTL is not suppressed (i.e. not at peak).
     # -------------------------------------------------------------------------
@@ -159,7 +159,7 @@ plot.fineMap <- function(x, col = "steelblue",
     }
 
     # Combine peak and QTL reference rows into one data frame so that a single
-    # geom_text_repel() call sees all labels simultaneously — the only way
+    # geom_text_repel() call sees all labels simultaneously -- the only way
     # ggrepel can avoid clashes between the two sets.
     peaks$pt_type <- "Peak"
     peaks$pt_shape <- 16L

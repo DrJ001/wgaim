@@ -106,12 +106,12 @@ aimTable <- function(..., genObj, labels = NULL, columns = "all", LOD = TRUE) {
                  paste(unique(gen_types), collapse = " and "), ".")
     }
 
-    # ---- genObj — allow a single shared object or a per-model list -----------
+    # ---- genObj -- allow a single shared object or a per-model list -----------
 
     if (!is.list(genObj) ||
         inherits(genObj, "wgCross") ||
         inherits(genObj, "wgPanel")) {
-        # Single shared genomic object — replicate for every model
+        # Single shared genomic object -- replicate for every model
         genObj_list <- rep(list(genObj), length(dots))
     } else {
         genObj_list <- genObj

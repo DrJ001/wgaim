@@ -139,7 +139,7 @@ plot.gpAim <- function(x,
 
     # Annotation label
     ann.label <- sprintf(
-        "Selected: %d  (%.0f%%)\nSel. differential: %+.3f\nh² = %.3f",
+        "Selected: %d  (%.0f%%)\nSel. differential: %+.3f\nh^2 = %.3f",
         n.sel, 100 * n.sel / n, sel.dif, gp$heritability)
 
     gp.obj <- ggplot(gebv, aes_string(x = "rank", y = "GEBV", colour = "col")) +
@@ -242,7 +242,7 @@ plot.gpAim <- function(x,
     dens.df  <- data.frame(x = dens$x, y = dens$y)
     max.dens <- max(dens$y)
 
-    # Shaded selected polygon — closed at y = 0
+    # Shaded selected polygon -- closed at y = 0
     shade.df <- dens.df[dens.df$x >= thr, ]
     shade.df <- rbind(data.frame(x = thr,             y = 0),
                       shade.df,
