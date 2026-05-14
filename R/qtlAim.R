@@ -206,10 +206,12 @@
 qtlAim <- function(baseModel, ...)
     UseMethod("qtlAim")
 
+#' @rdname qtlAim
 #' @exportS3Method
 qtlAim.default <- function(baseModel, ...)
     stop("Currently the only supported method is \"asreml\".")
 
+#' @rdname qtlAim
 #' @exportS3Method
 qtlAim.asreml <- function(baseModel, genObj, merge.by = NULL, fix.lines = TRUE,
                            gen.type = NULL, method = "fixed",

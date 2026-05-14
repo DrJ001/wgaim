@@ -150,10 +150,12 @@
 gwasAim <- function(baseModel, ...)
     UseMethod("gwasAim")
 
+#' @rdname gwasAim
 #' @exportS3Method
 gwasAim.default <- function(baseModel, ...)
     stop("Currently the only supported method is \"asreml\".")
 
+#' @rdname gwasAim
 #' @exportS3Method
 gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
                             fix.lines = TRUE, force = FALSE,

@@ -40,8 +40,9 @@
 #' @param m.cex Text size (pt) for labels.  Default \code{7}.
 #' @param nrow Integer or \code{"auto"}.  Facet row count.
 #' @param row.chr Optional list of character vectors for manual row layout.
-#' @param ... Additional \code{gwasAim} models (positional, unnamed) and/or
-#'   arguments passed to \code{\link{linkMap.cross}}.
+#' @param \dots Additional \code{gwasAim} models (positional, unnamed) passed
+#'   for multi-trait display, and/or further arguments to
+#'   \code{\link{linkMap.cross}}.
 #' @return A \code{ggplot} object.
 #' @export
 linkMap.gwasAim <- function(object, ...,

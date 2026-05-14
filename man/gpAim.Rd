@@ -3,12 +3,27 @@
 %   R/summary.gpAim.R
 \name{gpAim}
 \alias{gpAim}
+\alias{gpAim.default}
+\alias{gpAim.asreml}
 \alias{plot.gpAim}
 \alias{print.gpAim}
 \alias{summary.gpAim}
 \title{Genomic Prediction via Integrated Modelling}
 \usage{
 gpAim(baseModel, ...)
+
+\method{gpAim}{default}(baseModel, ...)
+
+\method{gpAim}{asreml}(
+  baseModel,
+  genObj,
+  merge.by = NULL,
+  fix.lines = TRUE,
+  gen.type = "marker",
+  force = FALSE,
+  trace = TRUE,
+  ...
+)
 
 \method{plot}{gpAim}(
   x,
@@ -38,10 +53,36 @@ update attempt is made automatically.}
 \item{\dots}{Additional arguments passed to \code{update.asreml}, such as
 \code{na.action = na.method(x = "include")}.}
 
-\item{x}{A \code{gpAim} object.}
-
 \item{genObj}{The \code{"wgCross"} or \code{"wgPanel"} object passed to
 \code{gpAim}. Required only when \code{type = "blups"}.}
+
+\item{merge.by}{Character string naming the column present in both the
+phenotypic data and \code{genObj} linking lines across datasets.}
+
+\item{fix.lines}{Logical. If \code{TRUE} (default), lines in the
+phenotypic data that are absent from \code{genObj} are accommodated
+by adding a fixed \code{Gomit} factor and restricting the genomic
+random effect to genotyped lines only. See \code{\link{qtlAim}} for
+full details.}
+
+\item{gen.type}{Character string, either \code{"marker"} (default) or
+\code{"interval"}. Determines which genotype scores are used to build
+the marker matrix \eqn{M}. \code{"marker"} uses imputed marker
+scores (\code{$imputed.data}); \code{"interval"} uses interval
+midpoint scores (\code{$interval.data}) and requires a
+\code{"wgCross"} class \code{genObj}. For diversity panels
+(\code{"wgPanel"} class), \code{gen.type = "marker"} is required.}
+
+\item{force}{Logical. If \code{FALSE} (default), the vm path is used when
+markers exceed lines and the mbf path otherwise (automatic selection).
+Set \code{force = TRUE} to always use the mbf path regardless of the
+markers-to-lines ratio. The two paths are statistically equivalent.}
+
+\item{trace}{Logical or character string. If \code{TRUE} (default), ASReml
+output is printed to the console. If a file path character string, output
+is redirected there.}
+
+\item{x}{A \code{gpAim} object.}
 
 \item{type}{Character string specifying the plot type:
 \code{"caterpillar"} (default), \code{"heatmap"}, \code{"density"},
@@ -71,32 +112,6 @@ Default \code{c("steelblue","firebrick")}.}
 \item{pt.cex}{Numeric point size. Default \code{0.8}.}
 
 \item{object}{A \code{gpAim} object.}
-
-\item{merge.by}{Character string naming the column present in both the
-phenotypic data and \code{genObj} linking lines across datasets.}
-
-\item{fix.lines}{Logical. If \code{TRUE} (default), lines in the
-phenotypic data that are absent from \code{genObj} are accommodated
-by adding a fixed \code{Gomit} factor and restricting the genomic
-random effect to genotyped lines only. See \code{\link{qtlAim}} for
-full details.}
-
-\item{gen.type}{Character string, either \code{"marker"} (default) or
-\code{"interval"}. Determines which genotype scores are used to build
-the marker matrix \eqn{M}. \code{"marker"} uses imputed marker
-scores (\code{$imputed.data}); \code{"interval"} uses interval
-midpoint scores (\code{$interval.data}) and requires a
-\code{"wgCross"} class \code{genObj}. For diversity panels
-(\code{"wgPanel"} class), \code{gen.type = "marker"} is required.}
-
-\item{force}{Logical. If \code{FALSE} (default), the vm path is used when
-markers exceed lines and the mbf path otherwise (automatic selection).
-Set \code{force = TRUE} to always use the mbf path regardless of the
-markers-to-lines ratio. The two paths are statistically equivalent.}
-
-\item{trace}{Logical or character string. If \code{TRUE} (default), ASReml
-output is printed to the console. If a file path character string, output
-is redirected there.}
 }
 \value{
 An object of class \code{c("gpAim","asreml")} — the fitted ASReml

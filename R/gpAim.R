@@ -172,10 +172,12 @@
 gpAim <- function(baseModel, ...)
     UseMethod("gpAim")
 
+#' @rdname gpAim
 #' @exportS3Method
 gpAim.default <- function(baseModel, ...)
     stop("Currently the only supported method is \"asreml\".")
 
+#' @rdname gpAim
 #' @exportS3Method
 gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
                           fix.lines = TRUE, gen.type = "marker",
