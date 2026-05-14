@@ -596,7 +596,7 @@ test_that("qtlAim full loop: LRT fails -> breakout -> packResults called", {
                  ochr = NULL, oint = oint,
                  blups = setNames(rnorm(e$n_int), e$all_keys))
         },
-        .lrtTest = function(qtlModel, baseModel, TypeI) {
+        .lrtTest = function(qtlModel, baseModel, TypeI, ...) {
             list(baseLogL = -52, stat = 1.0, pvalue = 0.3, pass = FALSE)
         },
         .envFix = function(model, asremlEnv) model,

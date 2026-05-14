@@ -29,15 +29,24 @@
 
 #' @keywords internal
 .buildGenomeModel <- function(baseModel, genoData, phenoData, merge.by,
-                               intervalObj, force, rterms, caller.env, ...) {
+                               intervalObj, force, rterms, caller.env,
+                               Trait = NULL, n.fa = 0L, ...) {
     qtlModel <- baseModel
     vm <- FALSE
     vmterms <- NULL
     cov.env <- NULL
+
+    # Build the Trait variance structure suffix for the genome-wide term.
+    # ntrait == 1 (Trait = NULL): no suffix -- univariate, behaviour unchanged.
+    # ntrait == 2: start with diag(Trait), upgrade to corh(Trait) if n.fa > 0.
+    # ntrait >= 3: start with diag(Trait), upgrade to fa(Trait, k) for k = 1..n.fa.
+    trait.suffix <- if (!is.null(Trait)) paste0(":diag(", Trait, ")") else ""
+
     if ((ncol(genoData) > nrow(genoData)) & !force) {
         cov.env <- .constructCM(genoData)
-        covObj <- cov.env$relm
-        vmterms <- c(paste0("vm(", merge.by, ", covObj)"), merge.by)
+        covObj  <- cov.env$relm
+        gterm   <- paste0("vm(", merge.by, ", covObj)", trait.suffix)
+        vmterms <- c(gterm, merge.by)
         ran.form <- as.formula(paste(c("~", vmterms, rterms), collapse = " + "))
         attr(intervalObj, "env") <- cov.env
         vm <- TRUE
@@ -46,13 +55,45 @@
         names(covObj)[1] <- merge.by
         qtlModel$call$mbf$ints$key <- rep(merge.by, 2)
         qtlModel$call$mbf$ints$cov <- "covObj"
-        ran.form <- as.formula(paste(c("~ mbf('ints')", merge.by, rterms), collapse = " + "))
+        gterm    <- paste0("mbf('ints')", trait.suffix)
+        ran.form <- as.formula(paste(c(paste("~", gterm), merge.by, rterms), collapse = " + "))
     }
     assign("covObj", covObj, envir = caller.env)
     cat("\nRandom Effects Interval/Marker Model Iteration (1):\n")
     cat("============================================\n")
     qtlModel$call$data <- quote(phenoData)
     qtlModel <- update(qtlModel, random. = ran.form, ...)
+
+    # Multivariate only: upgrade variance structure from diag to corh / fa(k)
+    if (!is.null(Trait) && n.fa > 0L) {
+        ntrait <- length(levels(phenoData[[Trait]]))
+        rterms.cur <- attr(terms.formula(qtlModel$call$random), "term.labels")
+        gterm.cur  <- rterms.cur[grep("vm.*covObj|mbf.*ints", rterms.cur)]
+        if (ntrait == 2L) {
+            gterm.new  <- gsub("diag", "corh", gterm.cur)
+            ran.form   <- as.formula(paste(
+                c("~", gterm.new, rterms.cur[rterms.cur != gterm.cur]), collapse = " + "))
+            message("\nQTL x ", Trait, " Bivariate (corh) Random Effects Model.")
+            cat("===============================================\n")
+            qtlModel <- update(qtlModel, random. = ran.form, ...)
+        } else {
+            for (k in seq_len(n.fa)) {
+                gterm.new <- if (k == 1L)
+                    gsub("diag\\(", paste0("fa("), gsub("\\)$", paste0(",", 1L, ")"), gterm.cur))
+                else
+                    gsub(paste0(",", k - 1L, "\\)"), paste0(",", k, ")"), gterm.cur)
+                ran.form  <- as.formula(paste(
+                    c("~", gterm.new, rterms.cur[rterms.cur != gterm.cur]), collapse = " + "))
+                message("\nQTL x ", Trait, " Factor Analytic(", k, ") Random Effects Model.")
+                cat("===================================================\n")
+                qtlModel  <- update(qtlModel, random. = ran.form, ...)
+                gterm.cur <- gterm.new
+            }
+        }
+        # Keep vmterms in sync with the upgraded term name
+        if (vm) vmterms <- c(gterm.cur, merge.by)
+    }
+
     list(qtlModel = qtlModel, intervalObj = intervalObj,
          cov.env = cov.env, vm = vm, vmterms = vmterms)
 }
@@ -60,23 +101,32 @@
 #' @keywords internal
 .rebuildCovObj <- function(genoData, state, merge.by, intervalObj,
                             force, vm, vmterms, qtlModel, caller.env) {
-    mout <- (1:ncol(genoData))[!as.logical(state)]
+    mout    <- (1:ncol(genoData))[!as.logical(state)]
     genoSub <- genoData[, -mout, drop = FALSE]
     cov.env <- NULL
     if ((ncol(genoSub) > nrow(genoSub)) & !force) {
         cov.env <- .constructCM(genoSub)
-        covObj <- cov.env$relm
+        covObj  <- cov.env$relm
         attr(intervalObj, "env") <- cov.env
     } else {
         covObj <- cbind.data.frame(rownames(genoSub), genoSub)
         names(covObj)[1] <- merge.by
         if (is.null(qtlModel$call$mbf$ints) & vm) {
+            # vm -> mbf switch: reconstruct the random formula preserving any
+            # Trait variance-structure suffix (e.g. ":diag(Trait)", ":corh(Trait)",
+            # ":fa(Trait,k)") that was appended to the old vm term.
             attr(intervalObj, "env") <- NULL
-            rterms <- unlist(strsplit(deparse(qtlModel$call$random[[2]]), " \\+ "))
-            rterms <- rterms[!(rterms %in% vmterms)]
+            all.rterms <- unlist(strsplit(deparse(qtlModel$call$random[[2]]), " \\+ "))
+            # Identify the genome-wide vm term specifically (starts with "vm(")
+            vm.term      <- all.rterms[grep("^vm\\(", all.rterms)][1L]
+            other.rterms <- all.rterms[all.rterms != vm.term]
+            # Extract any Trait suffix from the old vm term and attach it to mbf
+            trait.suffix <- sub(paste0("^vm\\(", merge.by, ",\\s*covObj\\)"), "", vm.term)
+            mbf.term     <- paste0("mbf('ints')", trait.suffix)
             qtlModel$call$mbf$ints$key <- rep(merge.by, 2)
             qtlModel$call$mbf$ints$cov <- "covObj"
-            ran.form <- as.formula(paste(c("~ mbf('ints')", merge.by, rterms), collapse = " + "))
+            ran.form <- as.formula(paste("~",
+                paste(c(mbf.term, merge.by, other.rterms), collapse = " + ")))
             qtlModel$call$random <- ran.form
         }
     }

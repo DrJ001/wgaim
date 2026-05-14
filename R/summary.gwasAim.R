@@ -80,6 +80,19 @@ summary.gwasAim <- function(object, genObj, LOD = TRUE, ...) {
     var.all  <- sum(c(coef.est, coef.mark, 1) * c(var.est, var.mark, var.res))
     perc.var <- round(100 * (coef.est * var.est) / var.all, 1)
 
+    # Multivariate: decompose effect names into QTL x Trait labels
+    is.mv <- !is.null(object$QTL$Trait)
+    enams <- names(qtle)
+    qtl.x <- sub("^.*:(X\\..*)$", "\\1", enams)
+    qtl.x[!grepl(":", enams)] <- enams[!grepl(":", enams)]
+    trait.lab <- rep("MAIN", length(enams))
+    if (is.mv) {
+        int.rows <- grepl(":", enams)
+        trait.lab[int.rows] <- sub("^(.*):X\\..*$", "\\1", enams[int.rows])
+        prefix <- paste0(object$QTL$Trait, "_")
+        trait.lab <- gsub(prefix, "", trait.lab, fixed = TRUE)
+    }
+
     zrat <- qtle / sqrt(object$QTL$veffects * sigma2)
     if (object$QTL$method == "random") {
         pvalue <- round((1 - pchisq(zrat^2, 1)) / 2, 6)
@@ -89,7 +102,11 @@ summary.gwasAim <- function(object, genObj, LOD = TRUE, ...) {
         pvalue[as.numeric(pvalue) < 1e-6] <- "<1e-06"
     }
     lod  <- round(0.5 * log10(exp(zrat^2)), 2)
-    qtlm <- getQTL(object, genObj)   # reuses existing getQTL (marker mode)
+
+    orig.effects <- object$QTL$effects
+    object$QTL$effects <- setNames(qtle, qtl.x)
+    qtlm <- getQTL(object, genObj)
+    object$QTL$effects <- orig.effects
 
     qtab <- data.frame(
         Chromosome = qtlm[, 1],
@@ -103,14 +120,19 @@ summary.gwasAim <- function(object, genObj, LOD = TRUE, ...) {
     )
     if (LOD) qtab$LOD <- lod
 
-    # Sort by chromosome then position -- extract leading integer from chromosome
-    # name so alphanumeric names (e.g. "Chr1", "1A") sort numerically.
+    if (is.mv)
+        qtab <- cbind(Trait = trait.lab, qtab)
+
+    # Sort by chromosome, position, then Trait level
+    pos.col  <- if (is.mv) 3L else 2L
     chr_lead <- as.integer(sub("^[^0-9]*([0-9]+).*$", "\\1",
                                as.character(qtab$Chromosome)))
-    qtab <- qtab[order(chr_lead,
-                       as.character(qtab$Chromosome),
-                       qtab[["dist(cM)"]],
-                       na.last = TRUE), ]
+    pos_vals <- suppressWarnings(as.numeric(qtab[, pos.col + 1L]))
+    sort.keys <- if (is.mv)
+        list(chr_lead, as.character(qtab$Chromosome), pos_vals, qtab$Trait)
+    else
+        list(chr_lead, as.character(qtab$Chromosome), pos_vals)
+    qtab <- qtab[do.call(order, c(sort.keys, list(na.last = TRUE))), ]
     rownames(qtab) <- NULL
 
     qtab

@@ -217,7 +217,8 @@ qtlAim.asreml <- function(baseModel, genObj, merge.by = NULL, fix.lines = TRUE,
                            gen.type = NULL, method = "fixed",
                            selection = "interval", force = FALSE,
                            exclusion.window = 20, breakout = -1,
-                           TypeI = 0.05, trace = TRUE, verboseLev = 0, ...) {
+                           TypeI = 0.05, trace = TRUE, verboseLev = 0,
+                           Trait = NULL, n.fa = 0L, ...) {
 
     # Capture calling environment early -- needed for assign() calls in engine
     caller.env <- parent.frame()
@@ -253,6 +254,26 @@ qtlAim.asreml <- function(baseModel, genObj, merge.by = NULL, fix.lines = TRUE,
         stop("Names in genotypic \"", merge.by, "\" column do not match any names ",
              "in phenotypic \"", merge.by, "\" column.")
 
+    # Multivariate argument guards
+    ntrait <- 1L
+    if (!is.null(Trait)) {
+        if (!Trait %in% names(phenoData))
+            stop("Trait column \"", Trait, "\" not found in the phenotypic data.")
+        if (!is.factor(phenoData[[Trait]]))
+            stop("Trait column \"", Trait, "\" must be a factor.")
+        ntrait <- length(levels(phenoData[[Trait]]))
+        if (ntrait < 2L)
+            stop("Trait column \"", Trait, "\" must have at least 2 levels.")
+        n.fa <- as.integer(n.fa)
+        if (n.fa > 0L) {
+            n.par.fa <- (n.fa + 1L) * ntrait - n.fa * (n.fa - 1L) %/% 2L
+            n.par.us <- ntrait * (ntrait + 1L) %/% 2L
+            if (n.par.fa > n.par.us)
+                stop("n.fa = ", n.fa, " is too large for ", ntrait,
+                     " traits: reduce n.fa and try again.")
+        }
+    }
+
     # -------------------------------------------------------------------------
     # Phase 2a: Build genotype data matrix
     # -------------------------------------------------------------------------
@@ -278,7 +299,8 @@ qtlAim.asreml <- function(baseModel, genObj, merge.by = NULL, fix.lines = TRUE,
     # Phase 3: Build and fit initial genome-wide model (vm or mbf path)
     # -------------------------------------------------------------------------
     gm          <- .buildGenomeModel(baseModel, genoData, phenoData, merge.by,
-                                     genObj, force, rterms, caller.env, ...)
+                                     genObj, force, rterms, caller.env,
+                                     Trait = Trait, n.fa = n.fa, ...)
     qtlModel    <- gm$qtlModel
     genObj      <- gm$intervalObj
     cov.env     <- gm$cov.env
@@ -295,14 +317,15 @@ qtlAim.asreml <- function(baseModel, genObj, merge.by = NULL, fix.lines = TRUE,
     repeat {
         # Compute outlier statistics and select best interval/marker
         selq               <- .qtlSelect(qtlModel, phenoData, genObj, gen.type,
-                                         selection, exclusion.window, state, verboseLev)
+                                         selection, exclusion.window, state, verboseLev,
+                                         Trait = Trait, ntrait = ntrait)
         state              <- selq$state
         ldiag$oint[[iter]] <- selq$oint
         ldiag$ochr[[iter]] <- selq$ochr
         ldiag$blups[[iter]] <- selq$blups
 
         # Likelihood ratio test against base model
-        lrt               <- .lrtTest(qtlModel, baseModel, TypeI)
+        lrt               <- .lrtTest(qtlModel, baseModel, TypeI, ntrait = ntrait)
         ldiag$lik[[iter]] <- c(lrt$baseLogL, qtlModel$loglik, lrt$stat, lrt$pvalue)
         if (!lrt$pass | breakout == iter) break
 
@@ -328,7 +351,7 @@ qtlAim.asreml <- function(baseModel, genObj, merge.by = NULL, fix.lines = TRUE,
 
         # Add selected effect (fixed or random) to both models
         ae                 <- .addEffect(baseModel, qtlModel, phenoData, merge.by,
-                                         qtl.x, method, iter, ...)
+                                         qtl.x, method, iter, Trait = Trait, ...)
         baseModel          <- ae$baseModel
         qtlModel           <- ae$qtlModel
         coef.list[[iter]]  <- ae$coefs
@@ -340,9 +363,11 @@ qtlAim.asreml <- function(baseModel, genObj, merge.by = NULL, fix.lines = TRUE,
     # -------------------------------------------------------------------------
     # Phase 5: Package results and clean up
     # -------------------------------------------------------------------------
-    qtl.list <- .packResults(qtl, coef.list, vcoef.list, ldiag, state, iter,
-                              breakout, cov.env, genetic.term, method, gen.type,
-                              selection, TypeI)
+    pr <- .packResults(qtl, coef.list, vcoef.list, ldiag, state, iter,
+                       breakout, cov.env, genetic.term, method, gen.type,
+                       selection, TypeI, Trait = Trait, qtlModel = qtlModel)
+    qtl.list <- pr$qtl.list
+    qtlModel <- pr$qtlModel.pruned   # may be updated (interaction pruning) or unchanged
 
     data.name <- paste(as.character(baseModel$call$fixed[2]), "data", sep = ".")
     assign(data.name, phenoData, envir = caller.env)

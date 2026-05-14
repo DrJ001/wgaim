@@ -160,8 +160,8 @@ gwasAim.default <- function(baseModel, ...)
 gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
                             fix.lines = TRUE, force = FALSE,
                             exclusion.window = 20, breakout = -1,
-                            TypeI = 0.05,
-                            trace = TRUE, verboseLev = 0, ...) {
+                            TypeI = 0.05, trace = TRUE, verboseLev = 0,
+                            Trait = NULL, n.fa = 0L, ...) {
 
     # Hard-coded engine constants -- not user-configurable for GWAS:
     #   method    = "fixed"    GWAS tests each marker as a fixed effect
@@ -203,6 +203,26 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
         stop("Names in panel \"", merge.by, "\" column do not match any names ",
              "in phenotypic \"", merge.by, "\" column.")
 
+    # Multivariate argument guards (identical to qtlAim)
+    ntrait <- 1L
+    if (!is.null(Trait)) {
+        if (!Trait %in% names(phenoData))
+            stop("Trait column \"", Trait, "\" not found in the phenotypic data.")
+        if (!is.factor(phenoData[[Trait]]))
+            stop("Trait column \"", Trait, "\" must be a factor.")
+        ntrait <- length(levels(phenoData[[Trait]]))
+        if (ntrait < 2L)
+            stop("Trait column \"", Trait, "\" must have at least 2 levels.")
+        n.fa <- as.integer(n.fa)
+        if (n.fa > 0L) {
+            n.par.fa <- (n.fa + 1L) * ntrait - n.fa * (n.fa - 1L) %/% 2L
+            n.par.us <- ntrait * (ntrait + 1L) %/% 2L
+            if (n.par.fa > n.par.us)
+                stop("n.fa = ", n.fa, " is too large for ", ntrait,
+                     " traits: reduce n.fa and try again.")
+        }
+    }
+
     # -------------------------------------------------------------------------
     # Phase 2a: Build genotype data matrix (marker mode forced for GWAS)
     # -------------------------------------------------------------------------
@@ -231,7 +251,8 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     # Phase 3: Build and fit initial genome-wide marker model (vm or mbf path)
     # -------------------------------------------------------------------------
     gm        <- .buildGenomeModel(baseModel, genoData, phenoData, merge.by,
-                                   genObj, force, rterms, caller.env, ...)
+                                   genObj, force, rterms, caller.env,
+                                   Trait = Trait, n.fa = n.fa, ...)
     qtlModel  <- gm$qtlModel
     genObj    <- gm$intervalObj   # may have env attribute set (vm path)
     cov.env   <- gm$cov.env
@@ -248,7 +269,8 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     repeat {
         # Compute outlier statistics and select best marker
         selq               <- .qtlSelect(qtlModel, phenoData, genObj, "marker",
-                                         selection, exclusion.window, state, verboseLev)
+                                         selection, exclusion.window, state, verboseLev,
+                                         Trait = Trait, ntrait = ntrait)
         state              <- selq$state
         ldiag$oint[[iter]] <- selq$oint
         ldiag$ochr[[iter]] <- selq$ochr
@@ -256,7 +278,7 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
 
         # Likelihood ratio test: tests significance of the additive variance
         # parameter of the genome-wide composite term (not individual markers)
-        lrt               <- .lrtTest(qtlModel, baseModel, TypeI)
+        lrt               <- .lrtTest(qtlModel, baseModel, TypeI, ntrait = ntrait)
         ldiag$lik[[iter]] <- c(lrt$baseLogL, qtlModel$loglik, lrt$stat, lrt$pvalue)
         if (!lrt$pass | breakout == iter) break
 
@@ -282,7 +304,7 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
 
         # Add selected marker effect (fixed or random) to both models
         ae                 <- .addEffect(baseModel, qtlModel, phenoData, merge.by,
-                                         qtl.x, method, iter, ...)
+                                         qtl.x, method, iter, Trait = Trait, ...)
         baseModel          <- ae$baseModel
         qtlModel           <- ae$qtlModel
         coef.list[[iter]]  <- ae$coefs
@@ -294,9 +316,11 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     # -------------------------------------------------------------------------
     # Phase 5: Package results and clean up
     # -------------------------------------------------------------------------
-    qtl.list           <- .packResults(qtl, coef.list, vcoef.list, ldiag, state,
-                                        iter, breakout, cov.env, genetic.term,
-                                        method, "marker", selection, TypeI)
+    pr <- .packResults(qtl, coef.list, vcoef.list, ldiag, state, iter,
+                       breakout, cov.env, genetic.term, method, "marker",
+                       selection, TypeI, Trait = Trait, qtlModel = qtlModel)
+    qtl.list           <- pr$qtl.list
+    qtlModel           <- pr$qtlModel.pruned
     qtl.list$n.markers <- n.markers
 
     data.name <- paste(as.character(baseModel$call$fixed[2]), "data", sep = ".")

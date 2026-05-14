@@ -90,6 +90,26 @@ summary.qtlAim <- function(object, genObj, LOD = TRUE, ...) {
     }
     var.all  <- sum(c(coef.est, coef.mark, 1) * c(var.est, var.mark, var.res))
     perc.var <- round(100 * (coef.est * var.est) / var.all, 1)
+    # ------------------------------------------------------------------
+    # Multivariate: decompose effects vector into QTL x Trait rows.
+    # effect names are either "X.chr.idx" (main) or "Trait_level:X.chr.idx"
+    # (interaction). We label each row with its Trait level, using "MAIN"
+    # for main-effect-only QTL.
+    # Univariate: no Trait slot -> all rows labelled "MAIN" (column suppressed).
+    # ------------------------------------------------------------------
+    is.mv  <- !is.null(object$QTL$Trait)
+    enams  <- names(qtle)
+    qtl.x  <- sub("^.*:(X\\..*)$", "\\1", enams)   # always extract X.chr.idx part
+    qtl.x[!grepl(":", enams)] <- enams[!grepl(":", enams)]  # main effects unchanged
+    trait.lab <- rep("MAIN", length(enams))
+    if (is.mv) {
+        int.rows <- grepl(":", enams)
+        trait.lab[int.rows] <- sub(paste0("^(.*):X\\..*$"), "\\1", enams[int.rows])
+        # Strip the Trait column name prefix (e.g. "Site_A" -> "A")
+        prefix <- paste0(object$QTL$Trait, "_")
+        trait.lab <- gsub(prefix, "", trait.lab, fixed = TRUE)
+    }
+
     zrat <- qtle / sqrt(object$QTL$veffects * sigma2)
     if (object$QTL$method == "random") {
         pvalue <- round((1 - pchisq(zrat^2, 1)) / 2, 4)
@@ -99,7 +119,13 @@ summary.qtlAim <- function(object, genObj, LOD = TRUE, ...) {
         pvalue[as.numeric(pvalue) < 0.0001] <- "<0.0001"
     }
     lod <- round(0.5 * log10(exp(zrat^2)), 2)
+
+    # Temporarily remap QTL$effects names to bare X.chr.idx for getQTL()
+    orig.effects <- object$QTL$effects
+    object$QTL$effects <- setNames(qtle, qtl.x)
     qtlm <- getQTL(object, genObj)
+    object$QTL$effects <- orig.effects   # restore
+
     if (object$QTL$type == "interval") {
         qtab <- data.frame(
             Chromosome    = qtlm[, 1],
@@ -129,19 +155,27 @@ summary.qtlAim <- function(object, genObj, LOD = TRUE, ...) {
     }
     if (LOD)
         qtab$LOD <- lod
-    # Sort by chromosome then by inferred/marker position.
-    # Extract the leading integer from the chromosome name as the primary key
-    # so that alphanumeric names like "1A", "2B", "3D" sort numerically
-    # (1 before 2 before 3) without coercion warnings.  Full chromosome name
-    # breaks ties within the same number (e.g. "3A" before "3B" before "3D").
-    pos.col  <- if (object$QTL$type == "interval") 3 else 2
+
+    # For multivariate analyses, prepend the Trait column
+    if (is.mv)
+        qtab <- cbind(Trait = trait.lab, qtab)
+
+    # Sort by chromosome then by inferred/marker position (then Trait level).
+    # Extract leading integer from chromosome name for numeric-safe sorting.
+    pos.col  <- if (is.mv) {
+        if (object$QTL$type == "interval") 4L else 3L
+    } else {
+        if (object$QTL$type == "interval") 3L else 2L
+    }
+    chr_col  <- if (is.mv) "Chromosome" else "Chromosome"
     chr_lead <- as.integer(sub("^[^0-9]*([0-9]+).*$", "\\1",
                                as.character(qtab$Chromosome)))
     pos_vals <- suppressWarnings(as.numeric(qtab[, pos.col]))
-    qtab <- qtab[order(chr_lead,
-                       as.character(qtab$Chromosome),
-                       pos_vals,
-                       na.last = TRUE), ]
+    sort.keys <- if (is.mv)
+        list(chr_lead, as.character(qtab$Chromosome), pos_vals, qtab$Trait)
+    else
+        list(chr_lead, as.character(qtab$Chromosome), pos_vals)
+    qtab <- qtab[do.call(order, c(sort.keys, list(na.last = TRUE))), ]
     rownames(qtab) <- NULL
     qtab
 }
