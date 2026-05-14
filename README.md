@@ -4,6 +4,7 @@
 [![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
 [![minimal R version](https://img.shields.io/badge/R%3E%3D-3.5.0-6666ff.svg)](https://cran.r-project.org/)
 [![Package version](https://img.shields.io/badge/Package%20version-0.1--0-orange.svg?style=flat-square)](https://github.com/DrJ001/wgAim/commits/dev)
+[![codecov](https://codecov.io/gh/DrJ001/wgAim/branch/dev/graph/badge.svg)](https://app.codecov.io/gh/DrJ001/wgAim)
 <!-- badges: end -->
 
 **Authors**: Julian Taylor & Ari Verbyla

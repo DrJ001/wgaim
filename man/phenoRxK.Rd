@@ -30,7 +30,7 @@
      }
   }
 \examples{
-data(phenoRxK, package = "wgaim")
+data(phenoRxK, package = "wgAim")
 
 }
 \keyword{datasets}

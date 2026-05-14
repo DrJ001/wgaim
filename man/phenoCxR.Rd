@@ -23,7 +23,7 @@
     }
   }
 \examples{
-data(phenoCxR, package = "wgaim")
+data(phenoCxR, package = "wgAim")
 plot(phenoCxR$shoot, phenoCxR$znconc)
 
 }

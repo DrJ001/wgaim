@@ -84,7 +84,7 @@ are detected (see the `breakout` argument of `wgaim.asreml()`.
 navigating to the `"doc"` directory of the package. This can
 be found on any operating system using the command
 
-`> system.file("doc", package = "wgaim")`
+`> system.file("doc", package = "wgAim")`
 
 The reference manual contains WGAIM theory and two thorough examples that show the
 features of the package. It also contains a "casual walk through"

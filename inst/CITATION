@@ -1,4 +1,4 @@
-citHeader("To cite wgaim in publications use:")
+citHeader("To cite wgAim in publications use:")
 
 bibentry(bibtype = "Article",
   title        = "{R} Package {wgaim}: QTL Analysis in Bi-Parental Populations Using Linear Mixed Models",

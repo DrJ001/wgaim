@@ -279,7 +279,7 @@ appended) is assigned to \code{<response>.data} in the calling environment.
 }
 \description{
 Performs forward-selection QTL detection in biparental mapping populations
-using the whole-genome average interval mapping (wgaim) algorithm of
+using the whole-genome average interval mapping (wgAim) algorithm of
 Verbyla et al. (2007, 2012), implemented through the ASReml-R linear mixed
 modelling engine. All marker intervals or markers are included simultaneously
 as a composite genome-wide random effect; at each iteration the interval
@@ -355,8 +355,8 @@ directly to \code{\link{linkMap.qtlAim}} or \code{\link{linkMap.gwasAim}}.
 \examples{
 \dontrun{
 library(asreml)
-data(phenoRxK, package = "wgaim")
-data(genoRxK,  package = "wgaim")
+data(phenoRxK, package = "wgAim")
+data(genoRxK,  package = "wgAim")
 
 # Prepare wgCross object
 genoRxK <- subset(genoRxK, chr = c("1A","2D1","2D2","3B"))
@@ -395,6 +395,6 @@ high-dimensional random whole genome average (QTL) interval mapping approach.
 \seealso{
 \code{\link{summary.qtlAim}}, \code{\link{print.qtlAim}},
   \code{\link{aimTrace}}, \code{\link{linkMap.qtlAim}},
-  \code{\link[wgaim]{primeCross}}, \code{\link[wgaim]{outStat}},
+  \code{\link{primeCross}},
   \code{\link{gwasAim}}, \code{\link{gpAim}}
 }

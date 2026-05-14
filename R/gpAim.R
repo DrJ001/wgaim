@@ -55,7 +55,7 @@
 #'   and replaced by the genomic term. If the model has not converged, one
 #'   update attempt is made automatically.
 #' @param genObj A genotypic data object of class \code{"wgCross"} (from
-#'   \code{\link[wgaim]{primeCross}}, for biparental populations) or class
+#'   \code{\link[wgAim]{primeCross}}, for biparental populations) or class
 #'   \code{"wgPanel"} (from \code{\link{primePanel}}, for diversity panels).
 #'   Must contain per-chromosome genotype matrices accessible at
 #'   \code{$geno[[chr]]$imputed.data} (marker mode) or
@@ -136,7 +136,7 @@
 #'
 #' @seealso \code{\link{print.gpAim}}, \code{\link{summary.gpAim}},
 #'   \code{\link{plot.gpAim}}, \code{\link{primePanel}},
-#'   \code{\link[wgaim]{primeCross}}, \code{\link{qtlAim}},
+#'   \code{\link[wgAim]{primeCross}}, \code{\link{qtlAim}},
 #'   \code{\link{gwasAim}}
 #'
 #' @examples
@@ -159,7 +159,7 @@
 #' plot(gp.fit, type = "density", prop.select = 0.10)
 #'
 #' # --- Biparental population (interval mode) ---
-#' data(genoRxK, package = "wgaim")
+#' data(genoRxK, package = "wgAim")
 #' genoRxK <- primeCross(genoRxK, impute = "Martinez", id = "Genotype")
 #' base.mod2 <- asreml(yld ~ Type, random = ~ Genotype, data = phenoRxK)
 #'

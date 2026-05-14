@@ -119,7 +119,7 @@
 #' }
 #'
 #' @seealso \code{\link{gwasAim}}, \code{\link{gpAim}},
-#'   \code{\link[wgaim]{primeCross}}
+#'   \code{\link[wgAim]{primeCross}}
 #'
 #' @examples
 #' \dontrun{

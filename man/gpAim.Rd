@@ -239,7 +239,7 @@ plot(gp.fit, type = "heatmap")
 plot(gp.fit, type = "density", prop.select = 0.10)
 
 # --- Biparental population (interval mode) ---
-data(genoRxK, package = "wgaim")
+data(genoRxK, package = "wgAim")
 genoRxK <- primeCross(genoRxK, impute = "Martinez", id = "Genotype")
 base.mod2 <- asreml(yld ~ Type, random = ~ Genotype, data = phenoRxK)
 
@@ -251,6 +251,6 @@ gp.fit2 <- gpAim(base.mod2, genObj = genoRxK,
 \seealso{
 \code{\link{print.gpAim}}, \code{\link{summary.gpAim}},
   \code{\link{plot.gpAim}}, \code{\link{primePanel}},
-  \code{\link[wgaim]{primeCross}}, \code{\link{qtlAim}},
+  \code{\link[wgAim]{primeCross}}, \code{\link{qtlAim}},
   \code{\link{gwasAim}}
 }

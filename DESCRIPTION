@@ -12,7 +12,7 @@ Authors@R: c(person(given = "Julian",
                       email = "averbyla@avdataanalytics.com.au"))
 Depends: R (>= 3.5.0), qtl
 Imports: ggplot2, ggrepel
-Suggests: knitr, rmarkdown, prettydoc
+Suggests: knitr, rmarkdown, prettydoc, testthat (>= 3.0.0), covr
 VignetteBuilder: knitr
 SystemRequirements: asreml-R 4.x
 URL: https://github.com/DrJ001/wgAim
@@ -27,3 +27,4 @@ Description: A unified whole-genome analysis toolkit for plant breeding
 License: GPL (>= 2)
 Encoding: UTF-8
 RoxygenNote: 7.3.3
+Config/testthat/edition: 3

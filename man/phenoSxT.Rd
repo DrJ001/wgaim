@@ -38,7 +38,7 @@ consists of 456 rows with 11 columns. These columns are
     }
   }
 \examples{
-data(phenoSxT, package = "wgaim")
+data(phenoSxT, package = "wgAim")
 
 }
 \keyword{datasets}

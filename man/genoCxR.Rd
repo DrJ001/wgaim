@@ -18,7 +18,7 @@
 }
 \examples{
 
-data(genoCxR, package = "wgaim")
+data(genoCxR, package = "wgAim")
 linkMap(genoCxR, cex = 0.5)
 
 }

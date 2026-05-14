@@ -69,7 +69,7 @@
 #'   The LRT tests the additive variance parameter of the composite
 #'   genome-wide term — a single test per iteration, not one per marker —
 #'   so \code{TypeI = 0.05} already acts as a family-wise error rate. This
-#'   has been empirically validated for the wgaim algorithm; see Details.
+#'   has been empirically validated for the wgAim algorithm; see Details.
 #' @param trace Logical or character string. If \code{TRUE} (default),
 #'   ASReml output is printed to the console. If a character string giving
 #'   a file path, output is redirected there (errors, warnings and detection
