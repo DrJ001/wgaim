@@ -59,7 +59,7 @@ Default \code{"pos"}.}
     homozygote, 1 = AB heterozygote, 2 = BB homozygote. Values are
     shifted by \eqn{-1} to produce additive \eqn{\pm 1} coding. This
     also accepts fractional dosage values in \eqn{[0, 2]} output by
-    imputation software â€” no additional handling is required.}
+    imputation software -- no additional handling is required.}
   \item{\code{"pm1"}}{Genotypes already in additive \eqn{\pm 1}
     coding. No transformation is applied. Fractional values in
     \eqn{[-1, 1]} are accepted.}

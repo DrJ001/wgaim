@@ -63,7 +63,7 @@ A \code{ggplot} object.
 }
 \description{
 Produces a clean ggplot2 visualisation of a genetic linkage map using
-frameless facets — one column per chromosome — with a shared reversed cM
+frameless facets -- one column per chromosome -- with a shared reversed cM
 y-axis (0 cM at the top). Chromosome bars are rendered as narrow pill
 shapes. Marker labels are placed with \code{ggrepel} to avoid overprinting
 even on dense maps. Returns a \code{ggplot} object so additional layers

@@ -3,18 +3,53 @@
 # S3 summary method for qtlAim objects.
 # =============================================================================
 
-#' @describeIn qtlAim Produce a detailed summary table of detected QTL, sorted
-#'   by chromosome and position. Returns a \code{data.frame} with columns for
-#'   chromosome, flanking markers and their cM positions, inferred interval
-#'   midpoint, QTL effect size, p-value or posterior probability, percentage of
-#'   phenotypic variance explained, and (optionally) LOD score. Returns
-#'   \code{NULL} invisibly if no QTL were detected.
-#' @param object A \code{qtlAim} object.
-#' @param genObj The \code{"wgCross"} object passed to \code{qtlAim},
-#'   produced by \code{\link{primeCross}}. Required to resolve QTL positions.
+#' Summary of a Fitted \code{qtlAim} Model
+#'
+#' @description
+#' Produces a detailed summary table of the significant QTL detected by
+#' \code{\link{qtlAim}}, sorted by chromosome and position.
+#'
+#' For interval-type analyses the table contains chromosome, left flanking
+#' marker and its cM position, inferred interval midpoint and its cM position,
+#' right flanking marker and its cM position, estimated additive effect,
+#' p-value, and percentage of phenotypic variance explained. For marker-type
+#' analyses the flanking-marker columns are replaced by a single marker name
+#' and cM position. An optional LOD score column can be appended.
+#'
+#' Returns \code{NULL} invisibly (with a message) when no significant QTL
+#' were detected.
+#'
+#' @param object A fitted object of class \code{"qtlAim"}, as returned by
+#'   \code{\link{qtlAim}}.
+#' @param genObj The \code{"wgCross"} object used in the original
+#'   \code{\link{qtlAim}} call, produced by \code{\link{primeCross}}.
+#'   Required to resolve flanking marker names and cM positions.
 #' @param LOD Logical. If \code{TRUE} (default), a LOD score column is
 #'   appended to the summary table. LOD is computed from the Wald z-statistic
 #'   as \eqn{0.5 \log_{10}(\exp(z^2))}.
+#' @param \dots Currently unused.
+#'
+#' @return A \code{data.frame} with one row per detected QTL and columns
+#'   depending on \code{gen.type}:
+#' \describe{
+#'   \item{Interval type (11 or 12 columns)}{Chromosome, Left Marker,
+#'     dist(cM), Infer. Marker, dist(cM), Right Marker, dist(cM), Size,
+#'     Prob, Perc.Var, and optionally LOD.}
+#'   \item{Marker type (6 or 7 columns)}{Chromosome, Marker, dist(cM),
+#'     Size, Prob, Perc.Var, and optionally LOD.}
+#' }
+#' Returns \code{NULL} invisibly if no QTL were detected.
+#'
+#' @seealso \code{\link{qtlAim}}, \code{\link{print.qtlAim}},
+#'   \code{\link{aimTrace}}, \code{\link{getQTL}}
+#'
+#' @examples
+#' \dontrun{
+#' # After running qtlAim():
+#' summary(qtl.fit, genObj = genoRxK)
+#' summary(qtl.fit, genObj = genoRxK, LOD = FALSE)
+#' }
+#'
 #' @export
 summary.qtlAim <- function(object, genObj, LOD = TRUE, ...) {
     if (missing(genObj))
