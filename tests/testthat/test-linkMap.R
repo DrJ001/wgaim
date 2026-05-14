@@ -300,7 +300,7 @@ test_that("linkMap.default: unrecognised class in list stops with error", {
 # ─────────────────────────────────────────────────────────────────────────────
 
 test_that("theme_scatter: returns an object of class 'theme'", {
-  th <- wgaim:::theme_scatter()
+  th <- wgAim:::theme_scatter()
   expect_s3_class(th, "theme")
 })
 
@@ -309,7 +309,7 @@ test_that("theme_scatter: returns an object of class 'theme'", {
 # ─────────────────────────────────────────────────────────────────────────────
 
 test_that("theme_scatter: base_size argument is accepted", {
-  th <- wgaim:::theme_scatter(base_size = 14)
+  th <- wgAim:::theme_scatter(base_size = 14)
   expect_s3_class(th, "theme")
 })
 
