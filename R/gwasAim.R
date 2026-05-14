@@ -5,9 +5,9 @@
 # Forward-selection marker association analysis using the shared wgAim engine.
 # Differences from qtlAim:
 #   - Takes a 'wgPanel' object (from primePanel()) instead of a 'wgCross' object
-#   - gen.type is always 'marker'  — no interval midpoints in GWAS
-#   - method is always 'fixed'     — GWAS tests marker effects as fixed effects
-#   - selection is always 'interval' — best individual marker, not chromosome
+#   - gen.type is always 'marker'  -- no interval midpoints in GWAS
+#   - method is always 'fixed'     -- GWAS tests marker effects as fixed effects
+#   - selection is always 'interval' -- best individual marker, not chromosome
 #   - Bonferroni correction applied to TypeI threshold by default
 #   - Returns class c('gwasAim', 'asreml')
 # =============================================================================
@@ -67,7 +67,7 @@
 #' @param TypeI Numeric scalar giving the significance level for the LRT.
 #'   Default is \code{0.05}. \strong{No Bonferroni correction is applied.}
 #'   The LRT tests the additive variance parameter of the composite
-#'   genome-wide term — a single test per iteration, not one per marker —
+#'   genome-wide term -- a single test per iteration, not one per marker --
 #'   so \code{TypeI = 0.05} already acts as a family-wise error rate. This
 #'   has been empirically validated for the wgAim algorithm; see Details.
 #' @param trace Logical or character string. If \code{TRUE} (default),
@@ -99,7 +99,7 @@
 #' be converted to per-marker p-values via a chi-squared distribution.
 #' Formal significance comes only from the LRT.
 #'
-#' @return An object of class \code{c("gwasAim","asreml")} — the final fitted
+#' @return An object of class \code{c("gwasAim","asreml")} -- the final fitted
 #'   ASReml model augmented with a \code{$QTL} list (structured identically
 #'   to \code{\link{qtlAim}}) plus GWAS-specific fields:
 #' \describe{
@@ -163,13 +163,13 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
                             TypeI = 0.05,
                             trace = TRUE, verboseLev = 0, ...) {
 
-    # Hard-coded engine constants — not user-configurable for GWAS:
+    # Hard-coded engine constants -- not user-configurable for GWAS:
     #   method    = "fixed"    GWAS tests each marker as a fixed effect
     #   selection = "interval" always select the best individual marker
     method    <- "fixed"
     selection <- "interval"
 
-    # Capture calling environment early — needed for assign() in engine
+    # Capture calling environment early -- needed for assign() in engine
     caller.env <- parent.frame()
 
     # Trace/sink setup must live here so on.exit fires at the right level

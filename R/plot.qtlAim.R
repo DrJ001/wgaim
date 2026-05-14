@@ -6,14 +6,14 @@
 # genome for each requested iteration, with detected QTL labelled.
 #
 # Shared internal engine functions used also by plot.gwasAim:
-#   .build_cumpos()      — cumulative cM position lookup from a genObj
-#   .build_stat_df()     — long-format data frame from diag oint/blups vectors
-#   .add_sig_labels()    — annotate selected QTL/markers onto a ggplot
-#   .plot_chr_bars()     — chromosome-level bar chart (plot.chr mode)
-#   .build_effects_df()  — data frame of effect sizes, SEs, % var for lollipop
-#   .plot_effects()      — lollipop plot of QTL/marker effects
-#   .build_contrast_df() — data frame of total genetic values by allele class
-#   .plot_contrast()     — violin/box allele contrast plot
+#   .build_cumpos()      -- cumulative cM position lookup from a genObj
+#   .build_stat_df()     -- long-format data frame from diag oint/blups vectors
+#   .add_sig_labels()    -- annotate selected QTL/markers onto a ggplot
+#   .plot_chr_bars()     -- chromosome-level bar chart (plot.chr mode)
+#   .build_effects_df()  -- data frame of effect sizes, SEs, % var for lollipop
+#   .plot_effects()      -- lollipop plot of QTL/marker effects
+#   .build_contrast_df() -- data frame of total genetic values by allele class
+#   .plot_contrast()     -- violin/box allele contrast plot
 # =============================================================================
 
 #' @describeIn qtlAim Plot genome-wide outlier statistics, scaled BLUPs, QTL
@@ -43,7 +43,7 @@
 #'       by allele class. Requires \code{data} (the phenotypic data frame used
 #'       in the analysis). Biparental populations use A / AB / B classes; GWAS
 #'       panels use 0 / 1 / 2 dosage classes.}
-#'     \item{\code{"heatmap"}}{Genome × iteration heatmap: tile fill encodes
+#'     \item{\code{"heatmap"}}{Genome x iteration heatmap: tile fill encodes
 #'       the outlier statistic \eqn{\tilde{q}_i^2/\tilde{v}_i} at every
 #'       interval/marker position across all forward-selection iterations.
 #'       Positions excluded by the exclusion window are shown in grey.
@@ -107,7 +107,7 @@ plot.qtlAim <- function(x, genObj,
         stop("No significant QTL found in object.")
 
     # -------------------------------------------------------------------------
-    # effects: lollipop plot — no iter/chr needed
+    # effects: lollipop plot -- no iter/chr needed
     # -------------------------------------------------------------------------
     if (type == "effects") {
         edf <- .build_effects_df(x, genObj)
@@ -115,7 +115,7 @@ plot.qtlAim <- function(x, genObj,
     }
 
     # -------------------------------------------------------------------------
-    # contrast: allele contrast plot — requires data
+    # contrast: allele contrast plot -- requires data
     # -------------------------------------------------------------------------
     if (type == "contrast") {
         if (is.null(data))
@@ -217,9 +217,9 @@ plot.qtlAim <- function(x, genObj,
 # Build cumulative cM position lookup for a genObj.
 #
 # Returns a list:
-#   $pos_lookup  — named vector: internal key "Chr.CHR.IDX" -> cumulative cM
-#   $chr.mid     — named vector: chr name -> mid-point cumulative cM
-#   $chr.end     — named vector: chr name -> end cumulative cM (for chr.lines)
+#   $pos_lookup  -- named vector: internal key "Chr.CHR.IDX" -> cumulative cM
+#   $chr.mid     -- named vector: chr name -> mid-point cumulative cM
+#   $chr.end     -- named vector: chr name -> end cumulative cM (for chr.lines)
 # =============================================================================
 .build_cumpos <- function(genObj, gen.type, chr) {
     gap.cM      <- 5
@@ -424,7 +424,7 @@ plot.qtlAim <- function(x, genObj,
         j     <- which(chr_summ == chr_i & abs(pos_summ - pos_i) < 0.1)
         if (length(j) == 0L) {
             warning("Could not match QTL ", names(effects)[i],
-                    " in summary table — Perc.Var set to NA.")
+                    " in summary table -- Perc.Var set to NA.")
             return(NA_real_)
         }
         summ[["Perc.Var"]][j[1L]]
@@ -435,15 +435,15 @@ plot.qtlAim <- function(x, genObj,
 # Shared engine: .build_effects_df
 #
 # Builds a data frame with one row per detected QTL/marker containing:
-#   qtl_key  — internal "Chr.CHR.IDX" key
-#   label    — display label "CHR · POS cM"
-#   effect   — estimated additive effect (β)
-#   se       — standard error  sqrt(veffect × sigma2)
-#   lo / hi  — effect ± 1 SE
-#   perc_var — % phenotypic variance explained
-#   direction — "A" (effect > 0) or "B" (effect < 0), or "0","1","2" for GWAS
-#   col      — fill colour for lollipop head
-#   x_order  — genome-order integer for x-axis sorting
+#   qtl_key  -- internal "Chr.CHR.IDX" key
+#   label    -- display label "CHR . POS cM"
+#   effect   -- estimated additive effect (beta)
+#   se       -- standard error  sqrt(veffect x sigma2)
+#   lo / hi  -- effect +/- 1 SE
+#   perc_var -- % phenotypic variance explained
+#   direction -- "A" (effect > 0) or "B" (effect < 0), or "0","1","2" for GWAS
+#   col      -- fill colour for lollipop head
+#   x_order  -- genome-order integer for x-axis sorting
 #
 # Works for both qtlAim (interval/marker type) and gwasAim (marker type).
 # =============================================================================
@@ -457,7 +457,7 @@ plot.qtlAim <- function(x, genObj,
 
     gen.type <- object$QTL$type
 
-    # % variance explained — taken directly from summary() so the values
+    # % variance explained -- taken directly from summary() so the values
     # shown on the plot are guaranteed to match the summary table output.
     summ      <- summary(object, genObj, LOD = FALSE)
     perc_var  <- .match_perc_var(summ, object, genObj, effects, gen.type)
@@ -511,11 +511,11 @@ plot.qtlAim <- function(x, genObj,
 # Shared engine: .plot_effects
 #
 # Lollipop plot of additive QTL/marker effect sizes.
-#   — stem from 0 to the effect estimate
-#   — dot sized to emphasise position, coloured by direction
-#   — ±1 SE error bars
-#   — % variance explained annotated above/below each head
-#   — allele axis annotation:  "← B allele favoured" / "A allele favoured →"
+#   -- stem from 0 to the effect estimate
+#   -- dot sized to emphasise position, coloured by direction
+#   -- +/-1 SE error bars
+#   -- % variance explained annotated above/below each head
+#   -- allele axis annotation:  "<- B allele favoured" / "A allele favoured ->"
 # =============================================================================
 .plot_effects <- function(edf) {
 
@@ -540,7 +540,7 @@ plot.qtlAim <- function(x, genObj,
                          colour = .data$col),
             linewidth = 0.8, show.legend = FALSE) +
 
-        # ±1 SE error bars
+        # +/-1 SE error bars
         ggplot2::geom_errorbar(
             ggplot2::aes(ymin = .data$lo, ymax = .data$hi,
                          colour = .data$col),
@@ -551,7 +551,7 @@ plot.qtlAim <- function(x, genObj,
             ggplot2::aes(colour = .data$col),
             size = 3.5, show.legend = FALSE) +
 
-        # % variance explained — anchored at the SE bar tip, not the head
+        # % variance explained -- anchored at the SE bar tip, not the head
         ggplot2::geom_text(
             ggplot2::aes(y     = .data$label_y,
                          label = .data$pv_label,
@@ -567,7 +567,7 @@ plot.qtlAim <- function(x, genObj,
         theme_scatter() +
         ggplot2::theme(
             # angle = 45, hjust = 1, vjust = 1 aligns the top-right corner
-            # of the label to the tick mark — the standard "flush" appearance
+            # of the label to the tick mark -- the standard "flush" appearance
             axis.text.x  = ggplot2::element_text(angle = 45, hjust = 1,
                                                   vjust = 1, size = 8),
             axis.title.x = ggplot2::element_text(size = 7.5,
@@ -590,20 +590,20 @@ plot.qtlAim <- function(x, genObj,
 #                    obtained from a single predict() call with both terms
 #                    in the 'only' argument.
 #
-#   qtl_contrib_i  =  Σ_k ( β_k × x_ik )
+#   qtl_contrib_i  =  Sigma_k ( beta_k x x_ik )
 #
 # Allele scoring strategy (differs by object class):
 #
-#   qtlAim (biparental) — uses the same data matrix qtlAim.asreml() used:
+#   qtlAim (biparental) -- uses the same data matrix qtlAim.asreml() used:
 #     interval.data[, idx_k] when gen.type == "interval" (idx_k indexes the
 #     inferred.map / interval columns directly), or imputed.data[, idx_k]
 #     when gen.type == "marker" (idx_k indexes the marker map columns).
-#     Both are post-imputation, so values cluster near ±1 with no spurious
+#     Both are post-imputation, so values cluster near +/-1 with no spurious
 #     zeros from missing raw genotypes.  No AB class: biparental (BC/DH/RI)
 #     populations have no true heterozygotes.
-#     x-axis in the plot is the continuous score; labels pinned at ±1.
+#     x-axis in the plot is the continuous score; labels pinned at +/-1.
 #
-#   gwasAim (diversity panel) — uses the X.<chr>.<idx> column in data
+#   gwasAim (diversity panel) -- uses the X.<chr>.<idx> column in data
 #     (integer dosage 0/1/2).  Three discrete classes.
 #
 # Returns a list (one data frame per QTL) with attribute "is_gwas" so
@@ -638,12 +638,12 @@ plot.qtlAim <- function(x, genObj,
     g_df$line <- as.character(g_df$line)
 
     # ----------------------------------------------------------------
-    # 2.  Compute QTL contributions  Σ_k β_k × x_ik  per line
+    # 2.  Compute QTL contributions  Sigma_k beta_k x x_ik  per line
     # ----------------------------------------------------------------
     qtl_cols         <- gsub("Chr\\.", "X.", names(effects))
     qtl_cols_present <- qtl_cols[qtl_cols %in% names(data)]
     if (length(qtl_cols_present) < length(qtl_cols))
-        warning("Some QTL genotype columns not found in data — ",
+        warning("Some QTL genotype columns not found in data -- ",
                 "QTL contributions may be incomplete.")
 
     id_col      <- object$QTL$diag$genetic.term
@@ -670,7 +670,7 @@ plot.qtlAim <- function(x, genObj,
     # ----------------------------------------------------------------
     qtlm <- getQTL(object, genObj)
 
-    # Use summary() for perc_var — guaranteed to match the summary table.
+    # Use summary() for perc_var -- guaranteed to match the summary table.
     summ     <- summary(object, genObj, LOD = FALSE)
     perc_var <- .match_perc_var(summ, object, genObj, effects, gen.type)
 
@@ -691,12 +691,12 @@ plot.qtlAim <- function(x, genObj,
 
         if (is_gwas) {
             # ----- GWAS: use X.<chr>.<idx> column from data ------------------
-            # The column holds the ±1-centred encoding (0/1/2 → -1/0/+1)
+            # The column holds the +/-1-centred encoding (0/1/2 -> -1/0/+1)
             # that gwasAim.asreml() uses internally.  Map back to 0/1/2 labels
-            # for display: -1 → "0 (ref)", 0 → "1 (het)", +1 → "2 (alt)".
+            # for display: -1 -> "0 (ref)", 0 -> "1 (het)", +1 -> "2 (alt)".
             col_x <- qtl_cols[i]
             if (!col_x %in% names(data)) {
-                warning("Column ", col_x, " not found in data — skipping QTL ", i)
+                warning("Column ", col_x, " not found in data -- skipping QTL ", i)
                 return(NULL)
             }
             raw_score  <- data[[col_x]]
@@ -716,7 +716,7 @@ plot.qtlAim <- function(x, genObj,
             #   the inferred.map / interval columns directly.
             # gen.type == "marker":  model used imputed.data; idx_k indexes
             #   the marker map / imputed columns directly.
-            # Both are post-imputation so values cluster near ±1 — no spurious
+            # Both are post-imputation so values cluster near +/-1 -- no spurious
             # zeros from missing raw genotypes.  No AB class for biparental
             # (BC/DH/RI) populations.
             geno_mat <- if (gen.type == "interval")
@@ -766,20 +766,20 @@ plot.qtlAim <- function(x, genObj,
 #
 # Allele contrast plot.  One facet per QTL.  Two visual strategies:
 #
-#   Biparental (qtlAim) — scatter / jitter plot.
-#     x = imputed genotype score (continuous, post-imputation ≈ ±1).
+#   Biparental (qtlAim) -- scatter / jitter plot.
+#     x = imputed genotype score (continuous, post-imputation ~= +/-1).
 #     Points jittered in x only (width = 0.03) to reveal density.
 #     Colour: steelblue (B, score < 0) / firebrick (A, score > 0).
-#     x-axis pinned to [-1.2, 1.2] with breaks and labels at −1 / +1.
-#     Group means ± SE drawn at x = −1 and x = +1, connected by a line.
+#     x-axis pinned to [-1.2, 1.2] with breaks and labels at -1 / +1.
+#     Group means +/- SE drawn at x = -1 and x = +1, connected by a line.
 #
-#   GWAS (gwasAim) — violin / box / jitter plot.
+#   GWAS (gwasAim) -- violin / box / jitter plot.
 #     x = dosage class (discrete: 0 / 1 / 2).
 #     Colour: steelblue (0) / grey60 (1) / firebrick (2).
 #
 # Both paths:
 #   y = total genetic value (vm BLUP + gterm BLUP + QTL contributions).
-#   Effect ± SE, % var explained, p-value annotated inside each facet strip.
+#   Effect +/- SE, % var explained, p-value annotated inside each facet strip.
 # =============================================================================
 .plot_contrast <- function(cdf_list, ncol = 1L) {
 
@@ -818,7 +818,7 @@ plot.qtlAim <- function(x, genObj,
     # ------------------------------------------------------------------
     if (!is_gwas) {
 
-        # Mean positions pinned to the canonical ±1 encoding values
+        # Mean positions pinned to the canonical +/-1 encoding values
         mean_df$x_pos <- ifelse(mean_df$allele_class == "B (\u22121)", -1, 1)
 
         gp <- ggplot2::ggplot(all_df,
@@ -828,12 +828,12 @@ plot.qtlAim <- function(x, genObj,
             ggplot2::facet_wrap(~ facet_label, ncol = ncol,
                                 scales = "free_y") +
 
-            # Jittered points — horizontal jitter only; y is meaningful
+            # Jittered points -- horizontal jitter only; y is meaningful
             ggplot2::geom_jitter(width = 0.05, height = 0,
                                  size = 1.2, alpha = 0.55,
                                  show.legend = FALSE) +
 
-            # Mean diamond at fixed x = ±1
+            # Mean diamond at fixed x = +/-1
             ggplot2::geom_point(
                 data   = mean_df,
                 ggplot2::aes(x = .data$x_pos, y = .data$total_genetic),
@@ -870,7 +870,7 @@ plot.qtlAim <- function(x, genObj,
             ggplot2::facet_wrap(~ facet_label, ncol = ncol,
                                 scales = "free_y") +
 
-            # Jittered points around each discrete dosage class —
+            # Jittered points around each discrete dosage class --
             # small width matches the tight vertical clouds of the QTL plot
             ggplot2::geom_jitter(width = 0.05, height = 0,
                                  size = 1.2, alpha = 0.55,
@@ -900,7 +900,7 @@ plot.qtlAim <- function(x, genObj,
             ggplot2::ylab("Total Genetic Value")
     }
 
-    # Effect annotation inside each facet — shared by both paths
+    # Effect annotation inside each facet -- shared by both paths
     gp <- gp +
         ggplot2::geom_text(
             data        = sub_df,
@@ -916,21 +916,21 @@ plot.qtlAim <- function(x, genObj,
 # =============================================================================
 # Shared engine: .build_heatmap_df
 #
-# Builds the data frame for the genome × iteration heatmap.
+# Builds the data frame for the genome x iteration heatmap.
 #
 # Returns a list with two elements:
-#   $heat_df  — long-format data frame, one row per (position × iteration):
+#   $heat_df  -- long-format data frame, one row per (position x iteration):
 #       dist      cumulative cM position
 #       iter_num  integer iteration index
-#       fill_val  outlier statistic (zero → NA so excluded regions show grey)
+#       fill_val  outlier statistic (zero -> NA so excluded regions show grey)
 #       tile_w    per-position tile width (Voronoi half-distance to neighbours
 #                 within the chromosome; clipped at chromosome start/end)
 #       chr       chromosome name
 #
-#   $sig_df   — data frame of selected QTL positions (dist, iter_num), or
+#   $sig_df   -- data frame of selected QTL positions (dist, iter_num), or
 #               NULL if no QTL were selected
 #
-# Zero/negative → NA strategy: positions excluded via the exclusion window are
+# Zero/negative -> NA strategy: positions excluded via the exclusion window are
 # set to 0 in the oint vector by .qtlSelect().  Tiny floating-point negatives
 # can also arise from numerical precision.  Both are converted to NA so they
 # render as neutral grey in the colour scale, making active signal regions
@@ -972,7 +972,7 @@ plot.qtlAim <- function(x, genObj,
 
         keys  <- names(el)[whc]
         vals  <- as.numeric(el[whc])
-        vals[is.finite(vals) & vals <= 0] <- NA  # excluded/fp-zero → NA (grey)
+        vals[is.finite(vals) & vals <= 0] <- NA  # excluded/fp-zero -> NA (grey)
 
         data.frame(
             dist     = cp$pos_lookup[keys],
@@ -1014,18 +1014,18 @@ plot.qtlAim <- function(x, genObj,
 # =============================================================================
 # Shared engine: .plot_heatmap
 #
-# Genome × iteration outlier-statistic heatmap.
+# Genome x iteration outlier-statistic heatmap.
 #
 # Visual conventions:
-#   — x-axis   : cumulative cM, chromosome names at midpoints
-#   — y-axis   : iteration number, reversed (iteration 1 at top) so the
+#   -- x-axis   : cumulative cM, chromosome names at midpoints
+#   -- y-axis   : iteration number, reversed (iteration 1 at top) so the
 #                sequence reads top-to-bottom, matching the faceted line plots
-#   — fill     : outlier statistic, sqrt-transformed for skewness.
+#   -- fill     : outlier statistic, sqrt-transformed for skewness.
 #                NA (excluded) positions shown in grey ("grey92").
-#                Colour ramp: light cream → teal → dark navy (YlGnBu-style,
+#                Colour ramp: light cream -> teal -> dark navy (YlGnBu-style,
 #                using base-R hcl.colors so no extra dependencies).
-#   — borders  : thin white vertical lines at chromosome boundaries
-#   — QTL mark : open diamond (shape 23) with sig.col fill, white border,
+#   -- borders  : thin white vertical lines at chromosome boundaries
+#   -- QTL mark : open diamond (shape 23) with sig.col fill, white border,
 #                at the (position, iteration) cell where each QTL was selected
 #
 # Works for both qtlAim (gen.type = "interval" or "marker") and gwasAim
@@ -1039,7 +1039,7 @@ plot.qtlAim <- function(x, genObj,
     heat_df  <- hd$heat_df
     sig_df   <- hd$sig_df
 
-    # Apply cap: clamp fill_val so the gradient spans 0 → cap and anything
+    # Apply cap: clamp fill_val so the gradient spans 0 -> cap and anything
     # above cap maps to the maximum colour.  This stretches colour variation
     # into the lower range without transforming the data in any other way.
     if (!is.null(cap) && is.finite(cap) && cap > 0)

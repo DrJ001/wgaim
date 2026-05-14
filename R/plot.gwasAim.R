@@ -3,7 +3,7 @@
 # S3 plot method for gwasAim objects.
 #
 # type = "manhattan" (default)
-#   Classic Manhattan plot — points coloured by chromosome with alternating
+#   Classic Manhattan plot -- points coloured by chromosome with alternating
 #   shaded backgrounds. Significant markers highlighted and labelled.
 #
 # type = "outlier"
@@ -34,7 +34,7 @@
 #'     \item{\code{"contrast"}}{Allele contrast plot showing total line genetic
 #'       values split by 0/1/2 dosage class at each significant marker. Requires
 #'       \code{data}.}
-#'     \item{\code{"heatmap"}}{Genome × iteration heatmap: tile fill encodes
+#'     \item{\code{"heatmap"}}{Genome x iteration heatmap: tile fill encodes
 #'       the outlier statistic at every marker position across all
 #'       forward-selection iterations. Excluded positions are shown in grey.
 #'       Detected significant markers are annotated with a filled diamond.
@@ -210,7 +210,7 @@ plot.gwasAim <- function(x, genObj,
     gp <- ggplot2::ggplot(stat_df,
                ggplot2::aes(x = .data$dist, y = .data$values)) +
         ggplot2::facet_wrap(~iteration, ncol = 1, scales = "free_y") +
-        # Background bands — drawn first, behind points
+        # Background bands -- drawn first, behind points
         ggplot2::geom_rect(
             data        = band.df,
             ggplot2::aes(xmin = .data$xmin, xmax = .data$xmax,

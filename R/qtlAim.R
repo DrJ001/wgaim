@@ -137,7 +137,7 @@
 #' \code{mbf('ints')} and is equivalent but more efficient when lines \eqn{\ge}
 #' markers. Both paths produce identical QTL selections.
 #'
-#' @return An object of class \code{c("qtlAim","asreml")} — the final fitted
+#' @return An object of class \code{c("qtlAim","asreml")} -- the final fitted
 #'   ASReml model augmented with a \code{$QTL} list containing:
 #' \describe{
 #'   \item{\code{$qtl}}{Character vector of internal names of detected QTL
@@ -219,7 +219,7 @@ qtlAim.asreml <- function(baseModel, genObj, merge.by = NULL, fix.lines = TRUE,
                            exclusion.window = 20, breakout = -1,
                            TypeI = 0.05, trace = TRUE, verboseLev = 0, ...) {
 
-    # Capture calling environment early — needed for assign() calls in engine
+    # Capture calling environment early -- needed for assign() calls in engine
     caller.env <- parent.frame()
 
     # Trace/sink setup must live here so on.exit fires when qtlAim.asreml() returns

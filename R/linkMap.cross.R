@@ -70,7 +70,7 @@ linkMap <- function(object, ...) UseMethod("linkMap")
 #'
 #' @description
 #' Produces a clean ggplot2 visualisation of a genetic linkage map using
-#' frameless facets — one column per chromosome — with a shared reversed cM
+#' frameless facets -- one column per chromosome -- with a shared reversed cM
 #' y-axis (0 cM at the top). Chromosome bars are rendered as narrow pill
 #' shapes. Marker labels are placed with \code{ggrepel} to avoid overprinting
 #' even on dense maps. Returns a \code{ggplot} object so additional layers
@@ -230,10 +230,10 @@ linkMap.cross <- function(object, chr, chr.dist,
     ## 4.  Build the base plot
     ##
     ## LAYER ORDER:
-    ##   0. geom_blank anchors  — pin x-axis range (invisible)
-    ##   1. Marker ticks        — drawn before bar; bar hides interior
-    ##   2. Bar border          — pill shape, dark outer ring
-    ##   3. Bar fill            — white interior
+    ##   0. geom_blank anchors  -- pin x-axis range (invisible)
+    ##   1. Marker ticks        -- drawn before bar; bar hides interior
+    ##   2. Bar border          -- pill shape, dark outer ring
+    ##   3. Bar fill            -- white interior
     ## -------------------------------------------------------------------------
     p <- ggplot2::ggplot() +
 
@@ -260,7 +260,7 @@ linkMap.cross <- function(object, chr, chr.dist,
         ) +
 
         ## ------------------------------------------------------------------
-        ## Layer 2: Bar border — pill shape, dark outer ring
+        ## Layer 2: Bar border -- pill shape, dark outer ring
         ggplot2::geom_segment(
             data      = bar_df,
             ggplot2::aes(x = 0, xend = 0, y = top, yend = bottom),
@@ -270,7 +270,7 @@ linkMap.cross <- function(object, chr, chr.dist,
         ) +
 
         ## ------------------------------------------------------------------
-        ## Layer 3: Bar fill — white, slightly narrower than border
+        ## Layer 3: Bar fill -- white, slightly narrower than border
         ggplot2::geom_segment(
             data      = bar_df,
             ggplot2::aes(x = 0, xend = 0, y = top, yend = bottom),
@@ -279,7 +279,7 @@ linkMap.cross <- function(object, chr, chr.dist,
             colour    = K$BAR_FILL_COL
         ) +
 
-        ## Facet — one column per chromosome, x suppressed
+        ## Facet -- one column per chromosome, x suppressed
         ggplot2::facet_wrap(~ chr, nrow = facet_nrow, ncol = facet_ncol,
                             scales = "free_x") +
 
@@ -316,7 +316,7 @@ linkMap.cross <- function(object, chr, chr.dist,
 }
 
 # -----------------------------------------------------------------------------
-# .lm_base_args — build the base_args list for do.call(linkMap, ...)
+# .lm_base_args -- build the base_args list for do.call(linkMap, ...)
 # -----------------------------------------------------------------------------
 ## Shared by qtlAim, gwasAim (single and multi paths).
 ## chr.dist = NULL means "not supplied".
@@ -343,7 +343,7 @@ linkMap.cross <- function(object, chr, chr.dist,
 }
 
 # -----------------------------------------------------------------------------
-# .lm_left_labels — left-side ggrepel (trait / model name labels)
+# .lm_left_labels -- left-side ggrepel (trait / model name labels)
 # -----------------------------------------------------------------------------
 ## df must have columns: chr (factor), pos (numeric), label (character).
 ## colour may be scalar or a per-row vector.
@@ -368,7 +368,7 @@ linkMap.cross <- function(object, chr, chr.dist,
 }
 
 # -----------------------------------------------------------------------------
-# .lm_right_labels — right-side ggrepel (marker name / distance labels)
+# .lm_right_labels -- right-side ggrepel (marker name / distance labels)
 # -----------------------------------------------------------------------------
 .lm_right_labels <- function(p, df, K, m.cex, colour) {
     p + ggrepel::geom_text_repel(

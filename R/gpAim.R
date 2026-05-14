@@ -9,8 +9,8 @@
 #            and fits vm(line, G). GEBVs extracted directly via predict().
 #
 #   mbf path (lines >= markers): models marker effects q directly as random
-#            effects via ASReml's mbf() facility. GEBVs computed as M %*% q̂,
-#            where M is the marker matrix and q̂ are the marker effect BLUPs.
+#            effects via ASReml's mbf() facility. GEBVs computed as M %*% q.hat,
+#            where M is the marker matrix and q.hat are the marker effect BLUPs.
 #            The mbf path avoids the singularity of G when lines >= markers.
 #
 # genObj must be of class "wgCross" (from primeCross()) or "wgPanel"
@@ -111,7 +111,7 @@
 #' vm path this is the matrix used in model fitting; for the mbf path it
 #' is computed as \eqn{MM'/s} from the fitted marker matrix.
 #'
-#' @return An object of class \code{c("gpAim","asreml")} — the fitted ASReml
+#' @return An object of class \code{c("gpAim","asreml")} -- the fitted ASReml
 #'   model augmented with a \code{$GP} list containing:
 #' \describe{
 #'   \item{\code{$gebv}}{A \code{data.frame} with columns for the line
@@ -195,7 +195,7 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
 
     # -------------------------------------------------------------------------
     # Phase 1: Validation
-    # Inline only the shared parts — gpAim has no method/selection/breakout
+    # Inline only the shared parts -- gpAim has no method/selection/breakout
     # -------------------------------------------------------------------------
     if (!baseModel$converge) {
         cat("Warning: Base model has not converged. Updating base model\n")
@@ -248,11 +248,11 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     genetic.term <- fl$genetic.term
 
     # -------------------------------------------------------------------------
-    # Phase 3: Fit GP model — vm or mbf path
+    # Phase 3: Fit GP model -- vm or mbf path
     #
     # vm  path (markers > lines): G = XX' is full rank; fit vm(line, G).
     # mbf path (lines >= markers): G is singular; fit marker effects directly
-    #                              via mbf(), then GEBVs = M %*% q̂.
+    #                              via mbf(), then GEBVs = M %*% q.hat.
     # -------------------------------------------------------------------------
     n.markers    <- ncol(genoData)
     n.lines.geno <- nrow(genoData)
@@ -310,14 +310,14 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
         var.resid   <- sigma2
 
     } else {
-        # mbf path: GEBVs = M %*% q̂
-        # Extract marker effect BLUPs (q̂) from the mbf random coefficients
+        # mbf path: GEBVs = M %*% q.hat
+        # Extract marker effect BLUPs (q.hat) from the mbf random coefficients
         mbf.rows <- grep("mbf", rownames(gpModel$coefficients$random))
         q.hat    <- gpModel$coefficients$random[mbf.rows, 1]
         gebvs    <- as.numeric(genoData %*% q.hat)
 
-        # Approximate SE: sqrt( M^2 %*% PEV(q̂) )
-        # Treats marker effects as independent — ignores their covariance.
+        # Approximate SE: sqrt( M^2 %*% PEV(q.hat) )
+        # Treats marker effects as independent -- ignores their covariance.
         pev     <- sigma2 * gpModel$vcoeff$random[mbf.rows]
         se.gebv <- sqrt(as.numeric(genoData^2 %*% pev))
 
@@ -356,7 +356,7 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     # -------------------------------------------------------------------------
     # Package results and clean up
     # -------------------------------------------------------------------------
-    # Genomic relationship matrix — stored for heatmap plot.
+    # Genomic relationship matrix -- stored for heatmap plot.
     # vm path: already computed; mbf path: compute M %*% M' / scale on demand.
     if (use.vm) {
         rel.matrix <- cov.env$relm

@@ -182,7 +182,7 @@ aimTrace.qtlAim <- function(object,
 # Shared engine: .build_stability_df
 #
 # Builds a long-format data frame for the effect stability plot.
-# For each detected QTL k, extracts its effect estimate and ±1 SE at every
+# For each detected QTL k, extracts its effect estimate and +/-1 SE at every
 # iteration j >= k (all iterations in which it was in the model).
 # .addEffect() stores coefs with rev(), so within coef.list[[j]] (which has j
 # elements) the detection order is reversed: element 1 = newest QTL (j),
@@ -221,14 +221,14 @@ aimTrace.qtlAim <- function(object,
 # =============================================================================
 # Shared engine: .plot_stability
 #
-# QTL effect stability plot — lollipop + line style.
+# QTL effect stability plot -- lollipop + line style.
 #
 # For each detected QTL (one facet, free y-scale, 3 columns):
-#   — dashed zero reference line
-#   — vertical lollipop stem from 0 to the effect estimate at each iteration
-#   — error bar (±1 SE) at the tip of each stem
-#   — line connecting the effect estimates across iterations
-#   — filled circle at each tip
+#   -- dashed zero reference line
+#   -- vertical lollipop stem from 0 to the effect estimate at each iteration
+#   -- error bar (+/-1 SE) at the tip of each stem
+#   -- line connecting the effect estimates across iterations
+#   -- filled circle at each tip
 # =============================================================================
 .plot_stability <- function(object, sig.col = "firebrick") {
 
@@ -248,7 +248,7 @@ aimTrace.qtlAim <- function(object,
                             linetype = "dashed", colour = "grey60",
                             linewidth = 0.5) +
 
-        # ±1 SE error bars at the tip
+        # +/-1 SE error bars at the tip
         ggplot2::geom_errorbar(
             ggplot2::aes(ymin = .data$lo, ymax = .data$hi),
             colour = sig.col, width = 0.15, linewidth = 0.7) +

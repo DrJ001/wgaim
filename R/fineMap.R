@@ -115,7 +115,7 @@ fineMap <- function(object, genObj, qtl = NULL, window = 50, step = 2,
     phenoData <- tryCatch(
         get(data_name, envir = fe, inherits = TRUE),
         error = function(e)
-            stop("Cannot locate phenoData ('", data_name, "') — ",
+            stop("Cannot locate phenoData ('", data_name, "') -- ",
                  "ensure fineMap() is called in the same session as ",
                  "qtlAim() / gwasAim().")
     )
@@ -167,7 +167,7 @@ fineMap <- function(object, genObj, qtl = NULL, window = 50, step = 2,
         chr_map  <- genObj$geno[[mchr]]$map   # named cM positions of markers
 
         if (is_gwas) {
-            # GWAS: scan actual markers within ±window cM of the significant
+            # GWAS: scan actual markers within +/-window cM of the significant
             # marker's cM position
             sig_pos  <- chr_map[tgt_idx]
             ql       <- max(1L, which(chr_map >= sig_pos - window)[1L])
@@ -178,7 +178,7 @@ fineMap <- function(object, genObj, qtl = NULL, window = 50, step = 2,
             clipped <- chr_map[ql] > sig_pos - window || chr_map[qr] < sig_pos + window
             if (clipped) {
                 message(sprintf(
-                    "  Note: %s — window clipped to chromosome boundaries [%.1f, %.1f] cM",
+                    "  Note: %s -- window clipped to chromosome boundaries [%.1f, %.1f] cM",
                     tgt, chr_map[ql], chr_map[qr]
                 ))
             }
@@ -207,7 +207,7 @@ fineMap <- function(object, genObj, qtl = NULL, window = 50, step = 2,
             clipped <- win_lo > qtl_pos - window || win_hi < qtl_pos + window
             if (clipped) {
                 message(sprintf(
-                    "  Note: %s — window clipped to chromosome boundaries [%.1f, %.1f] cM",
+                    "  Note: %s -- window clipped to chromosome boundaries [%.1f, %.1f] cM",
                     tgt, win_lo, win_hi
                 ))
             }
@@ -246,7 +246,7 @@ fineMap <- function(object, genObj, qtl = NULL, window = 50, step = 2,
                 theta_LR <- 0.5 * (1 - exp(-2 * (rm_k - lm_k) / 100))
                 den <- theta_LR * (1 - theta_LR) * (1 - 2 * theta_p)
                 if (abs(den) < 1e-12) {
-                    # p coincides with a marker — full weight on that marker
+                    # p coincides with a marker -- full weight on that marker
                     lambda[j, k] <- 1
                 } else {
                     lambda[j,     k] <- (1 - theta_LR - theta_p) *
@@ -261,7 +261,7 @@ fineMap <- function(object, genObj, qtl = NULL, window = 50, step = 2,
                 dimnames(genoData)[[1]], lo_idx:hi_idx, drop = FALSE
             ]
 
-            # Fine interval scores:  lines × grid_positions
+            # Fine interval scores:  lines x grid_positions
             fine_geno  <- sub_imp %*% lambda
             fine_map   <- imark
             fine_names <- paste0("fm", seq_along(imark))
@@ -271,7 +271,7 @@ fineMap <- function(object, genObj, qtl = NULL, window = 50, step = 2,
 
         n_pos <- length(fine_map)
         if (n_pos == 0L) {
-            message("No positions in window for QTL ", tgt, " — skipping.")
+            message("No positions in window for QTL ", tgt, " -- skipping.")
             results[[tgt]] <- data.frame(mark = character(), dist = numeric(),
                                          pvalue = numeric(), LOD = numeric())
             next

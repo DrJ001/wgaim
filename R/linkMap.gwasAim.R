@@ -1,6 +1,6 @@
 # =============================================================================
 # linkMap.gwasAim.R
-# S3 linkMap() method for gwasAim objects — single model OR multiple models.
+# S3 linkMap() method for gwasAim objects -- single model OR multiple models.
 #
 # Multiple models are passed as extra positional arguments in ...:
 #   linkMap(gwas1, gwas2, genObj = my_panel)
@@ -20,8 +20,8 @@
 #' @importFrom ggrepel geom_text_repel
 #' @describeIn gwasAim Plot the genetic linkage map with significant GWAS
 #'   markers overlaid as coloured horizontal bands.  Accepts a single
-#'   \code{gwasAim} object or multiple models as extra positional arguments —
-#'   e.g. \code{linkMap(gwas1, gwas2, genObj = my_panel)} — for a
+#'   \code{gwasAim} object or multiple models as extra positional arguments --
+#'   e.g. \code{linkMap(gwas1, gwas2, genObj = my_panel)} -- for a
 #'   multi-trait overlay with automatic colour legend.  Returns a
 #'   \code{ggplot} object.
 #' @param object A \code{gwasAim} object, or the first of several.
@@ -81,7 +81,7 @@ linkMap.gwasAim <- function(object, ...,
 
     panel_map <- lapply(genObj$geno, function(ch) ch$map)
 
-    ## Internal: resolve marker keys → (chr, name, pos) data frame
+    ## Internal: resolve marker keys -> (chr, name, pos) data frame
     .resolve_markers <- function(gwas_obj) {
         keys   <- gwas_obj$QTL$qtl
         if (is.null(keys) || length(keys) == 0L) return(NULL)
@@ -140,7 +140,7 @@ linkMap.gwasAim <- function(object, ...,
         })
         has_sig <- !vapply(mk_list, is.null, logical(1L))
         if (!any(has_sig)) {
-            warning("No significant markers in any model — plotting map only.")
+            warning("No significant markers in any model -- plotting map only.")
             return(invisible(do.call(linkMap, .lm_base_args(
                 genObj, chr = if (missing(chr)) NULL else chr,
                 row.chr = row.chr, nrow = nrow,
@@ -149,7 +149,7 @@ linkMap.gwasAim <- function(object, ...,
         }
         if (!all(has_sig))
             warning("No significant markers in: ",
-                    paste(trait_names[!has_sig], collapse = ", "), " — omitting.")
+                    paste(trait_names[!has_sig], collapse = ", "), " -- omitting.")
 
         marker_df        <- do.call(rbind, mk_list[has_sig])
         marker_df$trait  <- factor(marker_df$trait, levels = trait_names)
@@ -172,13 +172,13 @@ linkMap.gwasAim <- function(object, ...,
         ## --- Restrict to displayed chromosomes --------------------------------
         oc <- marker_df$chr %in% chr
         if (!all(oc)) {
-            warning("Some significant markers on chromosomes not shown — omitting.")
+            warning("Some significant markers on chromosomes not shown -- omitting.")
             marker_df <- marker_df[oc, , drop = FALSE]
         }
         if (nrow(marker_df) == 0L) return(invisible(p))
         marker_df$chr <- factor(marker_df$chr, levels = chr)
 
-        ## --- Marker band layer (colour mapped → legend) ----------------------
+        ## --- Marker band layer (colour mapped -> legend) ----------------------
         p <- p +
             ggplot2::geom_segment(
                 data = marker_df,
@@ -217,7 +217,7 @@ linkMap.gwasAim <- function(object, ...,
     ## =========================================================================
 
     if (!length(object$QTL$effects)) {
-        warning("No significant GWAS markers — plotting map only.")
+        warning("No significant GWAS markers -- plotting map only.")
         base_args <- .lm_base_args(genObj,
                                     chr = if (missing(chr)) NULL else chr,
                                     row.chr = row.chr, nrow = nrow,
@@ -249,7 +249,7 @@ linkMap.gwasAim <- function(object, ...,
     ## --- Restrict to displayed chromosomes -----------------------------------
     oc <- marker_df$chr %in% chr
     if (!all(oc)) {
-        warning("Some significant markers on chromosomes not shown — omitting.")
+        warning("Some significant markers on chromosomes not shown -- omitting.")
         marker_df <- marker_df[oc, , drop = FALSE]
     }
     if (nrow(marker_df) == 0L) return(invisible(p))

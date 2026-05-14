@@ -77,7 +77,7 @@ summary.gwasAim <- function(object, genObj, LOD = TRUE, ...) {
     )
     if (LOD) qtab$LOD <- lod
 
-    # Sort by chromosome then position — extract leading integer from chromosome
+    # Sort by chromosome then position -- extract leading integer from chromosome
     # name so alphanumeric names (e.g. "Chr1", "1A") sort numerically.
     chr_lead <- as.integer(sub("^[^0-9]*([0-9]+).*$", "\\1",
                                as.character(qtab$Chromosome)))

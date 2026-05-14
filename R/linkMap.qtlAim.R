@@ -1,6 +1,6 @@
 # =============================================================================
 # linkMap.qtlAim.R
-# S3 linkMap() method for qtlAim objects — single model OR multiple models.
+# S3 linkMap() method for qtlAim objects -- single model OR multiple models.
 #
 # Multiple models are passed as extra positional arguments in ...:
 #   linkMap(qtl_yld, qtl_tgw, genObj = my_int)
@@ -20,8 +20,8 @@
 #' @importFrom ggrepel geom_text_repel
 #' @describeIn qtlAim Plot the genetic linkage map with detected QTL overlaid.
 #'   Accepts a single \code{qtlAim} object or multiple models passed as extra
-#'   positional arguments — e.g.
-#'   \code{linkMap(qtl_yld, qtl_tgw, genObj = my_int)} — for a
+#'   positional arguments -- e.g.
+#'   \code{linkMap(qtl_yld, qtl_tgw, genObj = my_int)} -- for a
 #'   multi-trait overlay.  QTL intervals are drawn as coloured fills inside
 #'   the chromosome bar; flanking markers are annotated on the right; trait
 #'   labels sit to the left.  Returns a \code{ggplot} object.
@@ -142,12 +142,12 @@ linkMap.qtlAim <- function(object, ...,
 
         has_qtl <- !vapply(qtl_list, is.null, logical(1L))
         if (!any(has_qtl)) {
-            warning("No QTL found in any model — plotting map only.")
+            warning("No QTL found in any model -- plotting map only.")
             return(invisible(linkMap(genObj, ...)))
         }
         if (!any(has_qtl))
             warning("No QTL in: ",
-                    paste(trait_names[!has_qtl], collapse = ", "), " — omitting.")
+                    paste(trait_names[!has_qtl], collapse = ", "), " -- omitting.")
 
         qtl_df      <- do.call(rbind, qtl_list[has_qtl])
         qtl_df$trait <- factor(qtl_df$trait, levels = trait_names)
@@ -175,14 +175,14 @@ linkMap.qtlAim <- function(object, ...,
         ## --- Restrict to displayed chromosomes -------------------------------
         oc <- qtl_df$chr %in% chr
         if (!all(oc)) {
-            warning("Some QTL on chromosomes not shown — omitting.")
+            warning("Some QTL on chromosomes not shown -- omitting.")
             qtl_df <- qtl_df[oc, , drop = FALSE]
         }
         if (nrow(qtl_df) == 0L) return(invisible(p))
         qtl_df$chr   <- factor(qtl_df$chr, levels = chr)
         qtl_df$fill_col <- qtl_cols[as.character(qtl_df$trait)]
 
-        ## --- QTL layer (colour mapped → legend) ------------------------------
+        ## --- QTL layer (colour mapped -> legend) ------------------------------
         if (qtl_type == "interval") {
             p <- p +
                 ggplot2::geom_segment(
@@ -224,7 +224,7 @@ linkMap.qtlAim <- function(object, ...,
     if (!inherits(genObj, "wgCross"))
         stop("'genObj' must be of class \"wgCross\".")
     if (!length(object$QTL$effects)) {
-        warning("No significant QTL detected — plotting map only.")
+        warning("No significant QTL detected -- plotting map only.")
         return(invisible(linkMap(genObj, ...)))
     }
 
@@ -281,7 +281,7 @@ linkMap.qtlAim <- function(object, ...,
     ## --- Restrict QTL to displayed chromosomes --------------------------------
     oc <- qtl_df$chr %in% chr
     if (!all(oc)) {
-        warning("Some QTL on chromosomes not shown — omitting.")
+        warning("Some QTL on chromosomes not shown -- omitting.")
         qtl_df <- qtl_df[oc, , drop = FALSE]
     }
     if (nrow(qtl_df) == 0L) return(invisible(p))
