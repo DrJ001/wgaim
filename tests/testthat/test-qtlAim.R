@@ -61,8 +61,11 @@ make_validate_return <- function(model, phenoData) {
 # 1. Generic dispatch
 # =============================================================================
 
-test_that("qtlAim() dispatches via UseMethod", {
-    expect_true(isS3stdGeneric(wgAim:::qtlAim))
+test_that("qtlAim() is a function whose body calls UseMethod", {
+    # isS3stdGeneric() is sensitive to how the package is loaded; check the
+    # body directly instead — works identically under load_all() and R CMD check.
+    expect_true(is.function(wgAim:::qtlAim))
+    expect_true(grepl("UseMethod", paste(deparse(body(wgAim:::qtlAim)), collapse = " ")))
 })
 
 test_that("qtlAim.default() stops with 'asreml' message", {

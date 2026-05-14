@@ -51,8 +51,9 @@ make_gp_model <- function(ids       = paste0("L", 1:40),
 # 1. Generic dispatch
 # =============================================================================
 
-test_that("gpAim() dispatches via UseMethod", {
-    expect_true(isS3stdGeneric(wgAim:::gpAim))
+test_that("gpAim() is a function whose body calls UseMethod", {
+    expect_true(is.function(wgAim:::gpAim))
+    expect_true(grepl("UseMethod", paste(deparse(body(wgAim:::gpAim)), collapse = " ")))
 })
 
 test_that("gpAim.default() stops with 'asreml' message", {
