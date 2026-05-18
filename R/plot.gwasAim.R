@@ -89,7 +89,6 @@ plot.gwasAim <- function(x, genObj,
                           type      = c("manhattan", "outlier", "blups",
                                         "effects", "contrast", "heatmap"),
                           data      = NULL,
-                          ncol      = 1L,
                           iter      = NULL,
                           chr       = NULL,
                           chr.lines = FALSE,
@@ -127,8 +126,18 @@ plot.gwasAim <- function(x, genObj,
             stop("data is required for type = \"contrast\".\n",
                  "Pass the phenotypic data frame used in the analysis ",
                  "(e.g. the <response>.data object).")
+        dots     <- list(...)
+        qtl_sel  <- dots[["qtl"]]
+        if (!is.null(x$QTL$Trait)) {
+            ncol_use <- if (!is.null(dots[["ncol"]])) dots[["ncol"]]
+                        else length(x$QTL$trait.levels)
+            cdf <- .build_mv_contrast_df(x, genObj, data, qtl = qtl_sel)
+            return(.plot_contrast(cdf, ncol = ncol_use))
+        }
+        ncol_use <- if (!is.null(dots[["ncol"]])) dots[["ncol"]] else 1L
         cdf <- .build_contrast_df(x, genObj, data)
-        return(.plot_contrast(cdf, ncol = ncol))
+        if (!is.null(qtl_sel)) cdf <- cdf[qtl_sel]
+        return(.plot_contrast(cdf, ncol = ncol_use))
     }
 
     # -------------------------------------------------------------------------

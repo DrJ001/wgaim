@@ -100,7 +100,6 @@ plot.qtlAim <- function(x, genObj,
                          type      = c("outlier", "blups", "chr",
                                        "effects", "contrast", "heatmap"),
                          data      = NULL,
-                         ncol      = 1L,
                          iter      = NULL,
                          chr       = NULL,
                          chr.lines = FALSE,
@@ -134,14 +133,27 @@ plot.qtlAim <- function(x, genObj,
 
     # -------------------------------------------------------------------------
     # contrast: allele contrast plot -- requires data
+    # Type-specific ... args:
+    #   qtl  -- integer vector selecting QTL by genome-order index (default: all)
+    #   ncol -- number of facet columns (default: ntrait for MV, 1 for univariate)
     # -------------------------------------------------------------------------
     if (type == "contrast") {
         if (is.null(data))
             stop("data is required for type = \"contrast\".\n",
                  "Pass the phenotypic data frame used in the analysis ",
                  "(e.g. the <response>.data object).")
+        dots     <- list(...)
+        qtl_sel  <- dots[["qtl"]]
+        if (!is.null(x$QTL$Trait)) {
+            ncol_use <- if (!is.null(dots[["ncol"]])) dots[["ncol"]]
+                        else length(x$QTL$trait.levels)
+            cdf <- .build_mv_contrast_df(x, genObj, data, qtl = qtl_sel)
+            return(.plot_contrast(cdf, ncol = ncol_use))
+        }
+        ncol_use <- if (!is.null(dots[["ncol"]])) dots[["ncol"]] else 1L
         cdf <- .build_contrast_df(x, genObj, data)
-        return(.plot_contrast(cdf, ncol = ncol))
+        if (!is.null(qtl_sel)) cdf <- cdf[qtl_sel]
+        return(.plot_contrast(cdf, ncol = ncol_use))
     }
 
     # -------------------------------------------------------------------------
@@ -1547,4 +1559,236 @@ plot.qtlAim <- function(x, genObj,
                                                       margin = ggplot2::margin(t = 8)),
             legend.position  = "none"
         )
+}
+
+# =============================================================================
+# Shared engine: .build_mv_contrast_df
+#
+# Builds the list of per-panel data frames for the multivariate contrast plot.
+# Reuses the same list format as .build_contrast_df() so .plot_contrast() can
+# render both univariate and multivariate output without modification.
+#
+# Strategy:
+#   1. Find vm and residual genetic terms in object$G.param (whatever variance
+#      structure was fitted in the final model -- diag, corh, fa, etc.).
+#   2. predict() with classify = "Trait:gterm" to get per-(trial x line) BLUPs
+#      for the sum of additive + residual genetic components.
+#   3. Extract QTL effects from the final pruned model (as in summary()).
+#   4. For each unique QTL (genome order):
+#        MAIN:  average BLUPs across trials + beta_MAIN * x_i
+#               one panel:  "Chr . pos [MAIN]\nAll <Trait>s (mean)"
+#        INT:   per-trial BLUPs + beta_t * x_i
+#               ntrait panels: "Chr . pos [INT]\n<TrialName>"
+#   5. Allele scoring identical to the univariate path.
+#
+# Returns a flat list of data frames, one per panel, with attribute is_gwas.
+# =============================================================================
+.build_mv_contrast_df <- function(object, genObj, data, qtl = NULL) {
+    sigma2       <- object$sigma2
+    if (object$vparameters.con[length(object$vparameters.con)] == 4L)
+        sigma2 <- 1
+
+    gen.type     <- object$QTL$type
+    is_gwas      <- inherits(object, "gwasAim")
+    gterm        <- object$QTL$diag$genetic.term
+    Trait        <- object$QTL$Trait
+    trait.levels <- object$QTL$trait.levels
+
+    # ---------------------------------------------------------------
+    # 1.  Locate vm and residual genetic terms in G.param
+    #     (works regardless of variance structure: diag/corh/fa/etc.)
+    # ---------------------------------------------------------------
+    gp_names <- names(object$G.param)
+    vm_only  <- gp_names[grep("vm.*covObj|mbf.*ints", gp_names)]
+    res_only <- gp_names[grep(paste0(":", gterm, "$"), gp_names)]
+    if (length(res_only) == 0L) {
+        # Fallback: Gsave or bare gterm
+        res_lab  <- if ("Gsave" %in% colnames(object$mf)) "Gsave" else gterm
+        res_only <- gp_names[grep(res_lab, gp_names, fixed = TRUE)]
+    }
+    only_terms <- unique(c(vm_only, res_only))
+
+    # ---------------------------------------------------------------
+    # 2.  Predict combined (additive + residual) BLUPs per trial x line
+    # ---------------------------------------------------------------
+    classify_term <- paste(Trait, gterm, sep = ":")
+    pv    <- predict(object, classify = classify_term,
+                     only = only_terms, data = data)
+    g_df  <- pv$pvals[, c(Trait, gterm, "predicted.value"), drop = FALSE]
+    colnames(g_df) <- c("trial", "line", "g_combined")
+    g_df$trial <- as.character(g_df$trial)
+    g_df$line  <- as.character(g_df$line)
+
+    # ---------------------------------------------------------------
+    # 3.  Extract effects from final pruned model (same as summary())
+    # ---------------------------------------------------------------
+    all.fc <- object$coefficients$fixed
+    all.vc <- object$vcoeff$fixed
+    zind   <- grep("X\\.", rownames(all.fc))
+    qtle   <- setNames(rev(all.fc[zind, 1L]), rev(rownames(all.fc)[zind]))
+    veff   <- rev(all.vc[zind])
+
+    enams     <- names(qtle)
+    qtl.x     <- sub("^.*:(X\\..*)$", "\\1", enams)
+    qtl.x[!grepl(":", enams)] <- enams[!grepl(":", enams)]
+    trait.lab <- rep("MAIN", length(enams))
+    int.rows  <- grepl(":", enams)
+    trait.lab[int.rows] <- sub("^(.*):X\\..*$", "\\1", enams[int.rows])
+    prefix    <- paste0(Trait, "_")
+    trait.lab <- gsub(prefix, "", trait.lab, fixed = TRUE)
+
+    # ---------------------------------------------------------------
+    # 4.  Position info and % variance from summary()
+    # ---------------------------------------------------------------
+    summ     <- summary(object, genObj, LOD = FALSE)
+    pos_col  <- if (gen.type == "interval") 6L else 4L
+    chr_summ <- as.character(summ[["Chromosome"]])
+    pos_summ <- as.numeric(summ[, pos_col])
+
+    unique.qtl.x   <- unique(qtl.x)
+    orig.qtl       <- object$QTL$qtl
+    object$QTL$qtl <- sub("^X\\.", "Chr.", qtl.x)
+    qtlm           <- getQTL(object, genObj)
+    object$QTL$qtl <- orig.qtl
+
+    chr_vals <- vapply(unique.qtl.x, function(uq) {
+        i <- which(qtl.x == uq)[1L]
+        match(as.character(qtlm[i, 1L]), names(genObj$geno))
+    }, integer(1L))
+    pos_vals <- vapply(unique.qtl.x, function(uq) {
+        i <- which(qtl.x == uq)[1L]
+        as.numeric(if (gen.type == "interval") qtlm[i, 6L] else qtlm[i, 4L])
+    }, numeric(1L))
+    uq_ordered <- unique.qtl.x[order(chr_vals * 1e6 + pos_vals)]
+
+    # Apply qtl selection: integer indices into genome-ordered list
+    if (!is.null(qtl)) {
+        if (any(qtl > length(uq_ordered) | qtl < 1L))
+            stop("qtl indices out of range: object has ",
+                 length(uq_ordered), " detected QTL.")
+        uq_ordered <- uq_ordered[qtl]
+    }
+
+    # ---------------------------------------------------------------
+    # 5.  Per-QTL assembly
+    # ---------------------------------------------------------------
+    result_list <- lapply(uq_ordered, function(uq) {
+        idx    <- which(qtl.x == uq)
+        is.int <- any(trait.lab[idx] != "MAIN")
+
+        i_first <- idx[1L]
+        chr_k   <- as.character(qtlm[i_first, 1L])
+        pos_cM  <- as.numeric(if (gen.type == "interval") qtlm[i_first, 6L]
+                              else                         qtlm[i_first, 4L])
+        idx_k   <- as.integer(qtlm[i_first, 2L])
+        tag     <- if (is.int) "[INT]" else "[MAIN]"
+
+        # % variance: first matching summary row by chr + cM
+        j      <- which(chr_summ == chr_k & abs(pos_summ - pos_cM) < 0.1)
+        pv_val <- if (length(j) > 0L) summ[["Perc.Var"]][j[1L]] else NA_real_
+
+        # ---- Allele scoring (identical to univariate .build_contrast_df) ----
+        if (is_gwas) {
+            col_x <- uq
+            if (!col_x %in% names(data)) return(NULL)
+            raw_score  <- data[[col_x]]
+            line_ids_i <- as.character(data[[gterm]])
+            score_df   <- stats::aggregate(raw_score ~ line_ids_i, FUN = mean)
+            colnames(score_df) <- c("line", "score")
+            score_df$allele_class <- factor(
+                as.character(round(score_df$score)),
+                levels = c("-1", "0", "1"), labels = c("0", "1", "2"))
+            allele_cols <- c("0" = "steelblue", "1" = "grey60",
+                             "2" = "firebrick")
+        } else {
+            geno_mat <- if (gen.type == "interval")
+                genObj$geno[[chr_k]]$interval.data
+            else
+                genObj$geno[[chr_k]]$imputed.data
+            imp_vec  <- geno_mat[, idx_k]
+            score_df <- data.frame(
+                line  = rownames(geno_mat),
+                score = as.numeric(imp_vec),
+                stringsAsFactors = FALSE)
+            score_df$allele_class <- factor(
+                ifelse(score_df$score < 0, "B (\u22121)", "A (+1)"),
+                levels = c("B (\u22121)", "A (+1)"))
+            allele_cols <- c("B (\u22121)" = "steelblue",
+                             "A (+1)"     = "firebrick")
+        }
+
+        if (!is.int) {
+            # ---- MAIN QTL: average BLUPs across trials ----
+            g_mean <- stats::aggregate(g_combined ~ line,
+                                       data = g_df, FUN = mean)
+
+            eff   <- qtle[idx[1L]]
+            se_i  <- sqrt(veff[idx[1L]] * sigma2)
+
+            # QTL contribution: beta_MAIN * x_i per line
+            contrib <- data.frame(
+                line        = score_df$line,
+                qtl_contrib = eff * score_df$score,
+                stringsAsFactors = FALSE)
+
+            merged <- merge(g_mean, contrib, by = "line", all.x = TRUE)
+            merged$total_genetic <- merged$g_combined + merged$qtl_contrib
+
+            out <- merge(merged[, c("line", "total_genetic")],
+                         score_df[, c("line", "score", "allele_class")],
+                         by = "line")
+
+            eff_txt <- sprintf(
+                "Effect: %+.3f \u00b1 %.3f  (%s%%  var)",
+                eff, se_i, pv_val)
+
+            out$facet_label     <- paste0(chr_k, " \u00b7 ",
+                                          round(pos_cM, 1), " cM  ", tag,
+                                          "\nAll ", Trait, "s (mean)")
+            out$effect_txt      <- eff_txt
+            out$allele_cols_map <- list(allele_cols)
+            list(out)
+
+        } else {
+            # ---- INT QTL: one panel per trial ----
+            lapply(trait.levels, function(tname) {
+                g_trial <- g_df[g_df$trial == tname,
+                                c("line", "g_combined"), drop = FALSE]
+
+                i_t <- idx[trait.lab[idx] == tname]
+                if (length(i_t) == 0L) return(NULL)
+                eff_t <- qtle[i_t]
+                se_t  <- sqrt(veff[i_t] * sigma2)
+
+                contrib <- data.frame(
+                    line        = score_df$line,
+                    qtl_contrib = eff_t * score_df$score,
+                    stringsAsFactors = FALSE)
+
+                merged <- merge(g_trial, contrib, by = "line", all.x = TRUE)
+                merged$total_genetic <- merged$g_combined + merged$qtl_contrib
+
+                out <- merge(merged[, c("line", "total_genetic")],
+                             score_df[, c("line", "score", "allele_class")],
+                             by = "line")
+
+                eff_txt <- sprintf(
+                    "Effect: %+.3f \u00b1 %.3f  (%s%%  var)",
+                    eff_t, se_t, pv_val)
+
+                out$facet_label     <- paste0(chr_k, " \u00b7 ",
+                                              round(pos_cM, 1), " cM  ", tag,
+                                              "\n", tname)
+                out$effect_txt      <- eff_txt
+                out$allele_cols_map <- list(allele_cols)
+                out
+            })
+        }
+    })
+
+    # Flatten one level (each QTL returns a list of panels)
+    flat <- do.call(c, result_list)
+    flat <- flat[!sapply(flat, is.null)]
+    attr(flat, "is_gwas") <- is_gwas
+    flat
 }
