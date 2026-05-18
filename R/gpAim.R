@@ -270,89 +270,32 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     genetic.term <- fl$genetic.term
 
     # -------------------------------------------------------------------------
-    # Phase 3: Fit GP model -- vm or mbf path
+    # Phase 3: Fit GP model via .buildGenomeModel()
     #
-    # vm  path (markers > lines): G = XX' is full rank; fit vm(line, G).
-    # mbf path (lines >= markers): G is singular; fit marker effects directly
-    #                              via mbf(), then GEBVs = M %*% q.hat.
+    # .buildGenomeModel() matches the qtlAim/gwasAim pattern:
+    #   - Reads the residual genetic term (containing merge.by) from the base
+    #     model random formula and retains it alongside the new genomic vm/mbf
+    #     term, so the fitted model is:
+    #       random = ~ [prefix]:vm(merge.by, covObj) + [prefix]:merge.by
+    #     The residual genetic term captures line-level effects not explained
+    #     by the marker panel (polygenic background + ungenotyped lines).
+    #   - Handles vm vs mbf path selection (vm when markers > lines, mbf
+    #     otherwise, overridden by force = TRUE).
+    #   - For MV: starts with diag(Trait):vm(), then upgrades based on the
+    #     residual structure and n.fa (diag -> corh for ntrait=2; diag ->
+    #     fa(1) -> ... -> fa(n.fa) for ntrait>=3).
+    #   - Assigns covObj to caller.env.
     # -------------------------------------------------------------------------
     n.markers    <- ncol(genoData)
     n.lines.geno <- nrow(genoData)
-    # For MV, always use the vm path: predict() gives clean per-trial GEBVs
-    # directly, whereas the mbf stacked-coefficient approach requires knowing
-    # ASReml's exact trial ordering.
-    use.vm <- if (is.mv) TRUE else (n.markers > n.lines.geno) & !force
-
-    gpModel           <- baseModel
-    gpModel$call$data <- quote(phenoData)
-
-    if (use.vm) {
-        cat(sprintf("\nvm path: building relationship matrix (%d markers %s %d lines)...\n",
-                    n.markers, if (n.markers > n.lines.geno) ">" else ">=", n.lines.geno))
-        cov.env  <- .constructCM(genoData)
-        covObj   <- cov.env$relm
-        assign("covObj", covObj, envir = caller.env)
-
-        if (!is.mv) {
-            vmterm   <- paste0("vm(", merge.by, ", covObj)")
-            ran.form <- as.formula(paste(c("~", vmterm, rterms), collapse = " + "))
-        } else {
-            # Multivariate: start with diag(Trait):vm(), then upgrade
-            vmterm   <- paste0("diag(", Trait, "):vm(", merge.by, ", covObj)")
-            ran.form <- as.formula(paste(c("~", vmterm, rterms), collapse = " + "))
-        }
-    } else {
-        cat(sprintf("\nmbf path: fitting marker effects directly (%d lines >= %d markers)...\n",
-                    n.lines.geno, n.markers))
-        cov.env  <- NULL
-        covObj   <- cbind.data.frame(rownames(genoData), genoData)
-        names(covObj)[1] <- merge.by
-        gpModel$call$mbf$markers$key <- rep(merge.by, 2)
-        gpModel$call$mbf$markers$cov <- "covObj"
-        assign("covObj", covObj, envir = caller.env)
-        ran.form <- as.formula(paste(c("~ mbf('markers')", rterms), collapse = " + "))
-    }
-
     cat("Fitting Genomic Prediction model...\n")
-    gpModel <- update(gpModel, random. = ran.form, ...)
-
-    # ------------------------------------------------------------------
-    # MV upgrade loop: diag(Trait) -> corh(Trait) or fa(Trait,1..n.fa)
-    # Mirrors the pattern used in .buildGenomeModel() for qtlAim/gwasAim.
-    # The residual (non-genomic) terms in rterms are never touched.
-    # ------------------------------------------------------------------
-    if (is.mv && n.fa >= 1L) {
-        vmterm.cur <- vmterm
-        if (ntrait == 2L) {
-            # diag(Trait) -> corh(Trait)
-            vmterm.new <- sub(paste0("^diag\\(", Trait, "\\):"),
-                              paste0("corh(", Trait, "):"), vmterm.cur)
-            ran.form   <- as.formula(paste(c("~", vmterm.new, rterms),
-                                           collapse = " + "))
-            message("\nGP x ", Trait, " corh Variance Model.")
-            cat("===============================================\n")
-            gpModel    <- update(gpModel, random. = ran.form, ...)
-            vmterm     <- vmterm.new
-        } else {
-            # diag(Trait) -> fa(Trait,1) -> ... -> fa(Trait,n.fa)
-            for (k in seq_len(n.fa)) {
-                old.pat   <- if (k == 1L)
-                    paste0("^diag\\(", Trait, "\\):")
-                else
-                    paste0("^fa\\(", Trait, ",\\s*", k - 1L, "\\):")
-                new.pfx   <- paste0("fa(", Trait, ",", k, "):")
-                vmterm.new <- sub(old.pat, new.pfx, vmterm.cur)
-                ran.form   <- as.formula(paste(c("~", vmterm.new, rterms),
-                                               collapse = " + "))
-                message("\nGP x ", Trait, " Factor Analytic(", k,
-                        ") Variance Model.")
-                cat("===================================================\n")
-                gpModel    <- update(gpModel, random. = ran.form, ...)
-                vmterm.cur <- vmterm.new
-            }
-            vmterm <- vmterm.cur
-        }
-    }
+    gm      <- .buildGenomeModel(baseModel, genoData, phenoData, merge.by,
+                                  genObj, force, rterms, caller.env,
+                                  Trait = Trait, n.fa = n.fa, ...)
+    gpModel <- gm$qtlModel
+    cov.env <- gm$cov.env     # NULL for mbf path
+    use.vm  <- gm$vm
+    vmterm  <- gm$vmterms[1L] # genomic term label; [2] = residual genetic term
 
     # -------------------------------------------------------------------------
     # Extract GEBVs and compute variance components
@@ -363,10 +306,12 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
         sigma2 <- 1
 
     if (use.vm) {
+        # Internal G.param name for the vm term (works for any variance prefix)
+        vm_only <- names(gpModel$G.param)[grep("vm.*covObj", names(gpModel$G.param))]
         if (!is.mv) {
             # Univariate vm: predict GEBVs directly
-            pv   <- predict(gpModel, classify = merge.by, only = vmterm,
-                            vcov = FALSE, data = phenoData)
+            pv   <- predict(gpModel, classify = vm_only,
+                            only = vm_only, vcov = FALSE, data = phenoData)
             pvdf <- pv$pvals
             gebv <- data.frame(
                 pvdf[[merge.by]],
@@ -380,11 +325,9 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
             var.resid   <- sigma2
         } else {
             # MV vm: predict per-trial GEBVs via classify = "Trait:merge.by"
-            vm_internal   <- names(gpModel$G.param)[
-                grep("vm.*covObj", names(gpModel$G.param))]
             classify.term <- paste(Trait, merge.by, sep = ":")
             pv   <- predict(gpModel, classify = classify.term,
-                            only = vm_internal, vcov = FALSE, data = phenoData)
+                            only = vm_only, vcov = FALSE, data = phenoData)
             ord  <- order(pv$pvals[[Trait]], pv$pvals[[merge.by]])
             pvdf <- pv$pvals[ord, ]
             gebv <- data.frame(
@@ -419,7 +362,7 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
             stringsAsFactors = FALSE
         )
         names(gebv) <- c(genetic.term, "GEBV", "SE")
-        vpar.mbf    <- gpModel$vparameters[grep("mbf.*markers", names(gpModel$vparameters))]
+        vpar.mbf    <- gpModel$vparameters[grep("mbf", names(gpModel$vparameters))]
         var.genetic <- sigma2 * vpar.mbf * mean(rowSums(genoData^2), na.rm = TRUE)
         var.resid   <- sigma2
     }
@@ -454,11 +397,12 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     # vm path: already computed; mbf path: compute M %*% M' / scale on demand.
     if (use.vm) {
         rel.matrix <- cov.env$relm
+        rel.scale  <- cov.env$scale
     } else {
         tg         <- t(genoData)
         relm.raw   <- crossprod(tg)
-        rel.scale2 <- mean(diag(relm.raw))
-        rel.matrix <- relm.raw / rel.scale2
+        rel.scale  <- mean(diag(relm.raw))
+        rel.matrix <- relm.raw / rel.scale
     }
 
     gp.list <- list(
@@ -470,7 +414,7 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
         var.resid      = if (!is.mv) as.numeric(var.resid)   else var.resid,
         heritability   = h2,
         n.markers      = n.markers,
-        rel.scale      = if (use.vm) cov.env$scale else rel.scale2,
+        rel.scale      = rel.scale,
         rel.matrix     = rel.matrix,
         genetic.term   = genetic.term,
         # Multivariate slots (NULL for univariate)
