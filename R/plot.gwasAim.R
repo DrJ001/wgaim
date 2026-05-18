@@ -114,6 +114,10 @@ plot.gwasAim <- function(x, genObj,
     # effects / contrast: delegate to shared helpers in plot.qtlAim.R
     # -------------------------------------------------------------------------
     if (type == "effects") {
+        if (!is.null(x$QTL$Trait)) {
+            edf <- .build_mv_effects_df(x, genObj)
+            return(.plot_mv_effects(edf, x))
+        }
         edf <- .build_effects_df(x, genObj)
         return(.plot_effects(edf))
     }

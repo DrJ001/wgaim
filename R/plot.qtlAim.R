@@ -124,6 +124,10 @@ plot.qtlAim <- function(x, genObj,
     # effects: lollipop plot -- no iter/chr needed
     # -------------------------------------------------------------------------
     if (type == "effects") {
+        if (!is.null(x$QTL$Trait)) {
+            edf <- .build_mv_effects_df(x, genObj)
+            return(.plot_mv_effects(edf, x))
+        }
         edf <- .build_effects_df(x, genObj)
         return(.plot_effects(edf))
     }
@@ -1284,4 +1288,263 @@ plot.qtlAim <- function(x, genObj,
             hjust       = 0.5,
             lineheight  = 0.85,
             inherit.aes = FALSE)
+}
+
+# =============================================================================
+# Shared engine: .build_mv_effects_df
+#
+# Builds the data frame for the multivariate effects lollipop plot (Option A).
+# One row per (QTL x trial combination):
+#   MAIN QTL  -- one row,  trial = "all trials"
+#   INT QTL   -- one row per trait level, trial = trait level name
+#
+# Columns returned:
+#   qtl_key   -- "X.CHR.IDX" key
+#   qtl_label -- facet strip label "CHR . POS cM  [MAIN|INT]"
+#   y_row     -- y-axis factor: "all trials" or trial name
+#   chr / pos_cM -- genomic position
+#   effect / se / lo / hi -- estimate and +/- 1 SE
+#   perc_var  -- % variance (same value for all rows of same QTL)
+#   trial     -- "all trials" (MAIN) or trait level name (INT)
+#   is_int    -- logical: TRUE = interaction QTL
+#   show_pv   -- logical: TRUE on the row with largest |effect| per QTL
+#                (this row gets the % var annotation)
+# =============================================================================
+.build_mv_effects_df <- function(object, genObj) {
+    sigma2   <- object$sigma2
+    if (object$vparameters.con[length(object$vparameters.con)] == 4L)
+        sigma2 <- 1
+    gen.type     <- object$QTL$type
+    trait.levels <- object$QTL$trait.levels
+
+    # Coefficients from final pruned model (identical extraction to summary())
+    all.fc <- object$coefficients$fixed
+    all.vc <- object$vcoeff$fixed
+    zind   <- grep("X\\.", rownames(all.fc))
+    qtle   <- setNames(rev(all.fc[zind, 1L]), rev(rownames(all.fc)[zind]))
+    veff   <- rev(all.vc[zind])
+    se     <- sqrt(veff * sigma2)
+
+    # Map each coefficient to its QTL key and trial label
+    enams     <- names(qtle)
+    qtl.x     <- sub("^.*:(X\\..*)$", "\\1", enams)
+    qtl.x[!grepl(":", enams)] <- enams[!grepl(":", enams)]
+    trait.lab <- rep("MAIN", length(enams))
+    int.rows  <- grepl(":", enams)
+    trait.lab[int.rows] <- sub("^(.*):X\\..*$", "\\1", enams[int.rows])
+    prefix    <- paste0(object$QTL$Trait, "_")
+    trait.lab <- gsub(prefix, "", trait.lab, fixed = TRUE)
+
+    # % variance and positions from summary()
+    summ    <- summary(object, genObj, LOD = FALSE)
+    # With Trait column prepended: interval pos = col 6, marker pos = col 4
+    pos_col <- if (gen.type == "interval") 6L else 4L
+    chr_summ <- as.character(summ[["Chromosome"]])
+    pos_summ <- as.numeric(summ[, pos_col])
+
+    # Position info from getQTL()
+    orig.qtl       <- object$QTL$qtl
+    object$QTL$qtl <- sub("^X\\.", "Chr.", qtl.x)
+    qtlm           <- getQTL(object, genObj)
+    object$QTL$qtl <- orig.qtl
+
+    # Unique QTL in genome order
+    unique.qtl.x <- unique(qtl.x)
+    chr_vals <- vapply(unique.qtl.x, function(uq) {
+        i <- which(qtl.x == uq)[1L]
+        match(as.character(qtlm[i, 1L]), names(genObj$geno))
+    }, integer(1L))
+    pos_vals <- vapply(unique.qtl.x, function(uq) {
+        i <- which(qtl.x == uq)[1L]
+        as.numeric(if (gen.type == "interval") qtlm[i, 6L] else qtlm[i, 4L])
+    }, numeric(1L))
+    uq_ordered <- unique.qtl.x[order(chr_vals * 1e6 + pos_vals)]
+
+    rows <- lapply(uq_ordered, function(uq) {
+        idx    <- which(qtl.x == uq)
+        is.int <- any(trait.lab[idx] != "MAIN")
+
+        i_first <- idx[1L]
+        chr     <- as.character(qtlm[i_first, 1L])
+        pos_cM  <- as.numeric(if (gen.type == "interval") qtlm[i_first, 6L]
+                              else                         qtlm[i_first, 4L])
+        tag       <- if (is.int) "[INT]" else "[MAIN]"
+        qtl_label <- paste0(chr, " \u00b7 ", round(pos_cM, 1), " cM  ", tag)
+
+        # % variance: first matching row by chr + cM position
+        j  <- which(chr_summ == chr & abs(pos_summ - pos_cM) < 0.1)
+        pv <- if (length(j) > 0L) summ[["Perc.Var"]][j[1L]] else NA_real_
+
+        if (!is.int) {
+            # MAIN: one row
+            data.frame(
+                qtl_key   = uq,
+                qtl_label = qtl_label,
+                y_row     = "all trials",
+                chr       = chr,
+                pos_cM    = pos_cM,
+                effect    = qtle[idx[1L]],
+                se        = se[idx[1L]],
+                lo        = qtle[idx[1L]] - se[idx[1L]],
+                hi        = qtle[idx[1L]] + se[idx[1L]],
+                perc_var  = pv,
+                trial     = "all trials",
+                is_int    = FALSE,
+                stringsAsFactors = FALSE
+            )
+        } else {
+            # INT: one row per trial in trait.levels order
+            do.call(rbind, lapply(trait.levels, function(tname) {
+                i_t <- idx[trait.lab[idx] == tname]
+                if (length(i_t) == 0L) return(NULL)
+                eff <- qtle[i_t]; se_t <- se[i_t]
+                data.frame(
+                    qtl_key   = uq,
+                    qtl_label = qtl_label,
+                    y_row     = tname,
+                    chr       = chr,
+                    pos_cM    = pos_cM,
+                    effect    = eff,
+                    se        = se_t,
+                    lo        = eff - se_t,
+                    hi        = eff + se_t,
+                    perc_var  = pv,
+                    trial     = tname,
+                    is_int    = TRUE,
+                    stringsAsFactors = FALSE
+                )
+            }))
+        }
+    })
+
+    df <- do.call(rbind, rows)
+
+    # y_row factor: "all trials" first (bottom), then trait levels top to bottom
+    df$y_row <- factor(df$y_row, levels = c(rev(trait.levels), "all trials"))
+
+    # qtl_label factor: genome order (controls facet top-to-bottom order)
+    qtl_labels_ord <- vapply(uq_ordered,
+                             function(uq) df$qtl_label[df$qtl_key == uq][1L],
+                             character(1L))
+    df$qtl_label <- factor(df$qtl_label, levels = qtl_labels_ord)
+
+    # Flag the row with the largest |effect| per QTL for the % var annotation
+    df$show_pv <- FALSE
+    for (uq in uq_ordered) {
+        i_grp          <- which(df$qtl_key == uq)
+        i_max          <- i_grp[which.max(abs(df$effect[i_grp]))]
+        df$show_pv[i_max] <- TRUE
+    }
+    df
+}
+
+# =============================================================================
+# Shared engine: .plot_mv_effects
+#
+# Horizontal lollipop plot for multivariate QTL/marker effects (Option A).
+#
+# Layout:
+#   facet_grid(qtl_label ~ ., scales="free_y", space="free_y") -- one panel
+#     per QTL; panel height proportional to number of trial rows
+#   y-axis  : trial names ("all trials" for MAIN, level names for INT)
+#   x-axis  : additive effect estimate
+#   Colour  : MAIN rows in grey; INT rows coloured by trial (Dark 2 palette)
+#             Legend shows trial names only (breaks = trait.levels)
+#   % var   : annotated at the tip of the row with the largest |effect| per QTL
+#   Facet strips (right): "CHR . POS cM [MAIN]" / "[INT]" labels, angle=0
+# =============================================================================
+.plot_mv_effects <- function(edf, object) {
+    # Direction colour: firebrick = A allele favoured (+1),
+    #                   steelblue = B allele favoured (-1)
+    # Matches the univariate effects plot convention.
+    edf$dir_col    <- ifelse(edf$effect >= 0, "firebrick", "steelblue")
+
+    # % variance annotation: one label per QTL on the max-|effect| row
+    pv_df             <- edf[edf$show_pv, ]
+    pv_df$label_x     <- ifelse(pv_df$effect >= 0, pv_df$hi, pv_df$lo)
+    pv_df$label_hjust <- ifelse(pv_df$effect >= 0, -0.35, 1.35)
+    pv_df$pv_label    <- paste0(pv_df$perc_var, "%")
+
+    # QTL label data frame: one row per facet, for top-right annotation
+    qtl_label_df <- data.frame(
+        qtl_label = levels(edf$qtl_label),
+        stringsAsFactors = FALSE
+    )
+    qtl_label_df$qtl_label <- factor(qtl_label_df$qtl_label,
+                                      levels = levels(edf$qtl_label))
+
+    x_sub <- paste0(
+        "Additive Effect  \u2014  ",
+        "firebrick = A allele favoured (+1),  ",
+        "steelblue = B allele favoured (\u22121)")
+
+    ggplot2::ggplot(edf,
+        ggplot2::aes(y = .data$y_row, x = .data$effect,
+                     colour = .data$dir_col)) +
+
+        ggplot2::facet_grid(qtl_label ~ .,
+                            scales = "free_y", space = "free_y") +
+
+        # Zero reference line
+        ggplot2::geom_vline(xintercept = 0, colour = "grey50",
+                            linewidth = 0.5, linetype = "dashed") +
+
+        # Stems (0 to estimate)
+        ggplot2::geom_segment(
+            ggplot2::aes(y    = .data$y_row, yend = .data$y_row,
+                         x    = 0,           xend = .data$effect),
+            linewidth = 0.8, show.legend = FALSE) +
+
+        # +/- 1 SE error bars
+        ggplot2::geom_errorbar(
+            ggplot2::aes(xmin = .data$lo, xmax = .data$hi),
+            width = 0.3, linewidth = 0.7, show.legend = FALSE) +
+
+        # Lollipop heads
+        ggplot2::geom_point(size = 3.5, show.legend = FALSE) +
+
+        # % variance label at the tip of the largest-|effect| row per QTL
+        ggplot2::geom_text(
+            data        = pv_df,
+            ggplot2::aes(x     = .data$label_x,
+                         y     = .data$y_row,
+                         label = .data$pv_label,
+                         hjust = .data$label_hjust),
+            size        = 3,
+            colour      = "grey30",
+            show.legend = FALSE,
+            inherit.aes = FALSE) +
+
+        # QTL label: top-right corner of each panel, no strip box
+        ggplot2::geom_text(
+            data        = qtl_label_df,
+            ggplot2::aes(label = .data$qtl_label),
+            x           = Inf,
+            y           = Inf,
+            hjust       = 1.05,
+            vjust       = 1.2,
+            size        = 2.8,
+            colour      = "grey20",
+            fontface    = "bold",
+            inherit.aes = FALSE) +
+
+        ggplot2::scale_colour_identity() +
+
+        ggplot2::scale_x_continuous(
+            expand = ggplot2::expansion(mult = c(0.2, 0.2))) +
+
+        ggplot2::xlab(x_sub) +
+        ggplot2::ylab("") +
+        ggplot2::coord_cartesian(clip = "off") +
+        theme_scatter() +
+        ggplot2::theme(
+            strip.background = ggplot2::element_blank(),
+            strip.text       = ggplot2::element_blank(),
+            panel.spacing    = ggplot2::unit(0.8, "lines"),
+            axis.text.y      = ggplot2::element_text(size = 8),
+            axis.title.x     = ggplot2::element_text(size = 7.5,
+                                                      colour = "grey40",
+                                                      margin = ggplot2::margin(t = 8)),
+            legend.position  = "none"
+        )
 }
