@@ -116,11 +116,17 @@ plot.gpAim <- function(x,
         return(.plot_gp_blups(gp, genObj, pt.col, pt.cex))
     }
 
+    is.mv <- !is.null(gp$Trait)
     switch(type,
-        caterpillar = .plot_gp_caterpillar(gp, alpha, top.n, threshold,
-                                           prop.select, pt.col, pt.cex),
+        caterpillar = if (!is.mv)
+            .plot_gp_caterpillar(gp, alpha, top.n, threshold, prop.select, pt.col, pt.cex)
+        else
+            .plot_gp_caterpillar_mv(gp, alpha, top.n, threshold, prop.select, pt.col, pt.cex),
         heatmap     = .plot_gp_heatmap(gp, pt.col),
-        density     = .plot_gp_density(gp, threshold, prop.select, pt.col)
+        density     = if (!is.mv)
+            .plot_gp_density(gp, threshold, prop.select, pt.col)
+        else
+            .plot_gp_density_mv(gp, threshold, prop.select, pt.col)
     )
 }
 
@@ -440,4 +446,143 @@ plot.gpAim <- function(x,
     } else {
         quantile(gebv.vals, 1 - prop.select, names = FALSE)
     }
+}
+
+# =============================================================================
+# MV helper: caterpillar plot faceted by trial
+# =============================================================================
+.plot_gp_caterpillar_mv <- function(gp, alpha, top.n, threshold, prop.select,
+                                     pt.col, pt.cex) {
+    Trait <- gp$Trait
+    t.val <- qnorm(1 - alpha / 2)
+
+    df_list <- lapply(gp$trait.levels, function(tname) {
+        sub        <- gp$gebv[gp$gebv[[Trait]] == tname, ]
+        sub        <- sub[order(sub$GEBV), ]
+        n          <- nrow(sub)
+        sub$rank   <- seq_len(n)
+        sub$half.hsd <- t.val * sub$SE / sqrt(2)
+        sub$lower  <- sub$GEBV - sub$half.hsd
+        sub$upper  <- sub$GEBV + sub$half.hsd
+        thr        <- .gp_threshold(sub$GEBV, threshold, prop.select)
+        sub$thr    <- thr
+        sub$col    <- ifelse(sub$GEBV >= thr, pt.col[1], pt.col[2])
+        sub[[Trait]] <- tname
+        sub
+    })
+    df       <- do.call(rbind, df_list)
+    df[[Trait]] <- factor(df[[Trait]], levels = gp$trait.levels)
+
+    # Half-HSD bars for top.n and bottom.n lines per trial
+    bar.df <- do.call(rbind, lapply(df_list, function(sub) {
+        n     <- nrow(sub)
+        top.k <- min(top.n, floor(n / 2))
+        sub[c(seq_len(top.k), (n - top.k + 1L):n), ]
+    }))
+    bar.df[[Trait]] <- factor(bar.df[[Trait]], levels = gp$trait.levels)
+
+    thr.df <- unique(df[, c(Trait, "thr")])
+
+    ggplot2::ggplot(df,
+        ggplot2::aes(x = .data$rank, y = .data$GEBV,
+                     colour = .data$col)) +
+        ggplot2::facet_wrap(
+            stats::as.formula(paste("~", Trait)), scales = "free") +
+        ggplot2::geom_hline(yintercept = 0, colour = "grey70",
+                            linewidth = 0.3) +
+        ggplot2::geom_hline(
+            data        = thr.df,
+            ggplot2::aes(yintercept = .data$thr),
+            colour      = pt.col[1], linewidth = 0.5, linetype = "dashed",
+            inherit.aes = FALSE) +
+        ggplot2::geom_point(size = pt.cex, show.legend = FALSE) +
+        ggplot2::geom_errorbar(
+            data = bar.df,
+            ggplot2::aes(ymin = .data$lower, ymax = .data$upper),
+            width = 0, linewidth = 0.4, alpha = 0.7,
+            show.legend = FALSE) +
+        ggplot2::scale_colour_identity() +
+        ggplot2::labs(
+            x     = "Line rank (within trial)",
+            y     = "GEBV",
+            title = sprintf("Genomic Estimated Breeding Values  [%s path]",
+                            gp$path)) +
+        theme_scatter()
+}
+
+# =============================================================================
+# MV helper: density plot faceted by trial
+# =============================================================================
+.plot_gp_density_mv <- function(gp, threshold, prop.select, pt.col) {
+    Trait <- gp$Trait
+
+    df_list <- lapply(gp$trait.levels, function(tname) {
+        sub       <- gp$gebv[gp$gebv[[Trait]] == tname, ]
+        vals      <- sub$GEBV
+        thr       <- .gp_threshold(vals, threshold, prop.select)
+        n.sel     <- sum(vals >= thr)
+        prop.sel  <- n.sel / length(vals)
+        sel.dif   <- mean(vals[vals >= thr]) - mean(vals)
+        h2.t      <- gp$heritability[tname]
+
+        dens     <- density(vals)
+        dens.df  <- data.frame(x = dens$x, y = dens$y, trial = tname,
+                               stringsAsFactors = FALSE)
+        shade    <- dens.df[dens.df$x >= thr, ]
+        shade    <- rbind(
+            data.frame(x = thr, y = 0, trial = tname),
+            shade,
+            data.frame(x = max(shade$x), y = 0, trial = tname))
+
+        ann <- sprintf("n=%d (%.0f%%)\nSel.dif=%+.3f\nh\u00b2=%.3f",
+                       n.sel, 100 * prop.sel, sel.dif, h2.t)
+        list(dens = dens.df, shade = shade, thr = thr,
+             max.y = max(dens$y), ann.x = min(dens$x), ann = ann)
+    })
+
+    all.dens  <- do.call(rbind, lapply(df_list, `[[`, "dens"))
+    all.shade <- do.call(rbind, lapply(df_list, `[[`, "shade"))
+    thr.df    <- data.frame(
+        trial = gp$trait.levels,
+        thr   = sapply(df_list, `[[`, "thr"),
+        stringsAsFactors = FALSE)
+    ann.df <- data.frame(
+        trial = gp$trait.levels,
+        x     = sapply(df_list, `[[`, "ann.x"),
+        y     = sapply(df_list, `[[`, "max.y") * 0.95,
+        label = sapply(df_list, `[[`, "ann"),
+        stringsAsFactors = FALSE)
+
+    for (df in list(all.dens, all.shade, thr.df, ann.df))
+        df$trial <- factor(df$trial, levels = gp$trait.levels)
+    all.dens$trial  <- factor(all.dens$trial,  levels = gp$trait.levels)
+    all.shade$trial <- factor(all.shade$trial, levels = gp$trait.levels)
+    thr.df$trial    <- factor(thr.df$trial,    levels = gp$trait.levels)
+    ann.df$trial    <- factor(ann.df$trial,    levels = gp$trait.levels)
+
+    ggplot2::ggplot() +
+        ggplot2::facet_wrap(~ trial, scales = "free") +
+        ggplot2::geom_polygon(
+            data = all.shade,
+            ggplot2::aes(x = .data$x, y = .data$y, group = .data$trial),
+            fill = pt.col[1], alpha = 0.25) +
+        ggplot2::geom_line(
+            data = all.dens,
+            ggplot2::aes(x = .data$x, y = .data$y),
+            colour = "grey30", linewidth = 0.7) +
+        ggplot2::geom_vline(
+            data        = thr.df,
+            ggplot2::aes(xintercept = .data$thr),
+            colour      = pt.col[1], linetype = "dashed",
+            linewidth   = 0.7, inherit.aes = FALSE) +
+        ggplot2::geom_text(
+            data        = ann.df,
+            ggplot2::aes(x = .data$x, y = .data$y, label = .data$label),
+            hjust = 0, vjust = 1, size = 2.8, colour = "grey20",
+            inherit.aes = FALSE) +
+        ggplot2::labs(
+            x     = "GEBV",
+            y     = "Density",
+            title = sprintf("GEBV Distribution  [%s path]", gp$path)) +
+        theme_scatter()
 }
