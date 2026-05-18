@@ -840,16 +840,32 @@ test_that("gwasAim: Trait column not in phenoData triggers stop", {
 # =============================================================================
 
 test_that("summary.qtlAim: Trait column present when object$QTL$Trait non-NULL", {
-    obj  <- make_mock_qtlAim()
-    # Inject a Trait slot
-    obj$QTL$Trait <- "Site"
-    # Rename effects to include an interaction row
-    old_eff  <- obj$QTL$effects
-    qtl_key  <- names(old_eff)[1]
-    int_key  <- paste0("Site_B:", qtl_key)
-    obj$QTL$effects  <- c(old_eff, setNames(0.3, int_key))
-    obj$QTL$veffects <- c(obj$QTL$veffects, setNames(0.03, int_key))
+    obj    <- make_mock_qtlAim()
     genObj <- make_wgCross_interval()
+
+    qtl_key  <- names(obj$QTL$effects)[1]   # e.g. "X.C2.2"
+    int_key  <- paste0("Site_B:", qtl_key)  # "Site_B:X.C2.2"
+    eff_val  <- obj$QTL$effects[[1]]
+    veff_val <- obj$QTL$veffects[[1]]
+
+    # Inject multivariate slots
+    obj$QTL$Trait        <- "Site"
+    obj$QTL$trait.levels <- c("A", "B")
+
+    # summary.qtlAim for MV reads from coefficients$fixed / vcoeff$fixed
+    # (not QTL$effects / QTL$veffects -- changed in Session 24 bug fixes).
+    # Rows with "X." in their name are the QTL terms; "(Intercept)" is skipped.
+    obj$coefficients$fixed <- matrix(
+        c(5.0, eff_val, 0.3), ncol = 1,
+        dimnames = list(c("(Intercept)", qtl_key, int_key), "effect"))
+    obj$vcoeff <- list(
+        fixed = setNames(c(0.01, veff_val, 0.03),
+                         c("(Intercept)", qtl_key, int_key)))
+
+    # Keep QTL$effects / QTL$veffects consistent (used by other code paths)
+    obj$QTL$effects  <- c(obj$QTL$effects,  setNames(0.3,  int_key))
+    obj$QTL$veffects <- c(obj$QTL$veffects, setNames(0.03, int_key))
+
     qtab <- summary(obj, genObj = genObj)
     expect_true("Trait" %in% names(qtab))
     expect_true("MAIN" %in% qtab$Trait || any(grepl("B", qtab$Trait)))
