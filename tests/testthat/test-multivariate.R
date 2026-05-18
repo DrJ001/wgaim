@@ -274,14 +274,31 @@ test_that(".addEffect Trait non-NULL: fix.form adds qtl.x AND Trait:qtl.x", {
 # =============================================================================
 #
 # These tests mock out the ASReml update() call and inspect only the
-# formula strings that .buildGenomeModel() constructs, confirming:
-#  (a) Multivariate vm path: diag(Trait):vm(merge.by, covObj)  [genomic]
-#                          + diag(Trait):merge.by              [residual polygenic]
-#  (b) Univariate vm path:  vm(merge.by, covObj) + merge.by    [unchanged]
-#  (c) Multivariate mbf:    diag(Trait):mbf('ints') + diag(Trait):merge.by
+# formula strings / vmterms that .buildGenomeModel() constructs, confirming:
+#  (a) Univariate vm path:      vm(merge.by, covObj)               [genomic]
+#                             + merge.by                           [residual]
+#  (b) Multivariate diag path:  diag(Trait):vm(merge.by, covObj)  [genomic]
+#                             + diag(Trait):merge.by               [residual]
+#  (c) Multivariate corgh path: diag(Trait):vm() initially        [genomic]
+#                             + corgh(Trait):merge.by              [residual]
+#       (additive upgrades to corgh after initial fit)
+#  (d) vmterms[2] reflects the residual term as-is from base model
+#
+# The design principle: the residual genetic term (vmterms[2]) is extracted
+# verbatim from the base model's random formula and is never modified.  The
+# additive genomic term (vmterms[1]) always starts as diag(Trait):vm/mbf and
+# is then upgraded to match the residual structure when it is corh/corgh or fa.
 
 .buildGenomeModel <- wgAim:::.buildGenomeModel
 .constructCM      <- wgAim:::.constructCM
+
+# Helper: build a base model mock whose random formula contains the given
+# genetic term (e.g. "diag(Site):id") in place of a bare "id".
+.mock_base_with_random <- function(rand_formula_str, merge.by = "id") {
+    base_m <- make_mock_qtlAim()
+    base_m$call$random <- as.formula(paste("~", rand_formula_str))
+    base_m
+}
 
 test_that(".buildGenomeModel vm path: univariate formula unchanged", {
     set.seed(1)
@@ -289,8 +306,8 @@ test_that(".buildGenomeModel vm path: univariate formula unchanged", {
     gdat     <- lapply(genObj$geno, function(el) el$interval.data)
     genoData <- do.call("cbind", gdat)
     rownames(genoData) <- paste0("L", 1:5)
-    # 7 intervals > 5 lines -> vm path
-    base_m   <- make_mock_qtlAim()
+    # 7 intervals > 5 lines -> vm path; base model has bare "id" random term
+    base_m   <- .mock_base_with_random("id")
     caller_e <- new.env(parent = globalenv())
     res <- with_mocked_bindings(
         update = function(object, ...) object,
@@ -300,13 +317,13 @@ test_that(".buildGenomeModel vm path: univariate formula unchanged", {
                           genObj, FALSE, character(0), caller_e,
                           Trait = NULL)
     )
-    # Check vmterms directly rather than the formula string
+    # Univariate: no prefix on either term
     expect_true(grepl("^vm\\(id", res$vmterms[1L]))   # genomic: vm(id, covObj)
     expect_equal(res$vmterms[2L], "id")                # residual: bare id
     expect_false(grepl("diag", res$vmterms[1L]))       # no diag prefix
 })
 
-test_that(".buildGenomeModel vm path Trait non-NULL: diag prefix on both terms", {
+test_that(".buildGenomeModel vm path Trait non-NULL, diag residual: diag prefix on both terms", {
     set.seed(2)
     genObj   <- make_wgCross_interval(n_lines = 5, n_chr = 1, n_mar = 8)
     gdat     <- lapply(genObj$geno, function(el) el$interval.data)
@@ -316,7 +333,8 @@ test_that(".buildGenomeModel vm path Trait non-NULL: diag prefix on both terms",
         id   = factor(paste0("L", 1:5)),
         Site = factor(rep(c("S1","S2"), length.out = 5))
     )
-    base_m   <- make_mock_qtlAim()
+    # Base model has diag(Site):id -- the diag residual structure
+    base_m   <- .mock_base_with_random("diag(Site):id")
     caller_e <- new.env(parent = globalenv())
     captured <- list()
     with_mocked_bindings(
@@ -332,15 +350,15 @@ test_that(".buildGenomeModel vm path Trait non-NULL: diag prefix on both terms",
         }
     )
     rhs <- deparse(captured[[1L]][[2]])
-    # First genome-wide term: diag(Site):vm(id, covObj)
+    # Additive genomic term: diag(Site):vm(id, covObj)
     expect_true(grepl("diag\\(Site\\):vm\\(id", rhs))
-    # Second residual term: diag(Site):id
+    # Residual genetic term: diag(Site):id (from base model)
     expect_true(grepl("diag\\(Site\\):id", rhs))
-    # Must NOT be vm():diag() (old wrong order)
+    # Must NOT be vm():diag() (wrong order)
     expect_false(grepl("vm\\(id.*\\):diag", rhs))
 })
 
-test_that(".buildGenomeModel: vmterms[2] is diag(Trait):merge.by when Trait non-NULL", {
+test_that(".buildGenomeModel: vmterms[2] is the genetic term extracted from base model", {
     set.seed(3)
     genObj   <- make_wgCross_interval(n_lines = 5, n_chr = 1, n_mar = 8)
     gdat     <- lapply(genObj$geno, function(el) el$interval.data)
@@ -348,7 +366,8 @@ test_that(".buildGenomeModel: vmterms[2] is diag(Trait):merge.by when Trait non-
     rownames(genoData) <- paste0("L", 1:5)
     phenoData <- data.frame(id = factor(paste0("L", 1:5)),
                             Site = factor(c("S1","S2","S1","S2","S1")))
-    base_m   <- make_mock_qtlAim()
+    # Base model has corgh(Site):id -- engine extracts this as the residual term
+    base_m   <- .mock_base_with_random("corgh(Site):id")
     caller_e <- new.env(parent = globalenv())
     res <- with_mocked_bindings(
         update = function(object, ...) object,
@@ -357,7 +376,8 @@ test_that(".buildGenomeModel: vmterms[2] is diag(Trait):merge.by when Trait non-
                           genObj, FALSE, character(0), caller_e,
                           Trait = "Site")
     )
-    expect_equal(res$vmterms[2L], "diag(Site):id")
+    # vmterms[2] must be the corgh term extracted from the base model
+    expect_equal(res$vmterms[2L], "corgh(Site):id")
 })
 
 test_that(".buildGenomeModel: vmterms[2] is bare merge.by when Trait=NULL", {
@@ -366,7 +386,8 @@ test_that(".buildGenomeModel: vmterms[2] is bare merge.by when Trait=NULL", {
     gdat     <- lapply(genObj$geno, function(el) el$interval.data)
     genoData <- do.call("cbind", gdat)
     rownames(genoData) <- paste0("L", 1:5)
-    base_m   <- make_mock_qtlAim()
+    # Univariate base model -- bare "id"
+    base_m   <- .mock_base_with_random("id")
     caller_e <- new.env(parent = globalenv())
     res <- with_mocked_bindings(
         update = function(object, ...) object,
@@ -377,6 +398,190 @@ test_that(".buildGenomeModel: vmterms[2] is bare merge.by when Trait=NULL", {
                           Trait = NULL)
     )
     expect_equal(res$vmterms[2L], "id")
+})
+
+test_that(".buildGenomeModel: corgh residual triggers corgh upgrade of additive term", {
+    set.seed(5)
+    genObj   <- make_wgCross_interval(n_lines = 5, n_chr = 1, n_mar = 8)
+    gdat     <- lapply(genObj$geno, function(el) el$interval.data)
+    genoData <- do.call("cbind", gdat)
+    rownames(genoData) <- paste0("L", 1:5)
+    phenoData <- data.frame(id = factor(paste0("L", 1:5)),
+                            Site = factor(c("S1","S2","S1","S2","S1")))
+    # Base model has corgh(Site):id -- additive term should upgrade to corgh after initial diag fit
+    base_m   <- .mock_base_with_random("corgh(Site):id")
+    caller_e <- new.env(parent = globalenv())
+    # Capture ALL update() calls to inspect the upgrade step
+    captured <- list()
+    with_mocked_bindings(
+        update = function(object, random. = NULL, ...) {
+            if (!is.null(random.)) captured[[length(captured) + 1L]] <<- random.
+            object
+        },
+        .package = "wgAim",
+        .buildGenomeModel(base_m, genoData, phenoData, "id",
+                          genObj, FALSE, character(0), caller_e,
+                          Trait = "Site")
+    )
+    # Two update() calls expected: initial diag fit + upgrade to corgh
+    expect_length(captured, 2L)
+    # First call: diag prefix on additive term
+    rhs1 <- deparse(captured[[1L]][[2]])
+    expect_true(grepl("diag\\(Site\\):vm\\(id", rhs1))
+    # Second call (upgrade): corgh prefix on additive term
+    rhs2 <- deparse(captured[[2L]][[2]])
+    expect_true(grepl("corgh\\(Site\\):vm\\(id", rhs2))
+    # Residual term stays as corgh(Site):id throughout
+    expect_true(grepl("corgh\\(Site\\):id", rhs2))
+})
+
+test_that(".buildGenomeModel: diag residual does NOT trigger upgrade (stays diag)", {
+    set.seed(6)
+    genObj   <- make_wgCross_interval(n_lines = 5, n_chr = 1, n_mar = 8)
+    gdat     <- lapply(genObj$geno, function(el) el$interval.data)
+    genoData <- do.call("cbind", gdat)
+    rownames(genoData) <- paste0("L", 1:5)
+    phenoData <- data.frame(id = factor(paste0("L", 1:5)),
+                            Site = factor(c("S1","S2","S1","S2","S1")))
+    # Base model has diag(Site):id -- no upgrade should occur
+    base_m   <- .mock_base_with_random("diag(Site):id")
+    caller_e <- new.env(parent = globalenv())
+    captured <- list()
+    with_mocked_bindings(
+        update = function(object, random. = NULL, ...) {
+            if (!is.null(random.)) captured[[length(captured) + 1L]] <<- random.
+            object
+        },
+        .package = "wgAim",
+        .buildGenomeModel(base_m, genoData, phenoData, "id",
+                          genObj, FALSE, character(0), caller_e,
+                          Trait = "Site")
+    )
+    # Only ONE update() call: initial diag fit, no upgrade step
+    expect_length(captured, 1L)
+    rhs <- deparse(captured[[1L]][[2]])
+    expect_true(grepl("diag\\(Site\\):vm\\(id", rhs))
+})
+
+test_that(".buildGenomeModel: us(Trial) residual triggers corgh upgrade (same as corgh)", {
+    set.seed(7)
+    genObj   <- make_wgCross_interval(n_lines = 5, n_chr = 1, n_mar = 8)
+    gdat     <- lapply(genObj$geno, function(el) el$interval.data)
+    genoData <- do.call("cbind", gdat)
+    rownames(genoData) <- paste0("L", 1:5)
+    phenoData <- data.frame(id   = factor(paste0("L", 1:5)),
+                            Site = factor(c("S1","S2","S1","S2","S1")))
+    # Base model has us(Site):id -- additive term should upgrade to corgh
+    base_m   <- .mock_base_with_random("us(Site):id")
+    caller_e <- new.env(parent = globalenv())
+    captured <- list()
+    with_mocked_bindings(
+        update = function(object, random. = NULL, ...) {
+            if (!is.null(random.)) captured[[length(captured) + 1L]] <<- random.
+            object
+        },
+        .package = "wgAim",
+        .buildGenomeModel(base_m, genoData, phenoData, "id",
+                          genObj, FALSE, character(0), caller_e,
+                          Trait = "Site")
+    )
+    # Two update() calls: initial diag + upgrade to corgh
+    expect_length(captured, 2L)
+    rhs1 <- deparse(captured[[1L]][[2]])
+    expect_true(grepl("diag\\(Site\\):vm\\(id", rhs1))
+    rhs2 <- deparse(captured[[2L]][[2]])
+    expect_true(grepl("corgh\\(Site\\):vm\\(id", rhs2))
+    # Residual term stays as us(Site):id throughout
+    expect_true(grepl("us\\(Site\\):id", rhs2))
+})
+
+test_that(".buildGenomeModel: vmterms[2] for us residual is us(Trait):merge.by", {
+    set.seed(8)
+    genObj   <- make_wgCross_interval(n_lines = 5, n_chr = 1, n_mar = 8)
+    gdat     <- lapply(genObj$geno, function(el) el$interval.data)
+    genoData <- do.call("cbind", gdat)
+    rownames(genoData) <- paste0("L", 1:5)
+    phenoData <- data.frame(id   = factor(paste0("L", 1:5)),
+                            Site = factor(c("S1","S2","S1","S2","S1")))
+    base_m   <- .mock_base_with_random("us(Site):id")
+    caller_e <- new.env(parent = globalenv())
+    res <- with_mocked_bindings(
+        update = function(object, ...) object,
+        .package = "wgAim",
+        .buildGenomeModel(base_m, genoData, phenoData, "id",
+                          genObj, FALSE, character(0), caller_e,
+                          Trait = "Site")
+    )
+    # vmterms[2] must be the us term extracted verbatim from the base model
+    expect_equal(res$vmterms[2L], "us(Site):id")
+})
+
+# =============================================================================
+# 6b. .qtlSelect Ga extraction -- corgh ntrait > 2
+# =============================================================================
+#
+# The corgh(Trait) Ga extraction was previously hard-coded for ntrait=2.
+# These tests verify the generalised loop produces the correct Ga matrix
+# for ntrait=2 (regression) and ntrait=3.
+
+test_that(".qtlSelect Ga from corgh: ntrait=2 matches manual construction", {
+    # For ntrait=2: vpars = c(var1, var2, cor12)
+    # Ga_11 = var1, Ga_22 = var2, Ga_12 = cor12 * sqrt(var1) * sqrt(var2)
+    var1 <- 1.2; var2 <- 0.8; cor12 <- 0.6
+    vpars <- c(var1, var2, cor12)
+    ntrait <- 2L
+
+    sds  <- sqrt(vpars[1:ntrait])
+    Ga   <- diag(vpars[1:ntrait])
+    cors <- vpars[(ntrait + 1L):length(vpars)]
+    idx  <- 0L
+    for (col in seq_len(ntrait - 1L)) {
+        for (row in (col + 1L):ntrait) {
+            idx <- idx + 1L
+            Ga[row, col] <- Ga[col, row] <- cors[idx] * sds[row] * sds[col]
+        }
+    }
+
+    expected_offdiag <- cor12 * sqrt(var1) * sqrt(var2)
+    expect_equal(Ga[1L, 1L], var1)
+    expect_equal(Ga[2L, 2L], var2)
+    expect_equal(Ga[1L, 2L], expected_offdiag, tolerance = 1e-10)
+    expect_equal(Ga[2L, 1L], expected_offdiag, tolerance = 1e-10)
+    # Must be symmetric
+    expect_equal(Ga, t(Ga))
+})
+
+test_that(".qtlSelect Ga from corgh: ntrait=3 builds correct 3x3 symmetric matrix", {
+    # For ntrait=3: vpars = c(var1, var2, var3, cor21, cor31, cor32)
+    # lower-triangle column-major: (2,1), (3,1), (3,2)
+    var1 <- 1.0; var2 <- 1.5; var3 <- 0.9
+    c21  <- 0.4; c31  <- 0.2; c32  <- 0.5
+    vpars  <- c(var1, var2, var3, c21, c31, c32)
+    ntrait <- 3L
+
+    sds  <- sqrt(vpars[1:ntrait])
+    Ga   <- diag(vpars[1:ntrait])
+    cors <- vpars[(ntrait + 1L):length(vpars)]
+    idx  <- 0L
+    for (col in seq_len(ntrait - 1L)) {
+        for (row in (col + 1L):ntrait) {
+            idx <- idx + 1L
+            Ga[row, col] <- Ga[col, row] <- cors[idx] * sds[row] * sds[col]
+        }
+    }
+
+    # Diagonal
+    expect_equal(diag(Ga), c(var1, var2, var3))
+    # Off-diagonal: col=1 row=2 -> cor21 * sd1 * sd2
+    expect_equal(Ga[2L, 1L], c21 * sqrt(var1) * sqrt(var2), tolerance = 1e-10)
+    # Off-diagonal: col=1 row=3 -> cor31 * sd1 * sd3
+    expect_equal(Ga[3L, 1L], c31 * sqrt(var1) * sqrt(var3), tolerance = 1e-10)
+    # Off-diagonal: col=2 row=3 -> cor32 * sd2 * sd3
+    expect_equal(Ga[3L, 2L], c32 * sqrt(var2) * sqrt(var3), tolerance = 1e-10)
+    # Symmetry
+    expect_equal(Ga, t(Ga))
+    # All ntrait*(ntrait-1)/2 = 3 off-diagonal pairs were filled
+    expect_equal(sum(Ga != diag(diag(Ga))), 6L)
 })
 
 # =============================================================================

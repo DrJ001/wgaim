@@ -48,33 +48,26 @@ pchisq.mixture <- function(x, ntrait = 2L) {
 # tol     : convergence tolerance on the Newton correction
 # -----------------------------------------------------------------------------
 #' @keywords internal
-qchisq.mixture <- function(prob, ntrait = 2L, maxit = 50L, tol = 1e-8) {
-    df       <- 0:ntrait
-    mixprobs <- dbinom(df, size = ntrait, prob = 0.5)
+qchisq.mixture <- function(prob, ntrait = 2L, tol = .Machine$double.eps^0.5) {
+    # Special case: ntrait == 1 reduces to standard one-sided boundary test.
+    if (ntrait == 1L)
+        return(qchisq(prob, df = 1L))
 
-    obj.fn <- function(cv) {
-        f <- if (df[1L] == 0L)
-            mixprobs[1L] + sum(pchisq(cv, df = df[-1L]) * mixprobs[-1L]) - prob
-        else
-            sum(pchisq(cv, df = df) * mixprobs) - prob
-        d <- if (df[1L] == 0L)
-            sum(dchisq(cv, df = df[-1L]) * mixprobs[-1L])
-        else
-            sum(dchisq(cv, df = df) * mixprobs)
-        list(f = f, d = d)
-    }
-
-    cv          <- qchisq(prob, df = ntrait)   # starting value
-    converged   <- FALSE
-    for (i in seq_len(maxit)) {
-        obj  <- obj.fn(cv)
-        corr <- obj$f / obj$d
-        cv   <- cv - corr
-        if (abs(corr) < tol) { converged <- TRUE; break }
-    }
-    if (!converged)
-        warning("qchisq.mixture: Newton-Raphson did not converge; result may be imprecise.")
-    cv
+    # Use uniroot rather than Newton-Raphson.  The N-R approach diverges when
+    # ntrait is large (e.g. 8) because the starting value qchisq(prob, ntrait)
+    # places the mixture CDF already very close to 1; the derivative (chi-sq
+    # density) is near-zero there, so the Newton step overshoots to a large
+    # negative value where the density is exactly 0, giving NaN.
+    #
+    # The root is bracketed in [0, qchisq(prob, ntrait)]:
+    #   lower: CDF at 0+ = dbinom(0, ntrait, 0.5) = 2^{-ntrait} << prob
+    #   upper: CDF at qchisq(prob, ntrait) >= prob (shown above)
+    uniroot(
+        function(cv) pchisq.mixture(cv, ntrait = ntrait) - prob,
+        lower = 0,
+        upper = qchisq(prob, df = ntrait),
+        tol   = tol
+    )$root
 }
 
 # -----------------------------------------------------------------------------

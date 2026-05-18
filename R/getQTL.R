@@ -17,9 +17,11 @@
 #' @export
 getQTL <- function(object, genObj)
 {
-    spe  <- strsplit(substring(unlist(names(object$QTL$effects)), 3), "\\.")
-    wchr <- unlist(lapply(spe, function(el) el[1]))
-    wint <- as.numeric(unlist(lapply(spe, function(el) el[2])))
+    # QTL keys are stored in object$QTL$qtl as "Chr.<chr>.<idx>" strings.
+    # Split on "." and take elements 2 (chr) and 3 (index).
+    spe  <- strsplit(object$QTL$qtl, "\\.")
+    wchr <- unlist(lapply(spe, function(el) el[2]))
+    wint <- as.numeric(unlist(lapply(spe, function(el) el[3])))
 
     if (object$QTL$type == "marker") {
         qtlm <- matrix(ncol = 4, nrow = length(wchr))

@@ -20,6 +20,10 @@
 #' LRT statistic, and its p-value at every iteration including the final
 #' non-significant one.
 #'
+#' For multivariate analyses (\code{Trait} non-\code{NULL}), the p-value
+#' matrix shows the main-effect p-value per QTL per iteration, and the
+#' stability plot shows per-trial effect estimates coloured by trial level.
+#'
 #' @param object A fitted object of class \code{"qtlAim"} or \code{"gwasAim"}.
 #' @param iter Integer vector of iterations to include in the p-value matrix.
 #'   Default is all iterations: \code{1:length(object$QTL$effects)}.
@@ -33,7 +37,8 @@
 #'       QTL labelled.}
 #'     \item{\code{"stability"}}{Returns a \code{ggplot} of QTL effect
 #'       estimates \eqn{\pm}1 SE across every iteration in which the QTL was
-#'       in the model, one facet per QTL. Large jumps suggest confounding.}
+#'       in the model, one facet per QTL. For multivariate analyses, one line
+#'       per trial is shown within each facet. Large jumps suggest confounding.}
 #'     \item{\code{"both"}}{Returns a named list
 #'       \code{list(lrt = ..., stability = ...)} invisibly.}
 #'   }
@@ -62,7 +67,7 @@ aimTrace <- function(object, ...) UseMethod("aimTrace")
 #' @rdname aimTrace
 #' @exportS3Method
 aimTrace.qtlAim <- function(object,
-                             iter    = 1:length(object$QTL$effects),
+                             iter    = seq_along(object$QTL$diag$coef.list),
                              lik.out = TRUE,
                              plot    = FALSE,
                              sig.col = "firebrick",
@@ -76,35 +81,53 @@ aimTrace.qtlAim <- function(object,
     if (object$vparameters.con[length(object$vparameters.con)] == 4)
         sigma2 <- 1
 
-    zrl <- lapply(seq_along(cl), function(i)
-        cl[[i]] / sqrt(vl[[i]] * sigma2))
+    is.mv  <- !is.null(object$QTL$Trait)
+    n.qtl  <- length(object$QTL$qtl)
+    # Column labels in forward detection order
+    qnams  <- sub("^Chr\\.", "", object$QTL$qtl)
+
+    # Build z-ratio list: one element per iteration, one value per unique QTL.
+    # For multivariate, extract only the main-effect coefficient (no ":" in name)
+    # so the matrix has one column per QTL regardless of ntrait.
+    if (is.mv) {
+        zrl <- lapply(seq_along(cl), function(i) {
+            cof  <- cl[[i]]; vcof <- vl[[i]]
+            main <- !grepl(":", names(cof))
+            cof[main] / sqrt(vcof[main] * sigma2)
+        })
+    } else {
+        zrl <- lapply(seq_along(cl), function(i)
+            cl[[i]] / sqrt(vl[[i]] * sigma2))
+    }
 
     if (any(ret <- is.na(pmatch(iter, seq_along(zrl))))) {
         warning("\"iter\" values outside expected range. Using values within range.")
         iter <- iter[!ret]
     }
 
+    # p-values -- coef.list stores QTL in reversed detection order (most recent
+    # first).  Reverse each z-vector so column k = QTL k (detection order).
     if (object$QTL$method == "random") {
         pvals <- lapply(zrl, function(el, len, dig) {
-            pv <- round((1 - pchisq(el^2, df = 1)) / 2, dig)
+            pv <- round((1 - pchisq(rev(el)^2, df = 1)) / 2, dig)
             c(pv, rep(NA, len - length(pv)))
-        }, len = length(zrl), dig = dig)
+        }, len = n.qtl, dig = dig)
     } else {
         pvals <- lapply(zrl, function(el, len, dig) {
-            pv <- round(2 * (1 - pnorm(abs(el))), dig)
+            pv <- round(2 * (1 - pnorm(abs(rev(el)))), dig)
             c(pv, rep(NA, len - length(pv)))
-        }, len = length(zrl), dig = dig)
+        }, len = n.qtl, dig = dig)
     }
 
     qtlmat <- do.call("rbind", pvals)
-    qnams  <- gsub("X\\.", "", names(cl))
     dimnames(qtlmat) <- list(paste0("Iter.", seq_along(zrl)), qnams)
 
-    cat("\nIncremental QTL P-value Matrix.\n")
-    cat("===============================\n")
+    cat("\nIncremental QTL P-value Matrix")
+    if (is.mv) cat("  (main effect per QTL)")
+    cat("\n===============================\n")
     qtlmat[qtlmat < 0.001] <- "<0.001"
     qtlmat[is.na(qtlmat)]  <- ""
-    print.default(qtlmat[iter, 1:iter[length(iter)], drop = FALSE],
+    print.default(qtlmat[iter, seq_len(iter[length(iter)]), drop = FALSE],
                   quote = FALSE, right = TRUE, ...)
 
     if (lik.out) {
@@ -133,7 +156,8 @@ aimTrace.qtlAim <- function(object,
 #   y-axis    : LRT statistic
 #   Line      : grey connector between all points
 #   Points    : filled sig.col for passing, open grey for the failed iteration
-#   Threshold : dashed horizontal line at qchisq(1 - 2*TypeI, 1), annotated
+#   Threshold : dashed horizontal line; for ntrait == 1 uses qchisq boundary
+#               test threshold; for ntrait > 1 uses qchisq.mixture().
 #   Labels    : short QTL name above each passing point via geom_text_repel
 # =============================================================================
 .plot_lrt <- function(object, sig.col = "firebrick") {
@@ -142,7 +166,13 @@ aimTrace.qtlAim <- function(object,
     n_rows <- nrow(lik)
     n_qtl  <- length(object$QTL$qtl)
     TypeI  <- if (!is.null(object$QTL$TypeI)) object$QTL$TypeI else 0.05
-    thresh <- qchisq(1 - 2 * TypeI, 1)
+
+    is.mv  <- !is.null(object$QTL$Trait)
+    ntrait <- if (is.mv) length(object$QTL$trait.levels) else 1L
+    thresh <- if (ntrait == 1L)
+        qchisq(1 - 2 * TypeI, 1)
+    else
+        qchisq.mixture(1 - TypeI, ntrait)
 
     qtl_labels <- sub("^Chr\\.", "", object$QTL$qtl)
 
@@ -194,93 +224,210 @@ aimTrace.qtlAim <- function(object,
 # Shared engine: .build_stability_df
 #
 # Builds a long-format data frame for the effect stability plot.
-# For each detected QTL k, extracts its effect estimate and +/-1 SE at every
-# iteration j >= k (all iterations in which it was in the model).
-# .addEffect() stores coefs with rev(), so within coef.list[[j]] (which has j
-# elements) the detection order is reversed: element 1 = newest QTL (j),
-# element j = first QTL (1).  To get QTL k's value at iteration j, use
-# index (j - k + 1).
+#
+# Univariate (ntrait == 1):
+#   For each detected QTL k, extracts its main effect estimate and +/-1 SE at
+#   every iteration j >= k.  coef.list[[j]] is in reversed detection order so
+#   QTL k's coefficient is at position (j - k + 1) from the end, but we match
+#   by name ("X.Chr1.20") to be safe.
+#
+# Multivariate (ntrait > 1):
+#   For each QTL k, at each iteration j >= k:
+#     - Main effect (Trial1 reference): coefficient named "X.Chr1.20"
+#     - Per-trial effects for Trial_t (t > 1):
+#         beta_t = main + (Trial_t interaction coefficient)
+#         SE_t   = sqrt(se_main^2 + se_int_t^2)  [approx; ignores covariance]
+#   Returns one row per (QTL, iteration, trial).
 # =============================================================================
 .build_stability_df <- function(object) {
 
-    cl    <- object$QTL$diag$coef.list
-    vl    <- object$QTL$diag$vcoef.list
-    n_qtl <- length(object$QTL$qtl)
+    cl     <- object$QTL$diag$coef.list
+    vl     <- object$QTL$diag$vcoef.list
+    n_qtl  <- length(object$QTL$qtl)
+    is.mv  <- !is.null(object$QTL$Trait)
 
     sigma2 <- object$sigma2
     if (object$vparameters.con[length(object$vparameters.con)] == 4)
         sigma2 <- 1
 
-    rows <- lapply(seq_len(n_qtl), function(k) {
-        label <- sub("^Chr\\.", "", object$QTL$qtl[k])
-        do.call(rbind, lapply(k:n_qtl, function(j) {
-            idx <- j - k + 1L          # rev() offset: QTL k is at position j-k+1
-            eff <- cl[[j]][idx]
-            se  <- sqrt(vl[[j]][idx] * sigma2)
-            data.frame(qtl_label = label,
-                       qtl_idx   = k,
-                       iter      = j,
-                       effect    = eff,
-                       se        = se,
-                       lo        = eff - se,
-                       hi        = eff + se,
-                       stringsAsFactors = FALSE)
-        }))
-    })
+    qtl.x.keys <- sub("Chr\\.", "X.", object$QTL$qtl)  # "X.Chr1.20" format
+
+    if (!is.mv) {
+        # Univariate: match main coefficient by name, one row per (QTL, iter)
+        rows <- lapply(seq_len(n_qtl), function(k) {
+            label <- sub("^Chr\\.", "", object$QTL$qtl[k])
+            xk    <- qtl.x.keys[k]
+            do.call(rbind, lapply(k:n_qtl, function(j) {
+                idx <- which(names(cl[[j]]) == xk)
+                if (length(idx) == 0L) return(NULL)
+                eff <- cl[[j]][idx]
+                se  <- sqrt(vl[[j]][idx] * sigma2)
+                data.frame(qtl_label = label, qtl_idx = k, iter = j,
+                           effect = eff, se = se,
+                           lo = eff - se, hi = eff + se,
+                           trial = "univariate",
+                           stringsAsFactors = FALSE)
+            }))
+        })
+
+    } else {
+        # Multivariate: reconstruct per-trial effects at each iteration
+        trait.levels <- object$QTL$trait.levels
+
+        rows <- lapply(seq_len(n_qtl), function(k) {
+            label <- sub("^Chr\\.", "", object$QTL$qtl[k])
+            xk    <- qtl.x.keys[k]
+
+            do.call(rbind, lapply(k:n_qtl, function(j) {
+                cof  <- cl[[j]];  vcof <- vl[[j]]
+
+                # Main effect (Trial1 reference level)
+                main.idx <- which(names(cof) == xk)
+                if (length(main.idx) == 0L) return(NULL)
+                main.eff <- cof[main.idx]
+                main.var <- vcof[main.idx] * sigma2
+
+                # One row per trial level
+                do.call(rbind, lapply(seq_along(trait.levels), function(t) {
+                    tname <- trait.levels[t]
+                    if (t == 1L) {
+                        # Trial 1 is the reference: effect = main coefficient
+                        eff <- main.eff
+                        se  <- sqrt(main.var)
+                    } else {
+                        # Trial t: effect = main + interaction deviation
+                        int.nm  <- paste0(tname, ":", xk)
+                        int.idx <- which(names(cof) == int.nm)
+                        if (length(int.idx) == 0L) {
+                            eff <- main.eff
+                            se  <- sqrt(main.var)
+                        } else {
+                            int.var <- vcof[int.idx] * sigma2
+                            eff <- main.eff + cof[int.idx]
+                            # Approximate SE: ignores main/interaction covariance
+                            se  <- sqrt(main.var + int.var)
+                        }
+                    }
+                    data.frame(qtl_label = label, qtl_idx = k, iter = j,
+                               effect = eff, se = se,
+                               lo = eff - se, hi = eff + se,
+                               trial = tname,
+                               stringsAsFactors = FALSE)
+                }))
+            }))
+        })
+    }
+
+    rows <- rows[!sapply(rows, is.null)]
     do.call(rbind, rows)
 }
 
 # =============================================================================
 # Shared engine: .plot_stability
 #
-# QTL effect stability plot -- lollipop + line style.
+# QTL effect stability plot.
 #
-# For each detected QTL (one facet, free y-scale, 3 columns):
-#   -- dashed zero reference line
-#   -- vertical lollipop stem from 0 to the effect estimate at each iteration
-#   -- error bar (+/-1 SE) at the tip of each stem
-#   -- line connecting the effect estimates across iterations
-#   -- filled circle at each tip
+# Univariate: one facet per QTL (3 columns), one line, lollipop + error bars.
+#
+# Multivariate: same facet layout but one line per trial level, coloured with
+#   hcl.colors("Dark 2") palette to match the blups plot.  Facet labels carry
+#   a [MAIN] or [INT] suffix (when is.interaction is available).  The SE is
+#   approximate (ignores main/interaction coefficient covariance) so error bars
+#   are labelled accordingly in the y-axis title.
 # =============================================================================
 .plot_stability <- function(object, sig.col = "firebrick") {
 
     sdf   <- .build_stability_df(object)
     n_qtl <- length(object$QTL$qtl)
+    is.mv <- !is.null(object$QTL$Trait)
 
-    lev           <- unique(sdf$qtl_label[order(sdf$qtl_idx)])
-    sdf$qtl_label <- factor(sdf$qtl_label, levels = lev)
-    all_iters     <- seq_len(max(sdf$iter))
+    # Build facet labels (with optional MAIN/INT tag for multivariate)
+    base_labels <- sub("^Chr\\.", "", object$QTL$qtl)
+    if (is.mv && !is.null(object$QTL$is.interaction)) {
+        facet_labels <- paste0(
+            base_labels, "  [",
+            ifelse(object$QTL$is.interaction, "INT", "MAIN"), "]")
+    } else {
+        facet_labels <- base_labels
+    }
+    label_map         <- stats::setNames(facet_labels, base_labels)
+    sdf$qtl_label_fac <- factor(label_map[sdf$qtl_label],
+                                levels = facet_labels)
 
-    gp <- ggplot2::ggplot(sdf,
-               ggplot2::aes(x = .data$iter, y = .data$effect)) +
-        ggplot2::facet_wrap(~ qtl_label, scales = "free_y", ncol = 3) +
+    all_iters <- seq_len(max(sdf$iter))
 
-        # Zero reference
-        ggplot2::geom_hline(yintercept = 0,
-                            linetype = "dashed", colour = "grey60",
-                            linewidth = 0.5) +
+    if (is.mv) {
+        trial.levels <- object$QTL$trait.levels
+        trial.cols   <- grDevices::hcl.colors(length(trial.levels), "Dark 2")
+        names(trial.cols) <- trial.levels
+        sdf$trial <- factor(sdf$trial, levels = trial.levels)
 
-        # +/-1 SE error bars at the tip
-        ggplot2::geom_errorbar(
-            ggplot2::aes(ymin = .data$lo, ymax = .data$hi),
-            colour = sig.col, width = 0.15, linewidth = 0.7) +
+        gp <- ggplot2::ggplot(sdf,
+                   ggplot2::aes(x      = .data$iter,
+                                y      = .data$effect,
+                                colour = .data$trial,
+                                group  = .data$trial)) +
+            ggplot2::facet_wrap(~ qtl_label_fac, scales = "free_y", ncol = 3) +
 
-        # Line connecting the tips across iterations
-        ggplot2::geom_line(colour = "grey50", linewidth = 0.5,
-                           linetype = "dashed") +
+            ggplot2::geom_hline(yintercept = 0,
+                                linetype = "dashed", colour = "grey60",
+                                linewidth = 0.5) +
 
-        # Filled circle at each tip
-        ggplot2::geom_point(fill = sig.col, colour = "white",
-                            shape = 21, size = 3, stroke = 0.6) +
+            ggplot2::geom_errorbar(
+                ggplot2::aes(ymin = .data$lo, ymax = .data$hi,
+                             colour = .data$trial),
+                width = 0.15, linewidth = 0.5) +
 
-        ggplot2::scale_x_continuous(breaks = all_iters) +
-        ggplot2::scale_y_continuous(
-            expand = ggplot2::expansion(mult = c(0.18, 0.18))) +
-        ggplot2::xlab("Iteration") +
-        ggplot2::ylab("Effect \u00b1 1 SE") +
-        theme_scatter() +
-        ggplot2::theme(
-            panel.spacing = ggplot2::unit(0.8, "lines"),
-            strip.text    = ggplot2::element_text(size = 8, face = "bold"))
+            ggplot2::geom_line(linewidth = 0.5, linetype = "dashed") +
+
+            ggplot2::geom_point(
+                ggplot2::aes(fill = .data$trial),
+                shape = 21, size = 2.5, stroke = 0.5,
+                colour = "white", show.legend = TRUE) +
+
+            ggplot2::scale_colour_manual(values = trial.cols,
+                                         name   = object$QTL$Trait) +
+            ggplot2::scale_fill_manual(values   = trial.cols,
+                                       name     = object$QTL$Trait) +
+            ggplot2::scale_x_continuous(breaks = all_iters) +
+            ggplot2::scale_y_continuous(
+                expand = ggplot2::expansion(mult = c(0.18, 0.18))) +
+            ggplot2::xlab("Iteration") +
+            ggplot2::ylab("Per-trial Effect \u00b1 approx. 1 SE") +
+            theme_scatter() +
+            ggplot2::theme(
+                panel.spacing = ggplot2::unit(0.8, "lines"),
+                strip.text    = ggplot2::element_text(size = 8, face = "bold"),
+                legend.position = "right")
+
+    } else {
+        gp <- ggplot2::ggplot(sdf,
+                   ggplot2::aes(x = .data$iter, y = .data$effect)) +
+            ggplot2::facet_wrap(~ qtl_label_fac, scales = "free_y", ncol = 3) +
+
+            ggplot2::geom_hline(yintercept = 0,
+                                linetype = "dashed", colour = "grey60",
+                                linewidth = 0.5) +
+
+            ggplot2::geom_errorbar(
+                ggplot2::aes(ymin = .data$lo, ymax = .data$hi),
+                colour = sig.col, width = 0.15, linewidth = 0.7) +
+
+            ggplot2::geom_line(colour = "grey50", linewidth = 0.5,
+                               linetype = "dashed") +
+
+            ggplot2::geom_point(fill = sig.col, colour = "white",
+                                shape = 21, size = 3, stroke = 0.6) +
+
+            ggplot2::scale_x_continuous(breaks = all_iters) +
+            ggplot2::scale_y_continuous(
+                expand = ggplot2::expansion(mult = c(0.18, 0.18))) +
+            ggplot2::xlab("Iteration") +
+            ggplot2::ylab("Effect \u00b1 1 SE") +
+            theme_scatter() +
+            ggplot2::theme(
+                panel.spacing = ggplot2::unit(0.8, "lines"),
+                strip.text    = ggplot2::element_text(size = 8, face = "bold"))
+    }
     gp
 }

@@ -83,22 +83,35 @@ summary.qtlAim <- function(object, genObj, LOD = TRUE, ...) {
     var.res    <- sigma2 * oth.terms[grep(gterm, names(oth.terms))]
 
     # ------------------------------------------------------------------
-    # Multivariate: decompose effects vector into QTL x Trait rows.
-    # This must happen before perc.var so qtl.x is available.
-    # effect names are either "X.chr.idx" (main) or "Trait_level:X.chr.idx"
-    # (interaction). We label each row with its Trait level, using "MAIN"
-    # for main-effect-only QTL.
-    # Univariate: no Trait slot -> all rows labelled "MAIN" (column suppressed).
+    # Multivariate: use the final PRUNED model's fixed coefficients.
+    #
+    # object$QTL$effects comes from coef.list[[iter-1]] — the loop model
+    # which had both X.chr.idx AND Trial:X.chr.idx simultaneously, causing
+    # ASReml to alias Trial1's interaction coefficient to zero.
+    # After waldTest pruning each QTL is either:
+    #   MAIN      : X.chr.idx only         (one coefficient, not aliased)
+    #   INTERACTION: Trial:X.chr.idx only  (ntrait coefficients, none aliased)
+    # so object$coefficients$fixed contains the correct non-aliased values.
+    #
+    # Univariate: no Trait slot -> use object$QTL$effects as before.
     # ------------------------------------------------------------------
-    is.mv  <- !is.null(object$QTL$Trait)
+    is.mv <- !is.null(object$QTL$Trait)
+    if (is.mv) {
+        all.fc <- object$coefficients$fixed
+        zind   <- grep("X\\.", rownames(all.fc))
+        qtle   <- setNames(rev(all.fc[zind, 1L]), rev(rownames(all.fc)[zind]))
+        veff   <- rev(object$vcoeff$fixed[zind])
+    } else {
+        veff <- object$QTL$veffects
+    }
+
     enams  <- names(qtle)
     qtl.x  <- sub("^.*:(X\\..*)$", "\\1", enams)   # always extract X.chr.idx part
     qtl.x[!grepl(":", enams)] <- enams[!grepl(":", enams)]  # main effects unchanged
     trait.lab <- rep("MAIN", length(enams))
     if (is.mv) {
         int.rows <- grepl(":", enams)
-        trait.lab[int.rows] <- sub(paste0("^(.*):X\\..*$"), "\\1", enams[int.rows])
-        # Strip the Trait column name prefix (e.g. "Site_A" -> "A")
+        trait.lab[int.rows] <- sub("^(.*):X\\..*$", "\\1", enams[int.rows])
         prefix <- paste0(object$QTL$Trait, "_")
         trait.lab <- gsub(prefix, "", trait.lab, fixed = TRUE)
     }
@@ -110,24 +123,34 @@ summary.qtlAim <- function(object, genObj, LOD = TRUE, ...) {
         var.est  <- qtle^2
         coef.est <- rep(1, length(qtle))
     }
-    # For multivariate analyses the effects vector contains both main and
-    # interaction rows sharing the same underlying QTL. Compute perc.var once
-    # per unique QTL (using the main-effect row) then broadcast to all rows.
-    unique.qtl.x <- unique(qtl.x)   # bare X.chr.idx keys, one per detected QTL
-    var.est.qtl  <- if (object$QTL$method == "random")
-        var.est[unique.qtl.x]
-    else
-        qtle[unique.qtl.x]^2
-    coef.est.qtl <- if (object$QTL$method == "random")
-        coef.est[unique.qtl.x]
-    else
-        rep(1, length(unique.qtl.x))
-    var.all  <- sum(c(coef.est.qtl, coef.mark, 1) * c(var.est.qtl, var.mark, var.res))
+    # Perc.var: one value per unique QTL, broadcast to all its rows.
+    # For MAIN QTL:        var contribution = effect^2
+    # For INTERACTION QTL: var contribution = mean(per-trial effects^2)
+    # (no bare X.chr.idx key exists for interaction QTL in the final model)
+    # var.mark is summed across traits for multivariate to avoid length mismatch.
+    unique.qtl.x <- unique(qtl.x)
+    if (object$QTL$method == "random") {
+        var.est.qtl  <- var.est[unique.qtl.x]
+        coef.est.qtl <- coef.est[unique.qtl.x]
+    } else {
+        var.est.qtl  <- vapply(unique.qtl.x, function(uq)
+            mean(qtle[qtl.x == uq]^2), numeric(1L))
+        coef.est.qtl <- rep(1, length(unique.qtl.x))
+    }
+    # Scale all variance components to per-trial averages before computing
+    # Perc.Var.  var.mark and var.res are vectors of length ntrait for
+    # multivariate models (one value per trial); summing them would inflate
+    # the denominator relative to the per-trial-average var.est.qtl numerator.
+    # Using mean() keeps all three components on the same per-trial scale so
+    # the percentages are interpretable and sum to <= 100%.
+    var.mark.scalar  <- mean(var.mark)
+    var.res.scalar   <- mean(var.res)
+    var.all  <- sum(var.est.qtl) + coef.mark * var.mark.scalar + var.res.scalar
     perc.var.per.qtl <- setNames(
-        round(100 * (coef.est.qtl * var.est.qtl) / var.all, 1), unique.qtl.x)
+        round(100 * var.est.qtl / var.all, 1), unique.qtl.x)
     perc.var <- perc.var.per.qtl[match(qtl.x, unique.qtl.x)]
 
-    zrat <- qtle / sqrt(object$QTL$veffects * sigma2)
+    zrat <- qtle / sqrt(veff * sigma2)
     if (object$QTL$method == "random") {
         pvalue <- round((1 - pchisq(zrat^2, 1)) / 2, 4)
         pvalue[pvalue < 0.0001] <- "<0.0001"
@@ -137,11 +160,14 @@ summary.qtlAim <- function(object, genObj, LOD = TRUE, ...) {
     }
     lod <- round(0.5 * log10(exp(zrat^2)), 2)
 
-    # Temporarily remap QTL$effects names to bare X.chr.idx for getQTL()
-    orig.effects <- object$QTL$effects
-    object$QTL$effects <- setNames(qtle, qtl.x)
-    qtlm <- getQTL(object, genObj)
-    object$QTL$effects <- orig.effects   # restore
+    # getQTL() uses object$QTL$qtl for row order and count.
+    # Temporarily override it with qtl.x (converted to "Chr." prefix format) so
+    # getQTL() returns exactly as many rows as qtle, in the same order --
+    # including repeated rows for multivariate interaction QTL.
+    orig.qtl       <- object$QTL$qtl
+    object$QTL$qtl <- sub("^X\\.", "Chr.", qtl.x)
+    qtlm           <- getQTL(object, genObj)
+    object$QTL$qtl <- orig.qtl
 
     if (object$QTL$type == "interval") {
         qtab <- data.frame(

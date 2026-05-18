@@ -270,16 +270,67 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
         # Compute outlier statistics and select best marker
         selq               <- .qtlSelect(qtlModel, phenoData, genObj, "marker",
                                          selection, exclusion.window, state, verboseLev,
-                                         Trait = Trait, ntrait = ntrait)
+                                         merge.by = merge.by, Trait = Trait, ntrait = ntrait)
         state              <- selq$state
         ldiag$oint[[iter]] <- selq$oint
         ldiag$ochr[[iter]] <- selq$ochr
         ldiag$blups[[iter]] <- selq$blups
 
         # Likelihood ratio test: tests significance of the additive variance
-        # parameter of the genome-wide composite term (not individual markers)
-        lrt               <- .lrtTest(qtlModel, baseModel, TypeI, ntrait = ntrait)
-        ldiag$lik[[iter]] <- c(lrt$baseLogL, qtlModel$loglik, lrt$stat, lrt$pvalue)
+        # parameter of the genome-wide composite term (not individual markers).
+        # For ntrait > 1: downgrade to diag(Trait):vm/mbf for exact
+        # pchisq.mixture(stat, ntrait) type I error control.
+        #
+        # For fa(Trait,k) residual structures (n.fa > 0): ALSO downgrade the
+        # residual genetic term to diag(Trait): in both qtlForLRT and baseForLRT
+        # so both models share the same residual structure.  This cleanly
+        # isolates the vm diagonal variances without cross-contamination from
+        # the fa factor-loading parameters.  For corh/corgh (n.fa = 0) the
+        # residual is left as-is — the single vm downgrade is sufficient.
+        # Inlined so phenoData is in scope for ASReml formula resolution.
+        if (ntrait > 1L) {
+            lrt.diag.pfx <- paste0("diag(", Trait, "):")
+            mb.esc       <- gsub("([.|()\\^{}+$*?])", "\\\\\\1", merge.by)
+
+            # Build qtlForLRT: downgrade vm term (always) and residual (fa only)
+            lrt.all.rt   <- attr(terms(qtlModel$call$random), "term.labels")
+            lrt.vm.idx   <- grep("vm.*covObj|mbf.*ints", lrt.all.rt)
+            lrt.cur.term <- lrt.all.rt[lrt.vm.idx[1L]]
+            if (!startsWith(lrt.cur.term, lrt.diag.pfx)) {
+                lrt.all.rt[lrt.vm.idx] <- paste0(lrt.diag.pfx,
+                                                  sub("^[^:]+:", "", lrt.cur.term))
+            }
+            if (n.fa > 0L) {
+                lrt.resid.idx <- setdiff(
+                    grep(paste0(":", mb.esc, "$"), lrt.all.rt), lrt.vm.idx)
+                if (length(lrt.resid.idx) > 0L) {
+                    rt <- lrt.all.rt[lrt.resid.idx[1L]]
+                    if (!startsWith(rt, lrt.diag.pfx))
+                        lrt.all.rt[lrt.resid.idx[1L]] <- paste0(
+                            lrt.diag.pfx, sub("^[^:]+:", "", rt))
+                }
+            }
+            lrt.diag.ran <- as.formula(paste("~", paste(lrt.all.rt, collapse = " + ")))
+            qtlForLRT    <- update(qtlModel, random. = lrt.diag.ran, ...)
+
+            # Build baseForLRT: for fa, refit base model with diag residual.
+            # vmterms[2L] is the residual genetic term (e.g. "fa(Trial,2):id");
+            # use it directly rather than calling terms() on baseModel$call$random,
+            # which may not be a parseable formula object after repeated update() calls.
+            if (n.fa > 0L) {
+                lrt.diag.resid <- paste0(lrt.diag.pfx,
+                                         sub("^[^:]+:", "", vmterms[2L]))
+                base.diag.ran  <- as.formula(paste("~", lrt.diag.resid))
+                baseForLRT     <- update(baseModel, random. = base.diag.ran, ...)
+            } else {
+                baseForLRT <- baseModel
+            }
+        } else {
+            qtlForLRT  <- qtlModel
+            baseForLRT <- baseModel
+        }
+        lrt               <- .lrtTest(qtlForLRT, baseForLRT, TypeI, ntrait = ntrait)
+        ldiag$lik[[iter]] <- c(lrt$baseLogL, qtlForLRT$loglik, lrt$stat, lrt$pvalue)
         if (!lrt$pass | breakout == iter) break
 
         # Record significant marker and report
@@ -316,17 +367,20 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     # -------------------------------------------------------------------------
     # Phase 5: Package results and clean up
     # -------------------------------------------------------------------------
+    # Assign phenoData to caller env before .packResults() so waldTest's
+    # update() can resolve quote(phenoData) from the model call.
+    data.name <- paste(as.character(baseModel$call$fixed[2]), "data", sep = ".")
+    assign(data.name, phenoData, envir = caller.env)
+    assign("phenoData",  phenoData, envir = caller.env)
+
     trait.levels <- if (!is.null(Trait)) levels(phenoData[[Trait]]) else NULL
     pr <- .packResults(qtl, coef.list, vcoef.list, ldiag, state, iter,
                        breakout, cov.env, genetic.term, method, "marker",
                        selection, TypeI, Trait = Trait, qtlModel = qtlModel,
-                       trait.levels = trait.levels)
+                       trait.levels = trait.levels, phenoData = phenoData)
     qtl.list           <- pr$qtl.list
     qtlModel           <- pr$qtlModel.pruned
     qtl.list$n.markers <- n.markers
-
-    data.name <- paste(as.character(baseModel$call$fixed[2]), "data", sep = ".")
-    assign(data.name, phenoData, envir = caller.env)
     qtlModel <- .envFix(qtlModel, asremlEnv)
     qtlModel$QTL <- qtl.list
     class(qtlModel) <- c("gwasAim", "asreml")

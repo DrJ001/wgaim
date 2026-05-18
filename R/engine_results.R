@@ -18,7 +18,7 @@
 .packResults <- function(qtl, coef.list, vcoef.list, ldiag, state, iter,
                          breakout, cov.env, genetic.term, method, gen.type,
                          selection, TypeI, Trait = NULL, qtlModel = NULL,
-                         trait.levels = NULL) {
+                         trait.levels = NULL, phenoData = NULL) {
     qtl.list <- list()
     qtl.list$selection <- selection
     qtl.list$method    <- method

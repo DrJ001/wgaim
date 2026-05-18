@@ -184,6 +184,37 @@ plot.qtlAim <- function(x, genObj,
     # -------------------------------------------------------------------------
     gen.type <- x$QTL$type
     cp       <- .build_cumpos(genObj, gen.type, chr)
+
+    # Multivariate blups: one line per trial with flag annotations
+    if (type == "blups" && !is.null(x$QTL$Trait)) {
+        mv_df        <- .build_mv_blups_df(x, iter, chr, cp)
+        trial.levels <- x$QTL$trait.levels
+        trial.cols   <- grDevices::hcl.colors(length(trial.levels), "Dark 2")
+        names(trial.cols) <- trial.levels
+        mv_df$trial  <- factor(mv_df$trial, levels = trial.levels)
+
+        gp <- ggplot2::ggplot(mv_df,
+                   ggplot2::aes(x      = .data$dist,
+                                y      = .data$values,
+                                colour = .data$trial,
+                                group  = interaction(.data$chr, .data$trial))) +
+            ggplot2::facet_wrap(~iteration, ncol = 1, scales = "free_y") +
+            ggplot2::geom_hline(yintercept = 0, colour = "grey60",
+                                linewidth = 0.3, linetype = "dashed") +
+            ggplot2::geom_line(linewidth = pt.cex) +
+            ggplot2::scale_colour_manual(values = trial.cols,
+                                         name   = x$QTL$Trait) +
+            ggplot2::scale_x_continuous(
+                breaks = cp$chr.mid, labels = names(cp$chr.mid)) +
+            ggplot2::scale_y_continuous(
+                expand = ggplot2::expansion(mult = c(0.05, 0.25))) +
+            ggplot2::ylab("Scaled BLUPs") +
+            ggplot2::xlab("") +
+            ggplot2::coord_cartesian(clip = "off") +
+            theme_scatter()
+        return(.add_mv_blups_flags(gp, x, iter, chr, cp, sig.col))
+    }
+
     stat_slot <- if (type == "outlier") "oint" else "blups"
     y.lab     <- if (type == "outlier") "Outlier Statistic" else "Scaled BLUPs"
 
@@ -209,7 +240,7 @@ plot.qtlAim <- function(x, genObj,
         ggplot2::scale_colour_identity() +
         ggplot2::scale_x_continuous(breaks = cp$chr.mid, labels = names(cp$chr.mid)) +
         ggplot2::scale_y_continuous(
-            expand = ggplot2::expansion(mult = c(0.02, 0.18))) +
+            expand = ggplot2::expansion(mult = c(0.02, 0.25))) +
         ggplot2::ylab(y.lab) +
         ggplot2::xlab("") +
         ggplot2::coord_cartesian(clip = "off") +
@@ -334,12 +365,22 @@ plot.qtlAim <- function(x, genObj,
                             ggplot2::aes(x = .data$dist, y = .data$values),
                             colour = sig.col, size = 2.5,
                             shape = 18, inherit.aes = FALSE) +
-        ggplot2::geom_text(data = sig.df,
-                           ggplot2::aes(x = .data$dist, y = .data$values,
-                                        label = .data$label),
-                           colour = sig.col, size = 2.8,
-                           vjust = -0.8, hjust = 0.5,
-                           inherit.aes = FALSE)
+        ggrepel::geom_text_repel(
+            data        = sig.df,
+            ggplot2::aes(x = .data$dist, y = .data$values,
+                         label = .data$label),
+            colour      = sig.col,
+            size        = 2.8,
+            nudge_y     = diff(range(sig.df$values, na.rm = TRUE)) * 0.08 + 0.5,
+            direction   = "x",
+            segment.size    = 0.3,
+            segment.colour  = sig.col,
+            segment.alpha   = 0.6,
+            box.padding     = 0.2,
+            point.padding   = 0.3,
+            force           = 1,
+            max.overlaps    = Inf,
+            inherit.aes     = FALSE)
 }
 
 # =============================================================================
@@ -1113,4 +1154,134 @@ plot.qtlAim <- function(x, genObj,
             inherit.aes = FALSE)
 
     gp
+}
+
+# =============================================================================
+# Shared engine: .build_mv_blups_df
+#
+# Builds a long-format data frame for the multivariate blups plot.
+# The blups slot for ntrait > 1 is a list of matrices (one per iteration),
+# each of dimension (n_all_markers x ntrait) with rownames = marker keys
+# and colnames = trait levels.
+#
+# Returns a data frame with columns:
+#   values    -- scaled BLUP z-score
+#   chr       -- chromosome name
+#   iname     -- marker key "Chr.CHR.IDX"
+#   dist      -- cumulative cM position
+#   iteration -- factor "Iteration: i"
+#   trial     -- trial/environment name (column from the blups matrix)
+# =============================================================================
+.build_mv_blups_df <- function(object, iter, chr, cp) {
+    # Guard: blups slot must be matrices (ntrait > 1 format from current engine).
+    # Old in-memory objects (fitted before this engine version) store named
+    # vectors instead.  Re-running the analysis produces the correct format.
+    first <- object$QTL$diag$blups[[iter[1L]]]
+    if (!is.matrix(first))
+        stop("The blups slot contains univariate-format vectors, not per-trial ",
+             "matrices.\nPlease re-run qtlAim() / gwasAim() to regenerate the ",
+             "object with the updated engine.")
+
+    diag_data <- object$QTL$diag$blups[iter]
+    c.iter    <- paste0("Iteration: ", iter)
+    names(diag_data) <- c.iter
+
+    rows <- lapply(seq_along(diag_data), function(i) {
+        mat  <- diag_data[[i]]           # nall_markers x ntrait matrix
+        echr <- sapply(strsplit(rownames(mat), "\\."), "[", 2L)
+        whc  <- echr %in% chr  # keep all markers including exclusion-window zeros
+        if (!any(whc)) return(NULL)
+
+        mat_sub <- mat[whc, , drop = FALSE]
+        keys    <- rownames(mat_sub)
+
+        do.call(rbind, lapply(seq_len(ncol(mat_sub)), function(j) {
+            data.frame(
+                values    = mat_sub[, j],
+                chr       = echr[whc],
+                iname     = keys,
+                dist      = cp$pos_lookup[keys],
+                iteration = c.iter[i],
+                trial     = colnames(mat_sub)[j],
+                stringsAsFactors = FALSE
+            )
+        }))
+    })
+    rows <- rows[!sapply(rows, is.null)]
+    if (length(rows) == 0L)
+        stop("No multivariate BLUP values found for the requested ",
+             "iterations/chromosomes.")
+
+    df           <- do.call(rbind, rows)
+    df$iteration <- factor(df$iteration, levels = paste0("Iteration: ", iter))
+    df
+}
+
+# =============================================================================
+# Shared engine: .add_mv_blups_flags
+#
+# Annotates selected QTL on the multivariate blups plot using a "flag" style:
+#   -- a faint dashed vertical line at the selected QTL's cumulative cM
+#      position, drawn only in its corresponding iteration facet
+#   -- a text label fixed at y = Inf (top of each panel) showing:
+#        line 1: "CHR.IDX"
+#        line 2: "[MAIN]" or "[INT]" when x$QTL$Trait is non-NULL
+#
+# This approach is independent of the spread of trial BLUP values at the
+# selected position, so it works equally well for MAIN QTL (all trials peak
+# together) and INTERACTION/crossover QTL (trials diverge in sign).
+# =============================================================================
+.add_mv_blups_flags <- function(gp, object, iter, chr, cp, sig.col) {
+    qtl.keys <- object$QTL$qtl
+    if (is.null(qtl.keys) || length(qtl.keys) == 0L) return(gp)
+
+    is.mv          <- !is.null(object$QTL$Trait)
+    iter.with.sig  <- iter[iter <= length(qtl.keys)]
+    iter.levels    <- levels(gp$data$iteration)
+
+    sig.rows <- lapply(iter.with.sig, function(it) {
+        key   <- qtl.keys[it]
+        parts <- strsplit(key, "\\.")[[1L]]
+        qchr  <- parts[2L]
+        if (!qchr %in% chr) return(NULL)
+        dist <- cp$pos_lookup[key]
+        if (is.na(dist)) return(NULL)
+
+        base_label <- sub("Chr\\.", "", key)   # "CHRNAME.IDX"
+        if (is.mv && !is.null(object$QTL$is.interaction)) {
+            type_tag <- if (object$QTL$is.interaction[it]) "[INT]" else "[MAIN]"
+            label    <- paste0(base_label, "\n", type_tag)
+        } else {
+            label <- base_label
+        }
+
+        data.frame(
+            dist      = dist,
+            iteration = factor(paste0("Iteration: ", it), levels = iter.levels),
+            label     = label,
+            stringsAsFactors = FALSE
+        )
+    })
+    sig.df <- do.call(rbind, sig.rows[!sapply(sig.rows, is.null)])
+    if (is.null(sig.df) || nrow(sig.df) == 0L) return(gp)
+
+    gp +
+        ggplot2::geom_vline(
+            data        = sig.df,
+            ggplot2::aes(xintercept = .data$dist),
+            colour      = sig.col,
+            linewidth   = 0.4,
+            linetype    = "dashed",
+            alpha       = 0.55,
+            inherit.aes = FALSE) +
+        ggplot2::geom_text(
+            data        = sig.df,
+            ggplot2::aes(x = .data$dist, label = .data$label),
+            y           = Inf,
+            colour      = sig.col,
+            size        = 2.5,
+            vjust       = 1.2,
+            hjust       = 0.5,
+            lineheight  = 0.85,
+            inherit.aes = FALSE)
 }
