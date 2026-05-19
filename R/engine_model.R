@@ -35,7 +35,7 @@
 #' @keywords internal
 .buildGenomeModel <- function(baseModel, genoData, phenoData, merge.by,
                                intervalObj, force, rterms, caller.env,
-                               Trait = NULL, n.fa = 0L, ...) {
+                               Trait = NULL, str = NULL, ...) {
     qtlModel <- baseModel
     vm <- FALSE
     vmterms <- NULL
@@ -57,29 +57,80 @@
     # (After fix.lines, Variety may have been replaced by "Gsave", but the
     # structure prefix, if any, is preserved by .fixLines.)
     # -------------------------------------------------------------------------
-    all.rand  <- unlist(strsplit(deparse(baseModel$call$random[[2]]), " \\+ "))
+    all.rand   <- unlist(strsplit(deparse(baseModel$call$random[[2]]), " \\+ "))
     resid.term <- all.rand[grep(merge.by, all.rand)][1L]
 
     # Isolate the variance structure prefix by stripping ":merge.by" from the end.
-    # Use a regex that escapes any special characters in merge.by.
     mb.esc        <- gsub("([.|()\\^{}+$*?])", "\\\\\\1", merge.by)
     mb.pattern    <- paste0(":", mb.esc, "$")
     struct.prefix <- sub(mb.pattern, "", resid.term)
     has.struct    <- struct.prefix != resid.term   # FALSE for univariate bare term
 
-    # Classify the residual structure to determine if/how to upgrade the
-    # additive genomic term after the initial diag(Trait) model is fitted.
+    # -------------------------------------------------------------------------
+    # Determine upgrade flags and n.fa from str (explicit) or residual (mirror).
     #
-    # corh / corgh / us  -> upgrade additive to corgh (heterogeneous corr/var)
-    # fa(Trait, k)       -> upgrade additive to fa(Trait, n.fa)
-    # diag / bare        -> no upgrade
+    # str = NULL  -> mirror the residual structure exactly:
+    #   corh / corgh / us in residual  -> upgrade additive to corgh
+    #   fa(Trait, k) in residual       -> upgrade additive to fa(Trait, k)
+    #   diag / bare                    -> no upgrade
     #
-    # us(Trial) (unstructured) maps to corgh on the additive term: both span
-    # the same space of positive-definite matrices but corgh is the natural
-    # ASReml parameterisation for vm() / mbf() terms.
-    upgrade.to.corgh <- has.struct &&
-        grepl("^corh\\(|^corgh\\(|^us\\(", struct.prefix)
-    upgrade.to.fa    <- has.struct && grepl("^fa\\(", struct.prefix) && n.fa > 0L
+    # str non-NULL -> override, regardless of residual structure:
+    #   "corh" / "corgh" / "us"  -> upgrade additive to corgh
+    #   "fa2", "fa3", ...         -> upgrade additive to fa(Trait, k)
+    #   "diag"                    -> no upgrade (independent per-trait)
+    #   "fa" (no number)          -> error: number of factors must be specified
+    #
+    # us(Trial) maps to corgh on the additive term: both span the same space of
+    # positive-definite matrices but corgh is the natural ASReml parameterisation
+    # for vm() / mbf() terms.
+    # -------------------------------------------------------------------------
+    # vm.struct: the exact variance structure prefix to apply to the additive
+    # genomic term.  NULL = no upgrade (diag or bare univariate).
+    # upgrade.to.fa: TRUE when vm.struct == "fa".
+    n.fa         <- 0L
+    vm.struct    <- NULL   # NULL -> no upgrade
+    upgrade.to.fa <- FALSE
+
+    if (is.null(str)) {
+        # Mirror from residual: extract the structure name from struct.prefix.
+        # For us() in the residual we mirror to "corgh" -- us() is not supported
+        # as a variance structure on vm()/mbf() terms in ASReml.
+        if (has.struct) {
+            if (grepl("^corh\\(", struct.prefix))
+                vm.struct <- "corh"
+            else if (grepl("^corgh\\(", struct.prefix))
+                vm.struct <- "corgh"
+            else if (grepl("^us\\(", struct.prefix))
+                vm.struct <- "corgh"   # us not supported on vm; fall back to corgh
+            else if (grepl("^fa\\(", struct.prefix)) {
+                vm.struct     <- "fa"
+                n.fa          <- as.integer(sub(".*,\\s*(\\d+)\\).*", "\\1", struct.prefix))
+                upgrade.to.fa <- TRUE
+            }
+            # diag() -> vm.struct stays NULL (no upgrade)
+        }
+    } else {
+        # Explicit override: use exactly what the user asked for.
+        str.l <- tolower(trimws(str))
+        if (str.l == "corh") {
+            vm.struct <- "corh"
+        } else if (str.l == "corgh") {
+            vm.struct <- "corgh"
+        } else if (str.l == "us") {
+            vm.struct <- "us"
+        } else if (str.l == "diag") {
+            vm.struct <- NULL   # no upgrade
+        } else if (grepl("^fa[0-9]+$", str.l)) {
+            n.fa          <- as.integer(sub("^fa", "", str.l))
+            vm.struct     <- "fa"
+            upgrade.to.fa <- TRUE
+        } else if (str.l == "fa") {
+            stop("str = \"fa\" requires a number of factors, e.g. str = \"fa2\".")
+        } else {
+            stop("str must be NULL, \"diag\", \"corh\", \"corgh\", \"us\", ",
+                 "or \"fa1\", \"fa2\", etc. Got: \"", str, "\".")
+        }
+    }
 
     # The additive genomic term always starts with diag(Trait): when multivariate
     # (regardless of the residual structure) and has no prefix for univariate.
@@ -120,30 +171,32 @@
     # The residual genetic term (resid.term / vmterms[2]) is NEVER changed --
     # it is the user's input structure and stays as-is throughout.
     #
-    #   corh / corgh / us in residual -> upgrade additive to corgh(Trait):vm/mbf
-    #   fa(Trait,k)   in residual    -> upgrade additive to fa(Trait,n.fa):vm/mbf
-    #                                   (step through fa(1)...fa(n.fa))
-    #   diag / bare                  -> no upgrade; stay at diag(Trait): or bare
+    #   corh/corgh/us in residual (or str) -> upgrade additive to that structure:vm/mbf
+    #                                          (us in residual maps to corgh for vm/mbf)
+    #   fa(Trait,k)   in residual (or str="faK") -> upgrade additive to fa(Trait,k):vm/mbf
+    #                                               (step through fa(1)...fa(k))
+    #   diag / bare   in residual (or str="diag") -> no upgrade
     #
     # Note: we carry the current additive term name in gterm (set above) and
     # build ran.form directly from it; we do NOT re-read from
     # qtlModel$call$random, which avoids any dependency on how ASReml stores
     # the formula internally after update().
     # -------------------------------------------------------------------------
-    if (upgrade.to.corgh || upgrade.to.fa) {
+    if (!is.null(vm.struct)) {
         # other.rterms: all current random terms except the additive genomic term
         # and the residual genetic term (those are in vmterms).  At this point
         # only rterms (the non-genetic other terms) qualify.
         other.rterms <- rterms   # rterms are the non-genetic terms from .fixLines()
         gterm.cur    <- gterm    # carry the additive term name built above
 
-        if (upgrade.to.corgh) {
-            # diag(Trait):vm/mbf --> corgh(Trait):vm/mbf
+        if (!upgrade.to.fa) {
+            # diag(Trait):vm/mbf --> vm.struct(Trait):vm/mbf
+            # vm.struct is "corh", "corgh", or "us" -- used verbatim.
             gterm.new <- sub(paste0("^diag\\(", Trait, "\\):"),
-                             paste0("corgh(", Trait, "):"), gterm.cur)
+                             paste0(vm.struct, "(", Trait, "):"), gterm.cur)
             ran.form  <- as.formula(paste(c("~", gterm.new, resid.term, other.rterms),
                                           collapse = " + "))
-            message("\nQTL x ", Trait, " corgh Random Effects Model.")
+            message("\nQTL x ", Trait, " ", vm.struct, " Random Effects Model.")
             cat("===============================================\n")
             qtlModel  <- update(qtlModel, random. = ran.form, ...)
             gterm.cur <- gterm.new
@@ -173,7 +226,7 @@
     }
 
     list(qtlModel = qtlModel, intervalObj = intervalObj,
-         cov.env = cov.env, vm = vm, vmterms = vmterms)
+         cov.env = cov.env, vm = vm, vmterms = vmterms, n.fa = n.fa)
 }
 
 #' @keywords internal

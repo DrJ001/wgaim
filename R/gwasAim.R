@@ -161,7 +161,7 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
                             fix.lines = TRUE, force = FALSE,
                             exclusion.window = 20, breakout = -1,
                             TypeI = 0.05, trace = TRUE, verboseLev = 0,
-                            Trait = NULL, n.fa = 0L, ...) {
+                            Trait = NULL, str = NULL, ...) {
 
     # Hard-coded engine constants -- not user-configurable for GWAS:
     #   method    = "fixed"    GWAS tests each marker as a fixed effect
@@ -213,13 +213,19 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
         ntrait <- length(levels(phenoData[[Trait]]))
         if (ntrait < 2L)
             stop("Trait column \"", Trait, "\" must have at least 2 levels.")
-        n.fa <- as.integer(n.fa)
-        if (n.fa > 0L) {
-            n.par.fa <- (n.fa + 1L) * ntrait - n.fa * (n.fa - 1L) %/% 2L
-            n.par.us <- ntrait * (ntrait + 1L) %/% 2L
-            if (n.par.fa > n.par.us)
-                stop("n.fa = ", n.fa, " is too large for ", ntrait,
-                     " traits: reduce n.fa and try again.")
+        # Validate str: parse n.fa from "faK" and check it is feasible
+        if (!is.null(str)) {
+            str.l <- tolower(trimws(str))
+            if (str.l == "fa")
+                stop("str = \"fa\" requires a number of factors, e.g. str = \"fa2\".")
+            if (grepl("^fa[0-9]+$", str.l)) {
+                n.fa.str <- as.integer(sub("^fa", "", str.l))
+                n.par.fa <- (n.fa.str + 1L) * ntrait - n.fa.str * (n.fa.str - 1L) %/% 2L
+                n.par.us <- ntrait * (ntrait + 1L) %/% 2L
+                if (n.par.fa > n.par.us)
+                    stop("str = \"", str, "\" is too large for ", ntrait,
+                         " traits (exceeds unstructured): reduce the number of factors.")
+            }
         }
     }
 
@@ -252,12 +258,13 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     # -------------------------------------------------------------------------
     gm        <- .buildGenomeModel(baseModel, genoData, phenoData, merge.by,
                                    genObj, force, rterms, caller.env,
-                                   Trait = Trait, n.fa = n.fa, ...)
+                                   Trait = Trait, str = str, ...)
     qtlModel  <- gm$qtlModel
     genObj    <- gm$intervalObj   # may have env attribute set (vm path)
     cov.env   <- gm$cov.env
     vm        <- gm$vm
     vmterms   <- gm$vmterms
+    n.fa      <- gm$n.fa    # effective number of fa factors (0 if not fa structure)
 
     # -------------------------------------------------------------------------
     # Phase 4: Iterative forward-selection loop

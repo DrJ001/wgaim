@@ -210,16 +210,18 @@
     gnams <- names(state)[as.logical(state)]
     vqtilde <- pmax(vqtilde, 0)
     names(qtilde) <- names(vqtilde) <- gnams
-    # oint = qtilde^2 / vqtilde for both univariate and multivariate.
-    # For ntrait == 1: qtilde is a signed scalar; qtilde^2 / vqtilde is the
-    #   familiar Wald chi-squared statistic.
-    # For ntrait > 1: qtilde = t(q_i) Ginv q_i (a quadratic form, scalar >= 0);
-    #   vqtilde = tr(Ginv Ti vatilde Ti') from .compute_vqtilde() is the variance
-    #   of that quadratic form.  qtilde^2 / vqtilde gives a chi-squared-scale
-    #   statistic consistent with the univariate formula and the LRT threshold
-    #   from pchisq.mixture().  The previous qtilde / vqtilde was dimensionally
-    #   wrong (chi-squared / chi-squared^2 = tiny).
-    oint <- ifelse(vqtilde > 0, qtilde / vqtilde, 0)
+    # Outlier statistic: two forms depending on ntrait.
+    #
+    # ntrait == 1: qtilde is a signed scalar BLUP; squaring gives a
+    #   chi-squared-scale Wald statistic: oint = qtilde^2 / vqtilde.
+    #
+    # ntrait > 1: qtilde = t(q_i) %*% Ginv %*% q_i is already a quadratic
+    #   form (>= 0, chi-squared-scale); vqtilde = tr(Ginv Ti vatilde Ti') is
+    #   its variance.  No further squaring: oint = qtilde / vqtilde.
+    oint <- if (ntrait == 1L)
+        ifelse(vqtilde > 0, qtilde^2 / vqtilde, 0)
+    else
+        ifelse(vqtilde > 0, qtilde  / vqtilde, 0)
     names(oint) <- gnams
     ochr <- NULL
 
