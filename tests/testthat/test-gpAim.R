@@ -320,3 +320,131 @@ test_that("gpAim: wgPanel accepted with gen.type='marker' (no stop)", {
     )
     expect_match(err, "stop at update")
 })
+
+# =============================================================================
+# 5. str argument validation
+# =============================================================================
+
+# Helper: make a minimal multivariate gpAim model fixture with Trait
+make_gp_mv_model <- function(ids = paste0("L", 1:40), trials = c("T1", "T2")) {
+    df <- data.frame(
+        id    = factor(rep(ids, length(trials))),
+        Trial = factor(rep(trials, each = length(ids))),
+        yld   = rnorm(length(ids) * length(trials)),
+        stringsAsFactors = FALSE
+    )
+    m <- list(
+        converge        = TRUE,
+        loglik          = -80,
+        sigma2          = 1,
+        vparameters     = c(Trial.id = 0.4, "R!variance" = 1),
+        vparameters.con = c(0L, 0L),
+        coefficients    = list(
+            fixed  = matrix(5, 1, 1, dimnames = list("(Intercept)", "effect")),
+            random = matrix(rnorm(length(ids)), length(ids), 1,
+                            dimnames = list(paste0("id_", ids), "effect"))),
+        formulae = list(fixed  = yld ~ Trial,
+                        random = as.formula("~ corh(Trial):id")),
+        mf   = df,
+        call = bquote(asreml(fixed   = yld ~ Trial,
+                             random  = ~ corh(Trial):id,
+                             data    = .(df)))
+    )
+    class(m) <- c("asreml", "list")
+    m
+}
+
+test_that("gpAim: str='fa' (no number) stops with clear message", {
+    m     <- make_gp_mv_model()
+    gen_i <- make_wgCross_interval(n_lines = 40)
+    gen_i$pheno$id <- factor(paste0("L", seq_len(nrow(gen_i$pheno))))
+    expect_error(
+        gpAim(m, genObj = gen_i, merge.by = "id",
+              Trait = "Trial", str = "fa"),
+        regexp = "number of factors"
+    )
+})
+
+test_that("gpAim: invalid str value stops with clear message", {
+    m     <- make_gp_mv_model()
+    gen_i <- make_wgCross_interval(n_lines = 40)
+    gen_i$pheno$id <- factor(paste0("L", seq_len(nrow(gen_i$pheno))))
+    expect_error(
+        gpAim(m, genObj = gen_i, merge.by = "id",
+              Trait = "Trial", str = "banana"),
+        regexp = "str must be"
+    )
+})
+
+test_that("gpAim: str='fa5' too large for 2 traits stops", {
+    # 2 traits: us has 3 params; fa5 has (5+1)*2 - 5*4/2 = 2 params -> actually fine
+    # For ntrait=2: n.par.us = 3; fa1 = 3, fa2 = 3 (saturated). fa3 would exceed.
+    # n.par.fa(k) = (k+1)*2 - k*(k-1)/2; for k=3: 8 - 3 = 5 > 3 = n.par.us
+    m     <- make_gp_mv_model()
+    gen_i <- make_wgCross_interval(n_lines = 40)
+    gen_i$pheno$id <- factor(paste0("L", seq_len(nrow(gen_i$pheno))))
+    expect_error(
+        gpAim(m, genObj = gen_i, merge.by = "id",
+              Trait = "Trial", str = "fa3"),
+        regexp = "too large|exceeds unstructured"
+    )
+})
+
+test_that("gpAim: str='corh' accepted (passes str validation, hits update)", {
+    m     <- make_gp_mv_model()
+    gen_i <- make_wgCross_interval(n_lines = 40)
+    gen_i$pheno$id <- factor(paste0("L", seq_len(nrow(gen_i$pheno))))
+    with_mocked_bindings(
+        update   = function(object, ...) stop("stop at update"),
+        .package = "wgAim",
+        {
+            err <- tryCatch(
+                gpAim(m, genObj = gen_i, merge.by = "id",
+                      Trait = "Trial", str = "corh"),
+                error = function(e) conditionMessage(e)
+            )
+        }
+    )
+    expect_match(err, "stop at update")
+})
+
+test_that("gpAim: str='fa1' accepted for 3 traits (passes str validation, hits update)", {
+    # For ntrait=3: n.par.us = 6; fa1 gives (1+1)*3 - 0 = 6 (saturated, valid)
+    #              fa2 gives (2+1)*3 - 1 = 8 > 6 (invalid, correctly rejected)
+    m     <- make_gp_mv_model(trials = c("T1", "T2", "T3"))
+    m$formulae$random <- as.formula("~ diag(Trial):id")
+    gen_i <- make_wgCross_interval(n_lines = 40)
+    gen_i$pheno$id <- factor(paste0("L", seq_len(nrow(gen_i$pheno))))
+    with_mocked_bindings(
+        update   = function(object, ...) stop("stop at update"),
+        .package = "wgAim",
+        {
+            err <- tryCatch(
+                gpAim(m, genObj = gen_i, merge.by = "id",
+                      Trait = "Trial", str = "fa1"),
+                error = function(e) conditionMessage(e)
+            )
+        }
+    )
+    expect_match(err, "stop at update")
+})
+
+test_that("gpAim: str ignored (no error) when Trait=NULL", {
+    m     <- make_gp_model()
+    gen_i <- make_wgCross_interval(n_lines = 40)
+    gen_i$pheno$id <- factor(paste0("L", seq_len(nrow(gen_i$pheno))))
+    # str is only validated inside the is.mv block; with Trait=NULL it is
+    # silently passed through to .buildGenomeModel which also ignores it
+    # (str only acts when Trait is non-NULL). Confirm no early stop.
+    with_mocked_bindings(
+        update   = function(object, ...) stop("stop at update"),
+        .package = "wgAim",
+        {
+            err <- tryCatch(
+                gpAim(m, genObj = gen_i, merge.by = "id", str = "corh"),
+                error = function(e) conditionMessage(e)
+            )
+        }
+    )
+    expect_match(err, "stop at update")
+})

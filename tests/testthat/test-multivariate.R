@@ -799,7 +799,7 @@ test_that("qtlAim: Trait column with only 1 level triggers stop", {
     )
 })
 
-test_that("qtlAim: n.fa too large for ntrait triggers stop", {
+test_that("qtlAim: str='fa3' too large for ntrait=2 triggers stop", {
     ids       <- paste0("L", 1:10)
     phenoData <- data.frame(id   = factor(ids), y = rnorm(10L),
                             Site = factor(c(rep("A", 5L), rep("B", 5L))))
@@ -808,11 +808,11 @@ test_that("qtlAim: n.fa too large for ntrait triggers stop", {
     with_mocked_bindings(
         .validateModel = function(...) .make_vret(base_m, phenoData),
         .package = "wgAim",
-        # ntrait=2: n.par.fa for n.fa=2 = (3)*2 - 2*1/2 = 5 > n.par.us = 3
+        # ntrait=2: n.par.us = 3; fa3 gives (3+1)*2 - 3*2/2 = 5 > 3
         expect_error(
             qtlAim(base_m, genObj = genObj, merge.by = "id",
-                   Trait = "Site", n.fa = 2L, trace = FALSE),
-            "too large"
+                   Trait = "Site", str = "fa3", trace = FALSE),
+            "too large|exceeds unstructured"
         )
     )
 })

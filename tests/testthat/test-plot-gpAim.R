@@ -47,29 +47,33 @@
     stringsAsFactors = FALSE
   )
 
-  gebv_df <- data.frame(
-    id   = ids,
-    GEBV = rnorm(n_lines, 0, 1),
-    SE   = runif(n_lines, 0.1, 0.3),
-    stringsAsFactors = FALSE
-  )
-  raw_mat <- matrix(rnorm(n_lines * n_markers), nrow = n_lines)
-  rel_mat <- tcrossprod(raw_mat) / n_markers
-  rownames(rel_mat) <- colnames(rel_mat) <- ids
+    SE_vals <- runif(n_lines, 0.1, 0.3)
+    gebv_df <- data.frame(
+      id       = ids,
+      GEBV     = rnorm(n_lines, 0, 1),
+      SE       = SE_vals,
+      Accuracy = sqrt(pmax(0, 1 - SE_vals^2 / 0.6)),
+      gen.H2   = 0.75,
+      stringsAsFactors = FALSE
+    )
+    raw_mat <- matrix(rnorm(n_lines * n_markers), nrow = n_lines)
+    rel_mat <- tcrossprod(raw_mat) / n_markers
+    rownames(rel_mat) <- colnames(rel_mat) <- ids
 
-  GP <- list(
-    gebv           = gebv_df,
-    marker.effects = marker_effects_df,
-    gen.type       = "interval",
-    path           = "vm",
-    var.genetic    = 0.6,
-    var.resid      = 0.4,
-    heritability   = 0.6,
-    n.markers      = n_markers,
-    rel.scale      = n_markers,
-    rel.matrix     = rel_mat,
-    genetic.term   = "id"
-  )
+    GP <- list(
+      gebv           = gebv_df,
+      marker.effects = marker_effects_df,
+      gen.type       = "interval",
+      path           = "vm",
+      var.genetic    = 0.6,
+      var.resid      = 0.4,
+      heritability   = 0.6,
+      gen.H2         = 0.75,
+      n.markers      = n_markers,
+      rel.scale      = n_markers,
+      rel.matrix     = rel_mat,
+      genetic.term   = "id"
+    )
 
   obj <- list(
     converge        = TRUE,
@@ -102,11 +106,14 @@
   rel_mat <- diag(n_lines)  # identity G for speed
   rownames(rel_mat) <- colnames(rel_mat) <- ids
 
+  se_large <- runif(n_lines, 0.1, 0.3)
   GP <- list(
     gebv = data.frame(
-      id   = ids,
-      GEBV = rnorm(n_lines),
-      SE   = runif(n_lines, 0.1, 0.3),
+      id       = ids,
+      GEBV     = rnorm(n_lines),
+      SE       = se_large,
+      Accuracy = sqrt(pmax(0, 1 - se_large^2 / 0.5)),
+      gen.H2   = 0.70,
       stringsAsFactors = FALSE
     ),
     marker.effects = data.frame(
@@ -119,6 +126,7 @@
     var.genetic  = 0.5,
     var.resid    = 0.5,
     heritability = 0.5,
+    gen.H2       = 0.70,
     n.markers    = n_marks,
     rel.scale    = n_marks,
     rel.matrix   = rel_mat,
@@ -338,15 +346,19 @@ test_that("plot.gpAim type='blups' with wgPanel genObj returns a ggplot", {
   rel_mat <- diag(n_lines)
   rownames(rel_mat) <- colnames(rel_mat) <- ids
 
+  se_wgp <- runif(n_lines, 0.1, 0.3)
   GP <- list(
     gebv           = data.frame(id = ids, GEBV = rnorm(n_lines),
-                                SE  = runif(n_lines, 0.1, 0.3)),
+                                SE  = se_wgp,
+                                Accuracy = sqrt(pmax(0, 1 - se_wgp^2 / 0.5)),
+                                gen.H2   = 0.68),
     marker.effects = marker_effects_df,
     gen.type       = "marker",
     path           = "vm",
     var.genetic    = 0.5,
     var.resid      = 0.5,
     heritability   = 0.5,
+    gen.H2         = 0.68,
     n.markers      = n_markers,
     rel.scale      = n_markers,
     rel.matrix     = rel_mat,
@@ -417,4 +429,98 @@ test_that(".gp_threshold: NULL threshold uses prop.select quantile", {
   thr <- gp_threshold(vals, threshold = NULL, prop.select = 0.2)
 
   expect_equal(thr, quantile(vals, 1 - 0.2, names = FALSE))
+})
+
+# =============================================================================
+# MV plot types (caterpillar_mv and density_mv)
+# Tests that the factor Trial column and gen.H2 per-trial work correctly.
+# =============================================================================
+
+.make_mock_gpAim_mv <- function(n_lines = 30, trials = c("T1", "T2")) {
+  set.seed(55)
+  ids    <- paste0("L", seq_len(n_lines))
+  ntrait <- length(trials)
+  SE_mv  <- runif(n_lines * ntrait, 0.05, 0.20)
+  G_diag <- setNames(c(0.8, 0.5)[seq_len(ntrait)], trials)
+  gen.H2_vals <- setNames(c(0.85, 0.78)[seq_len(ntrait)], trials)
+
+  gebv_df <- data.frame(
+    id       = factor(rep(ids, ntrait)),
+    Trial    = factor(rep(trials, each = n_lines), levels = trials),
+    GEBV     = rnorm(n_lines * ntrait),
+    SE       = SE_mv,
+    Accuracy = sqrt(pmax(0, 1 - SE_mv^2 /
+                         rep(G_diag[trials], each = n_lines))),
+    gen.H2   = rep(gen.H2_vals[trials], each = n_lines),
+    stringsAsFactors = FALSE
+  )
+  names(gebv_df)[1] <- "id"
+
+  n_markers <- 10L
+  rel_mat   <- diag(n_lines)
+  rownames(rel_mat) <- colnames(rel_mat) <- ids
+
+  Ga   <- diag(G_diag)
+  sds  <- sqrt(G_diag)
+  Gcor <- Ga / outer(sds, sds); diag(Gcor) <- 1
+  dimnames(Ga) <- dimnames(Gcor) <- list(trials, trials)
+
+  GP <- list(
+    gebv         = gebv_df,
+    marker.effects = NULL,
+    gen.type     = "marker",
+    path         = "vm",
+    var.genetic  = G_diag,
+    var.resid    = setNames(rep(1, ntrait), trials),
+    heritability = setNames(G_diag / (G_diag + 1), trials),
+    gen.H2       = gen.H2_vals,
+    n.markers    = n_markers,
+    rel.scale    = n_markers,
+    rel.matrix   = rel_mat,
+    genetic.term = "id",
+    Trait        = "Trial",
+    trait.levels = trials,
+    Ga           = Ga,
+    Gcor         = Gcor
+  )
+
+  obj <- list(
+    converge        = TRUE, loglik = -100, sigma2 = 1.0,
+    vparameters     = c(id = 0.6, "R!variance" = 1.0),
+    vparameters.con = c(id = 0L,  "R!variance" = 0L),
+    coefficients    = list(
+      fixed  = matrix(5, 1, 1, dimnames = list("(Intercept)", "effect")),
+      random = matrix(rnorm(n_lines), n_lines, 1,
+                      dimnames = list(paste0("id_", ids), "effect"))),
+    formulae = list(fixed = yld ~ 1, random = ~ Trial:id),
+    mf       = data.frame(id = factor(ids), yld = rnorm(n_lines)),
+    call     = call("asreml"),
+    GP       = GP
+  )
+  class(obj) <- c("gpAim", "asreml")
+  obj
+}
+
+test_that("plot.gpAim MV caterpillar: Trial factor column produces faceted ggplot", {
+  gp_fit <- .make_mock_gpAim_mv()
+  gp <- plot.gpAim(gp_fit, type = "caterpillar")
+  expect_s3_class(gp, "ggplot")
+  # Should have a FacetWrap layer (one panel per trial)
+  expect_true(inherits(gp$facet, "FacetWrap"))
+})
+
+test_that("plot.gpAim MV caterpillar: Trial levels preserved in factor column", {
+  gp_fit <- .make_mock_gpAim_mv(trials = c("T1", "T2"))
+  # Confirm the Trait column is a factor before plotting
+  expect_s3_class(gp_fit$GP$gebv$Trial, "factor")
+  expect_equal(levels(gp_fit$GP$gebv$Trial), c("T1", "T2"))
+  gp <- plot.gpAim(gp_fit, type = "caterpillar")
+  expect_s3_class(gp, "ggplot")
+})
+
+test_that("plot.gpAim MV density: returns faceted ggplot with gen.H2 annotation", {
+  gp_fit <- .make_mock_gpAim_mv()
+  gp <- plot.gpAim(gp_fit, type = "density", prop.select = 0.1)
+  expect_s3_class(gp, "ggplot")
+  expect_true(inherits(gp$facet, "FacetWrap"))
 })

@@ -276,7 +276,7 @@ test_that(".buildGenomeModel mbf path: assigns covObj, returns qtlModel list", {
             )
         }
     )
-    expect_named(res, c("qtlModel", "intervalObj", "cov.env", "vm", "vmterms"))
+    expect_named(res, c("qtlModel", "intervalObj", "cov.env", "vm", "vmterms", "n.fa"))
     expect_false(res$vm)
     expect_null(res$cov.env)
     expect_true(exists("covObj", envir = caller_e))

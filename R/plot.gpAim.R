@@ -159,10 +159,14 @@ plot.gpAim <- function(x,
     bar.idx <- c(1:top.n, (n - top.n + 1):n)
     bar.df  <- gebv[bar.idx, ]
 
-    # Annotation label
+    # Annotation label — show gen.H2 when available, otherwise naive h2
+    h2.val    <- if (!is.null(gp$gen.H2) && !is.na(gp$gen.H2))
+                     gp$gen.H2 else gp$heritability
+    h2.lbl    <- if (!is.null(gp$gen.H2) && !is.na(gp$gen.H2))
+                     "gen.H\u00b2" else "h\u00b2"
     ann.label <- sprintf(
-        "Selected: %d  (%.0f%%)\nSel. differential: %+.3f\nh^2 = %.3f",
-        n.sel, 100 * n.sel / n, sel.dif, gp$heritability)
+        "Selected: %d  (%.0f%%)\nSel. differential: %+.3f\n%s = %.3f",
+        n.sel, 100 * n.sel / n, sel.dif, h2.lbl, h2.val)
 
     gp.obj <- ggplot(gebv, aes_string(x = "rank", y = "GEBV", colour = "col")) +
         geom_hline(yintercept = 0,   colour = "grey70", linewidth = 0.3) +
@@ -290,9 +294,13 @@ plot.gpAim <- function(x,
     # -------------------------------------------------------------------------
     # Summary annotation
     # -------------------------------------------------------------------------
+    h2.val    <- if (!is.null(gp$gen.H2) && !is.na(gp$gen.H2))
+                     gp$gen.H2 else gp$heritability
+    h2.lbl    <- if (!is.null(gp$gen.H2) && !is.na(gp$gen.H2))
+                     "gen.H\u00b2" else "h\u00b2"
     ann.label <- sprintf(
-        "Selected: %d  (%.0f%%)\nSel. differential: %+.3f\nh\u00b2 = %.3f",
-        n.sel, round(100 * prop.sel), sel.dif, gp$heritability)
+        "Selected: %d  (%.0f%%)\nSel. differential: %+.3f\n%s = %.3f",
+        n.sel, round(100 * prop.sel), sel.dif, h2.lbl, h2.val)
 
     # -------------------------------------------------------------------------
     # Build plot
@@ -467,7 +475,8 @@ plot.gpAim <- function(x,
         thr        <- .gp_threshold(sub$GEBV, threshold, prop.select)
         sub$thr    <- thr
         sub$col    <- ifelse(sub$GEBV >= thr, pt.col[1], pt.col[2])
-        sub[[Trait]] <- tname
+        # Trait column is already a correctly-levelled factor from gpAim() --
+        # do NOT overwrite it with a bare character scalar.
         sub
     })
     df       <- do.call(rbind, df_list)
@@ -523,7 +532,11 @@ plot.gpAim <- function(x,
         n.sel     <- sum(vals >= thr)
         prop.sel  <- n.sel / length(vals)
         sel.dif   <- mean(vals[vals >= thr]) - mean(vals)
-        h2.t      <- gp$heritability[tname]
+        # Use gen.H2 per trial when available, otherwise naive h2
+        h2.t   <- if (!is.null(gp$gen.H2) && !is.na(gp$gen.H2[tname]))
+                      gp$gen.H2[tname] else gp$heritability[tname]
+        h2.lbl <- if (!is.null(gp$gen.H2) && !is.na(gp$gen.H2[tname]))
+                      "gen.H\u00b2" else "h\u00b2"
 
         dens     <- density(vals)
         dens.df  <- data.frame(x = dens$x, y = dens$y, trial = tname,
@@ -534,8 +547,8 @@ plot.gpAim <- function(x,
             shade,
             data.frame(x = max(shade$x), y = 0, trial = tname))
 
-        ann <- sprintf("n=%d (%.0f%%)\nSel.dif=%+.3f\nh\u00b2=%.3f",
-                       n.sel, 100 * prop.sel, sel.dif, h2.t)
+        ann <- sprintf("n=%d (%.0f%%)\nSel.dif=%+.3f\n%s=%.3f",
+                       n.sel, 100 * prop.sel, sel.dif, h2.lbl, h2.t)
         list(dens = dens.df, shade = shade, thr = thr,
              max.y = max(dens$y), ann.x = min(dens$x), ann = ann)
     })
