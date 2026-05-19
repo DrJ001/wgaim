@@ -103,6 +103,19 @@
 #'   statistics is printed to the console at each iteration, in addition to
 #'   the standard ASReml fitting output. Useful for diagnosing the selection
 #'   process.
+#' @param Trait Character string naming a factor column in the phenotypic data
+#'   that identifies the environment or trial (e.g. \code{"Site"}).  When
+#'   supplied, a multivariate multi-environment QTL model is fitted using a
+#'   mixture chi-squared LRT and \code{\link{waldTest}} pruning to separate
+#'   main-effect from G\eqn{\times}E QTL.  Default \code{NULL} (univariate).
+#' @param str Character string controlling the variance structure of the
+#'   additive genomic term in the multivariate model.  \code{NULL} (default)
+#'   mirrors the structure on the residual genetic term in \code{baseModel}.
+#'   Explicit options: \code{"corh"}, \code{"corgh"}, \code{"us"},
+#'   \code{"diag"}, or \code{"fa1"}, \code{"fa2"}, etc. for factor-analytic
+#'   structures.  The number of factors must be stated explicitly;
+#'   \code{str = "fa"} alone is an error.  Only relevant when
+#'   \code{Trait} is non-\code{NULL}.
 #' @param \dots Additional arguments passed to all internal
 #'   \code{\link[asreml]{update.asreml}} calls, such as
 #'   \code{na.action = na.method(x = "include")} or \code{maxit}.

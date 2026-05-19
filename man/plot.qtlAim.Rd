@@ -9,7 +9,6 @@
   genObj,
   type = c("outlier", "blups", "chr", "effects", "contrast", "heatmap"),
   data = NULL,
-  ncol = 1L,
   iter = NULL,
   chr = NULL,
   chr.lines = FALSE,
@@ -60,12 +59,6 @@ by \code{\link{primeCross}}.}
 \code{<response>.data} object created by \code{qtlAim} / \code{gwasAim}
 in the calling environment). Required only when \code{type = "contrast"}.}
 
-\item{ncol}{Integer. Number of columns in the \code{facet_wrap} layout for
-\code{type = "contrast"}. Default \code{1} (facets stacked vertically,
-consistent with the \code{"outlier"} and \code{"blups"} layout). Set to
-\code{NULL} to let ggplot2 choose automatically, or any positive integer
-for a multi-column grid. Not used for other plot types.}
-
 \item{iter}{Integer vector of iterations to display. Default is all stored
 iterations. Not used for \code{"effects"} or \code{"contrast"}.}
 
@@ -93,7 +86,13 @@ across the lower range where most signal variation occurs. Default
 \code{NULL} (no capping; full data range used). Not used for other plot
 types.}
 
-\item{\dots}{Currently unused.}
+\item{\dots}{Additional optional arguments for specific plot types.
+\describe{
+  \item{\code{ncol}}{Integer. Number of facet columns for
+    \code{type = "contrast"}. Default \code{1L} (vertical stack).}
+  \item{\code{qtl}}{Integer vector. Index (genome order) of QTL to show
+    in \code{type = "contrast"}. Default \code{NULL} (all QTL).}
+}}
 }
 \value{
 A \code{\link[ggplot2]{ggplot}} object.

@@ -69,19 +69,20 @@
 #' @param pt.col Character vector of length equal to the number of displayed
 #'   chromosomes, or length 2 for alternating colours. Colours the line/rug
 #'   traces by chromosome. Default uses \code{hcl.colors}.
-##' @param pt.cex Numeric line/point width. Default \code{0.6}.
-#' @param ncol Integer. Number of columns in the \code{facet_wrap} layout for
-#'   \code{type = "contrast"}. Default \code{1} (facets stacked vertically,
-#'   consistent with the \code{"outlier"} and \code{"blups"} layout). Set to
-#'   \code{NULL} to let ggplot2 choose automatically, or any positive integer
-#'   for a multi-column grid. Not used for other plot types.
+#' @param pt.cex Numeric line/point width. Default \code{0.6}.
 #' @param cap Numeric scalar. Upper limit for the colour scale in
 #'   \code{type = "heatmap"}. Outlier statistics above this value are clamped
 #'   to \code{cap} and rendered in the maximum colour, stretching the gradient
 #'   across the lower range where most signal variation occurs. Default
 #'   \code{NULL} (no capping; full data range used). Not used for other plot
 #'   types.
-#' @param \dots Currently unused.
+#' @param \dots Additional optional arguments for specific plot types.
+#'   \describe{
+#'     \item{\code{ncol}}{Integer. Number of facet columns for
+#'       \code{type = "contrast"}. Default \code{1L} (vertical stack).}
+#'     \item{\code{qtl}}{Integer vector. Index (genome order) of QTL to show
+#'       in \code{type = "contrast"}. Default \code{NULL} (all QTL).}
+#'   }
 #' @return A \code{\link[ggplot2]{ggplot}} object.
 #'
 #' @seealso \code{\link{qtlAim}}, \code{\link{summary.qtlAim}},

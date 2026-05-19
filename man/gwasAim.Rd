@@ -22,7 +22,7 @@ gwasAim(baseModel, ...)
   trace = TRUE,
   verboseLev = 0,
   Trait = NULL,
-  n.fa = 0L,
+  str = NULL,
   ...
 )
 }
@@ -80,6 +80,20 @@ messages still appear on screen).}
 
 \item{verboseLev}{Integer, \code{0} (default) or \code{1}. At \code{1},
 per-marker outlier statistics are printed at each iteration.}
+
+\item{Trait}{Character string naming a factor column in the phenotypic data
+that identifies the environment or trial (e.g. \code{"Site"}).  When
+supplied, a multivariate multi-environment GWAS model is fitted using a
+mixture chi-squared LRT and \code{\link{waldTest}} pruning to separate
+main-effect from G\eqn{\times}E associations.  Default \code{NULL}
+(univariate).}
+
+\item{str}{Character string controlling the variance structure of the
+additive genomic term in the multivariate model.  \code{NULL} (default)
+mirrors the structure on the residual genetic term in \code{baseModel}.
+Explicit options: \code{"corh"}, \code{"corgh"}, \code{"us"},
+\code{"diag"}, or \code{"fa1"}, \code{"fa2"}, etc.  Only relevant when
+\code{Trait} is non-\code{NULL}.}
 }
 \value{
 An object of class \code{c("gwasAim","asreml")} -- the final fitted

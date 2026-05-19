@@ -9,7 +9,6 @@
   genObj,
   type = c("manhattan", "outlier", "blups", "effects", "contrast", "heatmap"),
   data = NULL,
-  ncol = 1L,
   iter = NULL,
   chr = NULL,
   chr.lines = FALSE,
@@ -32,11 +31,6 @@ by \code{\link{primePanel}}.}
 
 \item{data}{Data frame. The phenotypic data used in the analysis. Required
 only when \code{type = "contrast"}.}
-
-\item{ncol}{Integer. Number of columns in the \code{facet_wrap} layout for
-\code{type = "contrast"}. Default \code{1} (vertical stack). Set to
-\code{NULL} for automatic layout or any positive integer for a grid.
-Not used for other plot types.}
 
 \item{iter}{Integer vector of iterations to display. Default is all stored
 iterations. Not used for \code{"effects"} or \code{"contrast"}.}
@@ -63,7 +57,13 @@ colours used in the Manhattan plot. Default \code{c("grey92","white")}.}
 to \code{cap} and rendered in the maximum colour. Default \code{NULL}
 (no capping; full data range used). Not used for other plot types.}
 
-\item{\dots}{Currently unused.}
+\item{\dots}{Additional optional arguments for specific plot types.
+\describe{
+  \item{\code{ncol}}{Integer. Number of facet columns for
+    \code{type = "contrast"}. Default \code{1L} (vertical stack).}
+  \item{\code{qtl}}{Integer vector. Index (genome order) of QTL to show
+    in \code{type = "contrast"}. Default \code{NULL} (all QTL).}
+}}
 }
 \value{
 A \code{\link[ggplot2]{ggplot}} object.

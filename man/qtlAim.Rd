@@ -25,7 +25,7 @@ qtlAim(baseModel, ...)
   trace = TRUE,
   verboseLev = 0,
   Trait = NULL,
-  n.fa = 0L,
+  str = NULL,
   ...
 )
 }
@@ -125,6 +125,21 @@ during analyses with many iterations.}
 statistics is printed to the console at each iteration, in addition to
 the standard ASReml fitting output. Useful for diagnosing the selection
 process.}
+
+\item{Trait}{Character string naming a factor column in the phenotypic data
+that identifies the environment or trial (e.g. \code{"Site"}).  When
+supplied, a multivariate multi-environment QTL model is fitted using a
+mixture chi-squared LRT and \code{\link{waldTest}} pruning to separate
+main-effect from G\eqn{\times}E QTL.  Default \code{NULL} (univariate).}
+
+\item{str}{Character string controlling the variance structure of the
+additive genomic term in the multivariate model.  \code{NULL} (default)
+mirrors the structure on the residual genetic term in \code{baseModel}.
+Explicit options: \code{"corh"}, \code{"corgh"}, \code{"us"},
+\code{"diag"}, or \code{"fa1"}, \code{"fa2"}, etc. for factor-analytic
+structures.  The number of factors must be stated explicitly;
+\code{str = "fa"} alone is an error.  Only relevant when
+\code{Trait} is non-\code{NULL}.}
 }
 \value{
 An object of class \code{c("qtlAim","asreml")} -- the final fitted

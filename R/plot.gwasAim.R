@@ -63,15 +63,17 @@
 #' @param band.col Character vector of length 2. Alternating background band
 #'   colours used in the Manhattan plot. Default \code{c("grey92","white")}.
 #' @param pt.cex Numeric point/line size. Default \code{0.6}.
-#' @param ncol Integer. Number of columns in the \code{facet_wrap} layout for
-#'   \code{type = "contrast"}. Default \code{1} (vertical stack). Set to
-#'   \code{NULL} for automatic layout or any positive integer for a grid.
-#'   Not used for other plot types.
 #' @param cap Numeric scalar. Upper limit for the colour scale in
 #'   \code{type = "heatmap"}. Outlier statistics above this value are clamped
 #'   to \code{cap} and rendered in the maximum colour. Default \code{NULL}
 #'   (no capping; full data range used). Not used for other plot types.
-#' @param \dots Currently unused.
+#' @param \dots Additional optional arguments for specific plot types.
+#'   \describe{
+#'     \item{\code{ncol}}{Integer. Number of facet columns for
+#'       \code{type = "contrast"}. Default \code{1L} (vertical stack).}
+#'     \item{\code{qtl}}{Integer vector. Index (genome order) of QTL to show
+#'       in \code{type = "contrast"}. Default \code{NULL} (all QTL).}
+#'   }
 #' @return A \code{\link[ggplot2]{ggplot}} object.
 #'
 #' @seealso \code{\link{gwasAim}}, \code{\link{summary.gwasAim}},
