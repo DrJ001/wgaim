@@ -11,7 +11,7 @@ Authors@R: c(person(given = "Julian",
                       role = "aut",
                       email = "averbyla@avdataanalytics.com.au"))
 Depends: R (>= 3.5.0), qtl
-Imports: ggplot2, ggrepel
+Imports: ggplot2, ggrepel, MASS
 Suggests: knitr, rmarkdown, prettydoc, testthat (>= 3.0.0), covr
 VignetteBuilder: knitr
 SystemRequirements: asreml-R 4.x
