@@ -160,8 +160,8 @@ gwasAim.default <- function(baseModel, ...)
 gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
                             fix.lines = TRUE, force = FALSE,
                             exclusion.window = 20, breakout = -1,
-                            TypeI = 0.05,
-                            trace = TRUE, verboseLev = 0, ...) {
+                            TypeI = 0.05, trace = TRUE, verboseLev = 0,
+                            Trait = NULL, str = NULL, ...) {
 
     # Hard-coded engine constants -- not user-configurable for GWAS:
     #   method    = "fixed"    GWAS tests each marker as a fixed effect
@@ -203,6 +203,32 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
         stop("Names in panel \"", merge.by, "\" column do not match any names ",
              "in phenotypic \"", merge.by, "\" column.")
 
+    # Multivariate argument guards (identical to qtlAim)
+    ntrait <- 1L
+    if (!is.null(Trait)) {
+        if (!Trait %in% names(phenoData))
+            stop("Trait column \"", Trait, "\" not found in the phenotypic data.")
+        if (!is.factor(phenoData[[Trait]]))
+            stop("Trait column \"", Trait, "\" must be a factor.")
+        ntrait <- length(levels(phenoData[[Trait]]))
+        if (ntrait < 2L)
+            stop("Trait column \"", Trait, "\" must have at least 2 levels.")
+        # Validate str: parse n.fa from "faK" and check it is feasible
+        if (!is.null(str)) {
+            str.l <- tolower(trimws(str))
+            if (str.l == "fa")
+                stop("str = \"fa\" requires a number of factors, e.g. str = \"fa2\".")
+            if (grepl("^fa[0-9]+$", str.l)) {
+                n.fa.str <- as.integer(sub("^fa", "", str.l))
+                n.par.fa <- (n.fa.str + 1L) * ntrait - n.fa.str * (n.fa.str - 1L) %/% 2L
+                n.par.us <- ntrait * (ntrait + 1L) %/% 2L
+                if (n.par.fa > n.par.us)
+                    stop("str = \"", str, "\" is too large for ", ntrait,
+                         " traits (exceeds unstructured): reduce the number of factors.")
+            }
+        }
+    }
+
     # -------------------------------------------------------------------------
     # Phase 2a: Build genotype data matrix (marker mode forced for GWAS)
     # -------------------------------------------------------------------------
@@ -231,12 +257,14 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     # Phase 3: Build and fit initial genome-wide marker model (vm or mbf path)
     # -------------------------------------------------------------------------
     gm        <- .buildGenomeModel(baseModel, genoData, phenoData, merge.by,
-                                   genObj, force, rterms, caller.env, ...)
+                                   genObj, force, rterms, caller.env,
+                                   Trait = Trait, str = str, ...)
     qtlModel  <- gm$qtlModel
     genObj    <- gm$intervalObj   # may have env attribute set (vm path)
     cov.env   <- gm$cov.env
     vm        <- gm$vm
     vmterms   <- gm$vmterms
+    n.fa      <- gm$n.fa    # effective number of fa factors (0 if not fa structure)
 
     # -------------------------------------------------------------------------
     # Phase 4: Iterative forward-selection loop
@@ -248,16 +276,68 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     repeat {
         # Compute outlier statistics and select best marker
         selq               <- .qtlSelect(qtlModel, phenoData, genObj, "marker",
-                                         selection, exclusion.window, state, verboseLev)
+                                         selection, exclusion.window, state, verboseLev,
+                                         merge.by = merge.by, Trait = Trait, ntrait = ntrait)
         state              <- selq$state
         ldiag$oint[[iter]] <- selq$oint
         ldiag$ochr[[iter]] <- selq$ochr
         ldiag$blups[[iter]] <- selq$blups
 
         # Likelihood ratio test: tests significance of the additive variance
-        # parameter of the genome-wide composite term (not individual markers)
-        lrt               <- .lrtTest(qtlModel, baseModel, TypeI)
-        ldiag$lik[[iter]] <- c(lrt$baseLogL, qtlModel$loglik, lrt$stat, lrt$pvalue)
+        # parameter of the genome-wide composite term (not individual markers).
+        # For ntrait > 1: downgrade to diag(Trait):vm/mbf for exact
+        # pchisq.mixture(stat, ntrait) type I error control.
+        #
+        # For fa(Trait,k) residual structures (n.fa > 0): ALSO downgrade the
+        # residual genetic term to diag(Trait): in both qtlForLRT and baseForLRT
+        # so both models share the same residual structure.  This cleanly
+        # isolates the vm diagonal variances without cross-contamination from
+        # the fa factor-loading parameters.  For corh/corgh (n.fa = 0) the
+        # residual is left as-is — the single vm downgrade is sufficient.
+        # Inlined so phenoData is in scope for ASReml formula resolution.
+        if (ntrait > 1L) {
+            lrt.diag.pfx <- paste0("diag(", Trait, "):")
+            mb.esc       <- gsub("([.|()\\^{}+$*?])", "\\\\\\1", merge.by)
+
+            # Build qtlForLRT: downgrade vm term (always) and residual (fa only)
+            lrt.all.rt   <- attr(terms(qtlModel$call$random), "term.labels")
+            lrt.vm.idx   <- grep("vm.*covObj|mbf.*ints", lrt.all.rt)
+            lrt.cur.term <- lrt.all.rt[lrt.vm.idx[1L]]
+            if (!startsWith(lrt.cur.term, lrt.diag.pfx)) {
+                lrt.all.rt[lrt.vm.idx] <- paste0(lrt.diag.pfx,
+                                                  sub("^[^:]+:", "", lrt.cur.term))
+            }
+            if (n.fa > 0L) {
+                lrt.resid.idx <- setdiff(
+                    grep(paste0(":", mb.esc, "$"), lrt.all.rt), lrt.vm.idx)
+                if (length(lrt.resid.idx) > 0L) {
+                    rt <- lrt.all.rt[lrt.resid.idx[1L]]
+                    if (!startsWith(rt, lrt.diag.pfx))
+                        lrt.all.rt[lrt.resid.idx[1L]] <- paste0(
+                            lrt.diag.pfx, sub("^[^:]+:", "", rt))
+                }
+            }
+            lrt.diag.ran <- as.formula(paste("~", paste(lrt.all.rt, collapse = " + ")))
+            qtlForLRT    <- update(qtlModel, random. = lrt.diag.ran, ...)
+
+            # Build baseForLRT: for fa, refit base model with diag residual.
+            # vmterms[2L] is the residual genetic term (e.g. "fa(Trial,2):id");
+            # use it directly rather than calling terms() on baseModel$call$random,
+            # which may not be a parseable formula object after repeated update() calls.
+            if (n.fa > 0L) {
+                lrt.diag.resid <- paste0(lrt.diag.pfx,
+                                         sub("^[^:]+:", "", vmterms[2L]))
+                base.diag.ran  <- as.formula(paste("~", lrt.diag.resid))
+                baseForLRT     <- update(baseModel, random. = base.diag.ran, ...)
+            } else {
+                baseForLRT <- baseModel
+            }
+        } else {
+            qtlForLRT  <- qtlModel
+            baseForLRT <- baseModel
+        }
+        lrt               <- .lrtTest(qtlForLRT, baseForLRT, TypeI, ntrait = ntrait)
+        ldiag$lik[[iter]] <- c(lrt$baseLogL, qtlForLRT$loglik, lrt$stat, lrt$pvalue)
         if (!lrt$pass | breakout == iter) break
 
         # Record significant marker and report
@@ -282,7 +362,7 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
 
         # Add selected marker effect (fixed or random) to both models
         ae                 <- .addEffect(baseModel, qtlModel, phenoData, merge.by,
-                                         qtl.x, method, iter, ...)
+                                         qtl.x, method, iter, Trait = Trait, ...)
         baseModel          <- ae$baseModel
         qtlModel           <- ae$qtlModel
         coef.list[[iter]]  <- ae$coefs
@@ -294,13 +374,20 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     # -------------------------------------------------------------------------
     # Phase 5: Package results and clean up
     # -------------------------------------------------------------------------
-    qtl.list           <- .packResults(qtl, coef.list, vcoef.list, ldiag, state,
-                                        iter, breakout, cov.env, genetic.term,
-                                        method, "marker", selection, TypeI)
-    qtl.list$n.markers <- n.markers
-
+    # Assign phenoData to caller env before .packResults() so waldTest's
+    # update() can resolve quote(phenoData) from the model call.
     data.name <- paste(as.character(baseModel$call$fixed[2]), "data", sep = ".")
     assign(data.name, phenoData, envir = caller.env)
+    assign("phenoData",  phenoData, envir = caller.env)
+
+    trait.levels <- if (!is.null(Trait)) levels(phenoData[[Trait]]) else NULL
+    pr <- .packResults(qtl, coef.list, vcoef.list, ldiag, state, iter,
+                       breakout, cov.env, genetic.term, method, "marker",
+                       selection, TypeI, Trait = Trait, qtlModel = qtlModel,
+                       trait.levels = trait.levels, phenoData = phenoData)
+    qtl.list           <- pr$qtl.list
+    qtlModel           <- pr$qtlModel.pruned
+    qtl.list$n.markers <- n.markers
     qtlModel <- .envFix(qtlModel, asremlEnv)
     qtlModel$QTL <- qtl.list
     class(qtlModel) <- c("gwasAim", "asreml")

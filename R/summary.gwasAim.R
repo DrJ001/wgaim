@@ -70,6 +70,32 @@ summary.gwasAim <- function(object, genObj, LOD = TRUE, ...) {
     var.mark   <- sigma2 * object$vparameters[grep(mark.terms, names(object$vparameters))] / scale
     var.res    <- sigma2 * oth.terms[grep(gterm, names(oth.terms))]
 
+    # Multivariate: use the final PRUNED model's fixed coefficients.
+    # object$QTL$effects comes from the loop model which had both
+    # X.chr.idx AND Trial:X.chr.idx, causing Trial1 to be aliased to 0.
+    # The pruned model has either X.chr.idx (MAIN) or Trial:X.chr.idx
+    # (INTERACTION with both trials non-aliased). Univariate: use effects as-is.
+    is.mv <- !is.null(object$QTL$Trait)
+    if (is.mv) {
+        all.fc <- object$coefficients$fixed
+        zind   <- grep("X\\.", rownames(all.fc))
+        qtle   <- setNames(rev(all.fc[zind, 1L]), rev(rownames(all.fc)[zind]))
+        veff   <- rev(object$vcoeff$fixed[zind])
+    } else {
+        veff <- object$QTL$veffects
+    }
+
+    enams <- names(qtle)
+    qtl.x <- sub("^.*:(X\\..*)$", "\\1", enams)
+    qtl.x[!grepl(":", enams)] <- enams[!grepl(":", enams)]
+    trait.lab <- rep("MAIN", length(enams))
+    if (is.mv) {
+        int.rows <- grepl(":", enams)
+        trait.lab[int.rows] <- sub("^(.*):X\\..*$", "\\1", enams[int.rows])
+        prefix <- paste0(object$QTL$Trait, "_")
+        trait.lab <- gsub(prefix, "", trait.lab, fixed = TRUE)
+    }
+
     if (object$QTL$method == "random") {
         var.est  <- sigma2 * object$vparameters[grep("X\\.", names(object$vparameters))]
         coef.est <- apply(genoData[, object$QTL$qtl, drop = FALSE]^2, 2, mean, na.rm = TRUE)
@@ -77,10 +103,31 @@ summary.gwasAim <- function(object, genObj, LOD = TRUE, ...) {
         var.est  <- qtle^2
         coef.est <- rep(1, length(qtle))
     }
-    var.all  <- sum(c(coef.est, coef.mark, 1) * c(var.est, var.mark, var.res))
-    perc.var <- round(100 * (coef.est * var.est) / var.all, 1)
+    # Perc.var: one value per unique QTL, broadcast to all its rows.
+    # Interaction QTL have no bare X.chr.idx key, so use mean(effects^2).
+    unique.qtl.x <- unique(qtl.x)
+    if (object$QTL$method == "random") {
+        var.est.qtl  <- var.est[unique.qtl.x]
+        coef.est.qtl <- coef.est[unique.qtl.x]
+    } else {
+        var.est.qtl  <- vapply(unique.qtl.x, function(uq)
+            mean(qtle[qtl.x == uq]^2), numeric(1L))
+        coef.est.qtl <- rep(1, length(unique.qtl.x))
+    }
+    # Scale all variance components to per-trial averages before computing
+    # Perc.Var.  var.mark and var.res are vectors of length ntrait for
+    # multivariate models (one value per trial); summing them would inflate
+    # the denominator relative to the per-trial-average var.est.qtl numerator.
+    # Using mean() keeps all three components on the same per-trial scale so
+    # the percentages are interpretable and sum to <= 100%.
+    var.mark.scalar  <- mean(var.mark)
+    var.res.scalar   <- mean(var.res)
+    var.all  <- sum(var.est.qtl) + coef.mark * var.mark.scalar + var.res.scalar
+    perc.var.per.qtl <- setNames(
+        round(100 * var.est.qtl / var.all, 1), unique.qtl.x)
+    perc.var <- perc.var.per.qtl[match(qtl.x, unique.qtl.x)]
 
-    zrat <- qtle / sqrt(object$QTL$veffects * sigma2)
+    zrat <- qtle / sqrt(veff * sigma2)
     if (object$QTL$method == "random") {
         pvalue <- round((1 - pchisq(zrat^2, 1)) / 2, 6)
         pvalue[pvalue < 1e-6] <- "<1e-06"
@@ -89,7 +136,15 @@ summary.gwasAim <- function(object, genObj, LOD = TRUE, ...) {
         pvalue[as.numeric(pvalue) < 1e-6] <- "<1e-06"
     }
     lod  <- round(0.5 * log10(exp(zrat^2)), 2)
-    qtlm <- getQTL(object, genObj)   # reuses existing getQTL (marker mode)
+
+    # getQTL() uses object$QTL$qtl for row order and count.
+    # Temporarily override it with qtl.x (converted to "Chr." prefix format) so
+    # getQTL() returns exactly as many rows as qtle, in the same order --
+    # including repeated rows for multivariate interaction QTL.
+    orig.qtl       <- object$QTL$qtl
+    object$QTL$qtl <- sub("^X\\.", "Chr.", qtl.x)
+    qtlm           <- getQTL(object, genObj)
+    object$QTL$qtl <- orig.qtl
 
     qtab <- data.frame(
         Chromosome = qtlm[, 1],
@@ -103,14 +158,19 @@ summary.gwasAim <- function(object, genObj, LOD = TRUE, ...) {
     )
     if (LOD) qtab$LOD <- lod
 
-    # Sort by chromosome then position -- extract leading integer from chromosome
-    # name so alphanumeric names (e.g. "Chr1", "1A") sort numerically.
+    if (is.mv)
+        qtab <- cbind(Trait = trait.lab, qtab)
+
+    # Sort by chromosome, position, then Trait level
+    pos.col  <- if (is.mv) 3L else 2L
     chr_lead <- as.integer(sub("^[^0-9]*([0-9]+).*$", "\\1",
                                as.character(qtab$Chromosome)))
-    qtab <- qtab[order(chr_lead,
-                       as.character(qtab$Chromosome),
-                       qtab[["dist(cM)"]],
-                       na.last = TRUE), ]
+    pos_vals <- suppressWarnings(as.numeric(qtab[, pos.col + 1L]))
+    sort.keys <- if (is.mv)
+        list(chr_lead, as.character(qtab$Chromosome), pos_vals, qtab$Trait)
+    else
+        list(chr_lead, as.character(qtab$Chromosome), pos_vals)
+    qtab <- qtab[do.call(order, c(sort.keys, list(na.last = TRUE))), ]
     rownames(qtab) <- NULL
 
     qtab

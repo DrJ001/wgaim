@@ -81,6 +81,41 @@ summary.qtlAim <- function(object, genObj, LOD = TRUE, ...) {
     oth.terms  <- object$vparameters[-grep(mark.terms, names(object$vparameters))]
     var.mark   <- sigma2 * object$vparameters[grep(mark.terms, names(object$vparameters))] / scale
     var.res    <- sigma2 * oth.terms[grep(gterm, names(oth.terms))]
+
+    # ------------------------------------------------------------------
+    # Multivariate: use the final PRUNED model's fixed coefficients.
+    #
+    # object$QTL$effects comes from coef.list[[iter-1]] — the loop model
+    # which had both X.chr.idx AND Trial:X.chr.idx simultaneously, causing
+    # ASReml to alias Trial1's interaction coefficient to zero.
+    # After waldTest pruning each QTL is either:
+    #   MAIN      : X.chr.idx only         (one coefficient, not aliased)
+    #   INTERACTION: Trial:X.chr.idx only  (ntrait coefficients, none aliased)
+    # so object$coefficients$fixed contains the correct non-aliased values.
+    #
+    # Univariate: no Trait slot -> use object$QTL$effects as before.
+    # ------------------------------------------------------------------
+    is.mv <- !is.null(object$QTL$Trait)
+    if (is.mv) {
+        all.fc <- object$coefficients$fixed
+        zind   <- grep("X\\.", rownames(all.fc))
+        qtle   <- setNames(rev(all.fc[zind, 1L]), rev(rownames(all.fc)[zind]))
+        veff   <- rev(object$vcoeff$fixed[zind])
+    } else {
+        veff <- object$QTL$veffects
+    }
+
+    enams  <- names(qtle)
+    qtl.x  <- sub("^.*:(X\\..*)$", "\\1", enams)   # always extract X.chr.idx part
+    qtl.x[!grepl(":", enams)] <- enams[!grepl(":", enams)]  # main effects unchanged
+    trait.lab <- rep("MAIN", length(enams))
+    if (is.mv) {
+        int.rows <- grepl(":", enams)
+        trait.lab[int.rows] <- sub("^(.*):X\\..*$", "\\1", enams[int.rows])
+        prefix <- paste0(object$QTL$Trait, "_")
+        trait.lab <- gsub(prefix, "", trait.lab, fixed = TRUE)
+    }
+
     if (object$QTL$method == "random") {
         var.est  <- sigma2 * object$vparameters[grep("X\\.", names(object$vparameters))]
         coef.est <- apply(genoData[, object$QTL$qtl, drop = FALSE]^2, 2, mean, na.rm = TRUE)
@@ -88,9 +123,34 @@ summary.qtlAim <- function(object, genObj, LOD = TRUE, ...) {
         var.est  <- qtle^2
         coef.est <- rep(1, length(qtle))
     }
-    var.all  <- sum(c(coef.est, coef.mark, 1) * c(var.est, var.mark, var.res))
-    perc.var <- round(100 * (coef.est * var.est) / var.all, 1)
-    zrat <- qtle / sqrt(object$QTL$veffects * sigma2)
+    # Perc.var: one value per unique QTL, broadcast to all its rows.
+    # For MAIN QTL:        var contribution = effect^2
+    # For INTERACTION QTL: var contribution = mean(per-trial effects^2)
+    # (no bare X.chr.idx key exists for interaction QTL in the final model)
+    # var.mark is summed across traits for multivariate to avoid length mismatch.
+    unique.qtl.x <- unique(qtl.x)
+    if (object$QTL$method == "random") {
+        var.est.qtl  <- var.est[unique.qtl.x]
+        coef.est.qtl <- coef.est[unique.qtl.x]
+    } else {
+        var.est.qtl  <- vapply(unique.qtl.x, function(uq)
+            mean(qtle[qtl.x == uq]^2), numeric(1L))
+        coef.est.qtl <- rep(1, length(unique.qtl.x))
+    }
+    # Scale all variance components to per-trial averages before computing
+    # Perc.Var.  var.mark and var.res are vectors of length ntrait for
+    # multivariate models (one value per trial); summing them would inflate
+    # the denominator relative to the per-trial-average var.est.qtl numerator.
+    # Using mean() keeps all three components on the same per-trial scale so
+    # the percentages are interpretable and sum to <= 100%.
+    var.mark.scalar  <- mean(var.mark)
+    var.res.scalar   <- mean(var.res)
+    var.all  <- sum(var.est.qtl) + coef.mark * var.mark.scalar + var.res.scalar
+    perc.var.per.qtl <- setNames(
+        round(100 * var.est.qtl / var.all, 1), unique.qtl.x)
+    perc.var <- perc.var.per.qtl[match(qtl.x, unique.qtl.x)]
+
+    zrat <- qtle / sqrt(veff * sigma2)
     if (object$QTL$method == "random") {
         pvalue <- round((1 - pchisq(zrat^2, 1)) / 2, 4)
         pvalue[pvalue < 0.0001] <- "<0.0001"
@@ -99,7 +159,16 @@ summary.qtlAim <- function(object, genObj, LOD = TRUE, ...) {
         pvalue[as.numeric(pvalue) < 0.0001] <- "<0.0001"
     }
     lod <- round(0.5 * log10(exp(zrat^2)), 2)
-    qtlm <- getQTL(object, genObj)
+
+    # getQTL() uses object$QTL$qtl for row order and count.
+    # Temporarily override it with qtl.x (converted to "Chr." prefix format) so
+    # getQTL() returns exactly as many rows as qtle, in the same order --
+    # including repeated rows for multivariate interaction QTL.
+    orig.qtl       <- object$QTL$qtl
+    object$QTL$qtl <- sub("^X\\.", "Chr.", qtl.x)
+    qtlm           <- getQTL(object, genObj)
+    object$QTL$qtl <- orig.qtl
+
     if (object$QTL$type == "interval") {
         qtab <- data.frame(
             Chromosome    = qtlm[, 1],
@@ -129,19 +198,27 @@ summary.qtlAim <- function(object, genObj, LOD = TRUE, ...) {
     }
     if (LOD)
         qtab$LOD <- lod
-    # Sort by chromosome then by inferred/marker position.
-    # Extract the leading integer from the chromosome name as the primary key
-    # so that alphanumeric names like "1A", "2B", "3D" sort numerically
-    # (1 before 2 before 3) without coercion warnings.  Full chromosome name
-    # breaks ties within the same number (e.g. "3A" before "3B" before "3D").
-    pos.col  <- if (object$QTL$type == "interval") 3 else 2
+
+    # For multivariate analyses, prepend the Trait column
+    if (is.mv)
+        qtab <- cbind(Trait = trait.lab, qtab)
+
+    # Sort by chromosome then by inferred/marker position (then Trait level).
+    # Extract leading integer from chromosome name for numeric-safe sorting.
+    pos.col  <- if (is.mv) {
+        if (object$QTL$type == "interval") 4L else 3L
+    } else {
+        if (object$QTL$type == "interval") 3L else 2L
+    }
+    chr_col  <- if (is.mv) "Chromosome" else "Chromosome"
     chr_lead <- as.integer(sub("^[^0-9]*([0-9]+).*$", "\\1",
                                as.character(qtab$Chromosome)))
     pos_vals <- suppressWarnings(as.numeric(qtab[, pos.col]))
-    qtab <- qtab[order(chr_lead,
-                       as.character(qtab$Chromosome),
-                       pos_vals,
-                       na.last = TRUE), ]
+    sort.keys <- if (is.mv)
+        list(chr_lead, as.character(qtab$Chromosome), pos_vals, qtab$Trait)
+    else
+        list(chr_lead, as.character(qtab$Chromosome), pos_vals)
+    qtab <- qtab[do.call(order, c(sort.keys, list(na.last = TRUE))), ]
     rownames(qtab) <- NULL
     qtab
 }

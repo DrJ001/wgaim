@@ -38,14 +38,40 @@
 #'
 #' @export
 summary.gpAim <- function(object, ...) {
-    gp   <- object$GP
-    gebv <- gp$gebv
-    gebv <- gebv[order(gebv$GEBV, decreasing = TRUE), ]
-    rownames(gebv) <- NULL
+    gp    <- object$GP
+    gebv  <- gp$gebv
+    is.mv <- !is.null(gp$Trait)
+
     gebv$GEBV <- round(gebv$GEBV, 4)
     gebv$SE   <- round(gebv$SE,   4)
-    cat(sprintf("\nGenomic Prediction summary  h2 = %.4f  (%d lines, %d markers)\n",
-                gp$heritability, nrow(gebv), gp$n.markers))
-    cat("GEBVs ranked highest to lowest:\n\n")
+    if ("Accuracy" %in% names(gebv))
+        gebv$Accuracy <- round(gebv$Accuracy, 4)
+    if ("gen.H2" %in% names(gebv))
+        gebv$gen.H2   <- round(gebv$gen.H2,   4)
+
+    if (!is.mv) {
+        gebv <- gebv[order(gebv$GEBV, decreasing = TRUE), ]
+        rownames(gebv) <- NULL
+        h2.str <- sprintf("h2 = %.4f", gp$heritability)
+        if (!is.null(gp$gen.H2) && !is.na(gp$gen.H2))
+            h2.str <- paste0(h2.str, sprintf("  gen.H2 = %.4f", gp$gen.H2))
+        cat(sprintf(
+            "\nGenomic Prediction summary  %s  (%d lines, %d markers)\n",
+            h2.str, nrow(gebv), gp$n.markers))
+        cat("GEBVs ranked highest to lowest:\n\n")
+    } else {
+        n.lines <- length(unique(gebv[[gp$genetic.term]]))
+        gebv    <- gebv[order(gebv[[gp$Trait]], -gebv$GEBV), ]
+        rownames(gebv) <- NULL
+        cat(sprintf(
+            "\nMultivariate Genomic Prediction  (%d lines, %d markers, %d trials)\n",
+            n.lines, gp$n.markers, length(gp$trait.levels)))
+        if (!is.null(gp$gen.H2) && !all(is.na(gp$gen.H2))) {
+            cat("Generalised H2 per trial:\n")
+            for (tname in gp$trait.levels)
+                cat(sprintf("  %-12s : %.4f\n", tname, gp$gen.H2[tname]))
+        }
+        cat("GEBVs ranked highest to lowest within each trial:\n\n")
+    }
     gebv
 }

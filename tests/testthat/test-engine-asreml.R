@@ -276,7 +276,7 @@ test_that(".buildGenomeModel mbf path: assigns covObj, returns qtlModel list", {
             )
         }
     )
-    expect_named(res, c("qtlModel", "intervalObj", "cov.env", "vm", "vmterms"))
+    expect_named(res, c("qtlModel", "intervalObj", "cov.env", "vm", "vmterms", "n.fa"))
     expect_false(res$vm)
     expect_null(res$cov.env)
     expect_true(exists("covObj", envir = caller_e))
@@ -596,7 +596,7 @@ test_that("qtlAim full loop: LRT fails -> breakout -> packResults called", {
                  ochr = NULL, oint = oint,
                  blups = setNames(rnorm(e$n_int), e$all_keys))
         },
-        .lrtTest = function(qtlModel, baseModel, TypeI) {
+        .lrtTest = function(qtlModel, baseModel, TypeI, ...) {
             list(baseLogL = -52, stat = 1.0, pvalue = 0.3, pass = FALSE)
         },
         .envFix = function(model, asremlEnv) model,

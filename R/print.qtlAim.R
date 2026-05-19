@@ -36,15 +36,19 @@ print.qtlAim <- function(x, genObj, ...) {
     if (is.null(x$QTL$effects)) {
         cat("There are no significant putative QTL's\n")
     } else {
-        qtlm <- getQTL(x, genObj)
+        is.mv  <- !is.null(x$QTL$Trait)
+        qtlm   <- getQTL(x, genObj)
         for (z in 1:nrow(qtlm)) {
-            int <- paste(qtlm[z, 1], qtlm[z, 2], sep = ".")
+            int  <- paste(qtlm[z, 1], qtlm[z, 2], sep = ".")
+            type <- if (is.mv)
+                if (x$QTL$is.interaction[z]) " [INTERACTION]" else " [MAIN]"
+            else ""
             if (x$QTL$type == "interval")
-                cat("\nPutative QTL found on the interval", int,
+                cat("\nPutative QTL found on the interval", int, type,
                     "\nLeft-hand marker is", qtlm[z, 3],
                     "\nRight-hand marker is", qtlm[z, 7], "\n")
             else
-                cat("\nPutative QTL found close to marker", int,
+                cat("\nPutative QTL found close to marker", int, type,
                     "\nMarker is", qtlm[z, 3], "\n")
         }
     }

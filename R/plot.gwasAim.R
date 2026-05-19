@@ -89,7 +89,6 @@ plot.gwasAim <- function(x, genObj,
                           type      = c("manhattan", "outlier", "blups",
                                         "effects", "contrast", "heatmap"),
                           data      = NULL,
-                          ncol      = 1L,
                           iter      = NULL,
                           chr       = NULL,
                           chr.lines = FALSE,
@@ -114,6 +113,10 @@ plot.gwasAim <- function(x, genObj,
     # effects / contrast: delegate to shared helpers in plot.qtlAim.R
     # -------------------------------------------------------------------------
     if (type == "effects") {
+        if (!is.null(x$QTL$Trait)) {
+            edf <- .build_mv_effects_df(x, genObj)
+            return(.plot_mv_effects(edf, x))
+        }
         edf <- .build_effects_df(x, genObj)
         return(.plot_effects(edf))
     }
@@ -123,8 +126,18 @@ plot.gwasAim <- function(x, genObj,
             stop("data is required for type = \"contrast\".\n",
                  "Pass the phenotypic data frame used in the analysis ",
                  "(e.g. the <response>.data object).")
+        dots     <- list(...)
+        qtl_sel  <- dots[["qtl"]]
+        if (!is.null(x$QTL$Trait)) {
+            ncol_use <- if (!is.null(dots[["ncol"]])) dots[["ncol"]]
+                        else length(x$QTL$trait.levels)
+            cdf <- .build_mv_contrast_df(x, genObj, data, qtl = qtl_sel)
+            return(.plot_contrast(cdf, ncol = ncol_use))
+        }
+        ncol_use <- if (!is.null(dots[["ncol"]])) dots[["ncol"]] else 1L
         cdf <- .build_contrast_df(x, genObj, data)
-        return(.plot_contrast(cdf, ncol = ncol))
+        if (!is.null(qtl_sel)) cdf <- cdf[qtl_sel]
+        return(.plot_contrast(cdf, ncol = ncol_use))
     }
 
     # -------------------------------------------------------------------------
@@ -164,6 +177,36 @@ plot.gwasAim <- function(x, genObj,
         return(.plot_gwas_manhattan(x, genObj, iter, chr, cp,
                                     sig.col, pt.col, band.col, pt.cex))
 
+    # Multivariate blups: one line per trial with flag annotations
+    if (type == "blups" && !is.null(x$QTL$Trait)) {
+        mv_df        <- .build_mv_blups_df(x, iter, chr, cp)
+        trial.levels <- x$QTL$trait.levels
+        trial.cols   <- grDevices::hcl.colors(length(trial.levels), "Dark 2")
+        names(trial.cols) <- trial.levels
+        mv_df$trial  <- factor(mv_df$trial, levels = trial.levels)
+
+        gp <- ggplot2::ggplot(mv_df,
+                   ggplot2::aes(x      = .data$dist,
+                                y      = .data$values,
+                                colour = .data$trial,
+                                group  = interaction(.data$chr, .data$trial))) +
+            ggplot2::facet_wrap(~iteration, ncol = 1, scales = "free_y") +
+            ggplot2::geom_hline(yintercept = 0, colour = "grey60",
+                                linewidth = 0.3, linetype = "dashed") +
+            ggplot2::geom_line(linewidth = pt.cex) +
+            ggplot2::scale_colour_manual(values = trial.cols,
+                                         name   = x$QTL$Trait) +
+            ggplot2::scale_x_continuous(
+                breaks = cp$chr.mid, labels = names(cp$chr.mid)) +
+            ggplot2::scale_y_continuous(
+                expand = ggplot2::expansion(mult = c(0.05, 0.25))) +
+            ggplot2::ylab("Scaled BLUPs") +
+            ggplot2::xlab("") +
+            ggplot2::coord_cartesian(clip = "off") +
+            theme_scatter()
+        return(.add_mv_blups_flags(gp, x, iter, chr, cp, sig.col))
+    }
+
     # outlier / blups: shared line-plot engine
     stat_slot <- if (type == "outlier") "oint" else "blups"
     y.lab     <- if (type == "outlier") "Outlier Statistic" else "Scaled BLUPs"
@@ -185,7 +228,7 @@ plot.gwasAim <- function(x, genObj,
         ggplot2::scale_x_continuous(
             breaks = cp$chr.mid, labels = names(cp$chr.mid)) +
         ggplot2::scale_y_continuous(
-            expand = ggplot2::expansion(mult = c(0.02, 0.18))) +
+            expand = ggplot2::expansion(mult = c(0.02, 0.25))) +
         ggplot2::ylab(y.lab) +
         ggplot2::xlab("") +
         ggplot2::coord_cartesian(clip = "off") +
@@ -243,7 +286,7 @@ plot.gwasAim <- function(x, genObj,
         ggplot2::scale_x_continuous(
             breaks = cp$chr.mid, labels = names(cp$chr.mid)) +
         ggplot2::scale_y_continuous(
-            expand = ggplot2::expansion(mult = c(0.02, 0.18))) +
+            expand = ggplot2::expansion(mult = c(0.02, 0.25))) +
         ggplot2::ylab("Outlier Statistic") +
         ggplot2::xlab("Chromosome") +
         ggplot2::coord_cartesian(clip = "off") +
@@ -286,13 +329,22 @@ plot.gwasAim <- function(x, genObj,
                     colour      = sig.col, size = pt.cex * 5,
                     shape       = 18, inherit.aes = FALSE
                 ) +
-                ggplot2::geom_text(
+                ggrepel::geom_text_repel(
                     data        = sig.df,
                     ggplot2::aes(x = .data$dist, y = .data$values,
                                  label = .data$label),
-                    colour      = sig.col, size = 2.8,
-                    vjust       = -0.8, hjust = 0.5,
-                    inherit.aes = FALSE
+                    colour          = sig.col,
+                    size            = 2.8,
+                    nudge_y         = diff(range(sig.df$values, na.rm = TRUE)) * 0.08 + 0.5,
+                    direction       = "x",
+                    segment.size    = 0.3,
+                    segment.colour  = sig.col,
+                    segment.alpha   = 0.6,
+                    box.padding     = 0.2,
+                    point.padding   = 0.3,
+                    force           = 1,
+                    max.overlaps    = Inf,
+                    inherit.aes     = FALSE
                 )
         }
     }

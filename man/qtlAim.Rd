@@ -24,6 +24,8 @@ qtlAim(baseModel, ...)
   TypeI = 0.05,
   trace = TRUE,
   verboseLev = 0,
+  Trait = NULL,
+  n.fa = 0L,
   ...
 )
 }

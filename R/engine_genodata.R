@@ -23,7 +23,10 @@
 #' @keywords internal
 .fixLines <- function(baseModel, phenoData, genoData, merge.by, plines, fix.lines, ...) {
     rterms <- unlist(strsplit(deparse(baseModel$call$random[[2]]), " \\+ "))
-    rterms <- rterms[-grep(merge.by, rterms)]
+    # Split off the genetic term (contains merge.by) from the other random terms.
+    gen.idx <- grep(merge.by, rterms)
+    gen.term.orig <- rterms[gen.idx]    # e.g. "corgh(Trial):Variety" or bare "Variety"
+    rterms  <- rterms[-gen.idx]
     whg <- levels(phenoData[[merge.by]]) %in% rownames(genoData)
     genetic.term <- merge.by
     if (!all(whg) & fix.lines) {
@@ -31,7 +34,13 @@
         levels(phenoData$Gsave)[!whg] <- NA
         levels(phenoData$Gomit)[whg] <- "GEN"
         fix.form <- as.formula(". ~ Gomit + .")
-        ran.base <- formula(paste(c("~ Gsave", rterms), collapse = " + "))
+        # Substitute merge.by -> Gsave in the genetic term, preserving any
+        # variance structure prefix (e.g. corgh(Trial):Variety -> corgh(Trial):Gsave).
+        mb.esc       <- gsub("([.|()\\^{}+$*?])", "\\\\\\1", merge.by)
+        gen.term.new <- sub(paste0("(^|:)", mb.esc, "$"),
+                            "\\1Gsave", gen.term.orig)
+        ran.base <- formula(paste(c(paste("~", gen.term.new), rterms),
+                                  collapse = " + "))
         baseModel$call$data <- quote(phenoData)
         cat("\nFixing lines and updating initial base model:\n")
         cat("============================================\n")
