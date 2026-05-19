@@ -40,6 +40,8 @@ print.gpAim <- function(x, ...) {
         cat(sprintf("  Genetic  (Vg)   : %.4f\n", gp$var.genetic))
         cat(sprintf("  Residual (Ve)   : %.4f\n", gp$var.resid))
         cat(sprintf("  Heritability h2 : %.4f\n", gp$heritability))
+        if (!is.null(gp$gen.H2) && !is.na(gp$gen.H2))
+            cat(sprintf("  Generalised H2  : %.4f\n", gp$gen.H2))
         cat("\nGEBV range:\n")
         cat(sprintf("  Min : %.4f\n", min(gp$gebv$GEBV, na.rm = TRUE)))
         cat(sprintf("  Mean: %.4f\n", mean(gp$gebv$GEBV, na.rm = TRUE)))
@@ -57,11 +59,13 @@ print.gpAim <- function(x, ...) {
 
         cat("\nVariance components (per trial):\n")
         vc.df <- data.frame(
-            Vg = round(gp$var.genetic, 4),
-            Ve = round(gp$var.resid,   4),
-            h2 = round(gp$heritability, 4),
+            Vg     = round(gp$var.genetic,   4),
+            Ve     = round(gp$var.resid,     4),
+            h2     = round(gp$heritability,  4),
             check.names = FALSE
         )
+        if (!is.null(gp$gen.H2) && !all(is.na(gp$gen.H2)))
+            vc.df$gen.H2 <- round(gp$gen.H2[gp$trait.levels], 4)
         rownames(vc.df) <- gp$trait.levels
         print(vc.df)
 

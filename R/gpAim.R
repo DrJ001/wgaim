@@ -81,6 +81,33 @@
 #' @param trace Logical or character string. If \code{TRUE} (default), ASReml
 #'   output is printed to the console. If a file path character string, output
 #'   is redirected there.
+#' @param Trait Character string naming a factor column in the phenotypic data
+#'   identifying the environment or trial (e.g. \code{"Trial"}). When supplied,
+#'   a multivariate G-BLUP model is fitted and per-environment GEBVs are
+#'   returned. See \code{str} for how the variance structure of the additive
+#'   genomic term is controlled. Default \code{NULL} (univariate).
+#' @param str Character string controlling the variance structure applied to
+#'   the additive genomic term (\code{vm()} or \code{mbf()}) when
+#'   \code{Trait} is non-\code{NULL}. Options:
+#'   \describe{
+#'     \item{\code{NULL} (default)}{Mirror the structure on the genetic line
+#'       term in \code{baseModel}'s random formula: \code{corh}/\code{corgh}/
+#'       \code{us} maps to \code{corgh(Trait):vm()}; \code{fa(Trait,k)} maps
+#'       to \code{fa(Trait,k):vm()}; \code{diag} stays as
+#'       \code{diag(Trait):vm()} (independent per-environment GEBVs).}
+#'     \item{\code{"corh"} / \code{"corgh"} / \code{"us"}}{Force
+#'       \code{corgh(Trait):vm()}: heterogeneous variances with a common
+#'       genetic correlation across environments.}
+#'     \item{\code{"fa1"}, \code{"fa2"}, \dots}{Force
+#'       \code{fa(Trait,k):vm()} with \eqn{k} factors. The number must be
+#'       explicit; \code{str = "fa"} alone returns an error.}
+#'     \item{\code{"diag"}}{Force \code{diag(Trait):vm()}: independent
+#'       per-environment GEBVs, no borrowing of information across
+#'       environments.}
+#'   }
+#'   Ignored when \code{Trait = NULL}. When \code{str} is supplied, the
+#'   structure on the residual genetic term in \code{baseModel} is retained
+#'   unchanged; only the additive genomic term is overridden.
 #' @param \dots Additional arguments passed to \code{update.asreml}, such as
 #'   \code{na.action = na.method(x = "include")}.
 #'
@@ -182,7 +209,7 @@ gpAim.default <- function(baseModel, ...)
 gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
                           fix.lines = TRUE, gen.type = "marker",
                           force = FALSE, trace = TRUE,
-                          Trait = NULL, n.fa = 0L, ...) {
+                          Trait = NULL, str = NULL, ...) {
 
     caller.env <- parent.frame()
 
@@ -225,7 +252,20 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
         ntrait       <- length(trait.levels)
         if (ntrait < 2L)
             stop("Trait '", Trait, "' must have at least 2 levels for multivariate GP.")
-        n.fa <- min(as.integer(n.fa), ntrait - 1L)
+        # Validate str: parse n.fa from "faK" and check it is feasible
+        if (!is.null(str)) {
+            str.l <- tolower(trimws(str))
+            if (str.l == "fa")
+                stop("str = \"fa\" requires a number of factors, e.g. str = \"fa2\".")
+            if (grepl("^fa[0-9]+$", str.l)) {
+                n.fa.str <- as.integer(sub("^fa", "", str.l))
+                n.par.fa <- (n.fa.str + 1L) * ntrait - n.fa.str * (n.fa.str - 1L) %/% 2L
+                n.par.us <- ntrait * (ntrait + 1L) %/% 2L
+                if (n.par.fa > n.par.us)
+                    stop("str = \"", str, "\" is too large for ", ntrait,
+                         " traits (exceeds unstructured): reduce the number of factors.")
+            }
+        }
     }
 
     if (is.null(merge.by))
@@ -281,9 +321,12 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     #     by the marker panel (polygenic background + ungenotyped lines).
     #   - Handles vm vs mbf path selection (vm when markers > lines, mbf
     #     otherwise, overridden by force = TRUE).
-    #   - For MV: starts with diag(Trait):vm(), then upgrades based on the
-    #     residual structure and n.fa (diag -> corh for ntrait=2; diag ->
-    #     fa(1) -> ... -> fa(n.fa) for ntrait>=3).
+    #   - For MV: the genomic vm term mirrors the variance structure on the
+    #     residual genetic term in the base model (corh -> corgh, fa(k) ->
+    #     fa(k), diag -> diag).  The user controls the structure by specifying
+    #     it on the genetic line term in the base model's random formula.
+    #     n.fa controls how many factor-analytic steps to fit when the base
+    #     model carries an fa() structure.
     #   - Assigns covObj to caller.env.
     # -------------------------------------------------------------------------
     n.markers    <- ncol(genoData)
@@ -291,7 +334,7 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     cat("Fitting Genomic Prediction model...\n")
     gm      <- .buildGenomeModel(baseModel, genoData, phenoData, merge.by,
                                   genObj, force, rterms, caller.env,
-                                  Trait = Trait, n.fa = n.fa, ...)
+                                  Trait = Trait, str = str, ...)
     gpModel <- gm$qtlModel
     cov.env <- gm$cov.env     # NULL for mbf path
     use.vm  <- gm$vm
@@ -309,40 +352,71 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
         # Internal G.param name for the vm term (works for any variance prefix)
         vm_only <- names(gpModel$G.param)[grep("vm.*covObj", names(gpModel$G.param))]
         if (!is.mv) {
-            # Univariate vm: predict GEBVs directly
+            # Univariate vm: predict GEBVs directly, with SED for Cullis H²
             pv   <- predict(gpModel, classify = vm_only,
-                            only = vm_only, vcov = FALSE, data = phenoData)
-            pvdf <- pv$pvals
-            gebv <- data.frame(
-                pvdf[[merge.by]],
-                pvdf[["predicted.value"]],
-                pvdf[["std.error"]],
-                stringsAsFactors = FALSE
-            )
-            names(gebv) <- c(genetic.term, "GEBV", "SE")
+                            only = vm_only, vcov = FALSE, sed = TRUE,
+                            data = phenoData)
+            pvdf    <- pv$pvals
+            SE_vec  <- pvdf[["std.error"]]
             var.genetic <- sigma2 *
                 gpModel$vparameters[grep("vm.*covObj", names(gpModel$vparameters))]
             var.resid   <- sigma2
-        } else {
-            # MV vm: predict per-trial GEBVs via classify = "Trait:merge.by"
-            classify.term <- paste(Trait, merge.by, sep = ":")
-            pv   <- predict(gpModel, classify = classify.term,
-                            only = vm_only, vcov = FALSE, data = phenoData)
-            ord  <- order(pv$pvals[[Trait]], pv$pvals[[merge.by]])
-            pvdf <- pv$pvals[ord, ]
+            # Mrode (2014) per-BLUP accuracy: sqrt(1 - PEV / Vg)
+            acc     <- sqrt(pmax(0, 1 - SE_vec^2 / var.genetic))
+            # Cullis (2006) generalised H² from SED upper triangle
+            gen.H2  <- .cullis_H2(pv$sed, var.genetic)
             gebv <- data.frame(
-                as.character(pvdf[[merge.by]]),
-                as.character(pvdf[[Trait]]),
+                pvdf[[merge.by]],
                 pvdf[["predicted.value"]],
-                pvdf[["std.error"]],
+                SE_vec,
+                acc,
                 stringsAsFactors = FALSE
             )
-            names(gebv) <- c(genetic.term, Trait, "GEBV", "SE")
+            names(gebv) <- c(genetic.term, "GEBV", "SE", "Accuracy")
+            gebv$gen.H2 <- gen.H2
+        } else {
+            # MV vm: predict per-trial GEBVs via classify = "Trait:merge.by",
+            # with SED for per-trial Cullis H²
+            classify.term <- paste(Trait, merge.by, sep = ":")
+            pv   <- predict(gpModel, classify = classify.term,
+                            only = vm_only, vcov = FALSE, sed = TRUE,
+                            data = phenoData)
+            ord  <- order(pv$pvals[[Trait]], pv$pvals[[merge.by]])
+            pvdf <- pv$pvals[ord, ]
 
             # Extract Ga (ntrait x ntrait genetic covariance matrix)
             Ga          <- .extract_Ga_gp(gpModel, sigma2, ntrait, trait.levels)
             var.genetic <- setNames(diag(Ga), trait.levels)
             var.resid   <- setNames(rep(sigma2, ntrait), trait.levels)
+
+            # Per-(line, trial) Mrode accuracy: sqrt(1 - PEV_ij / G_jj)
+            nlines  <- nrow(pvdf) %/% ntrait
+            G_diag  <- setNames(diag(Ga), trait.levels)
+            SE_vec  <- pvdf[["std.error"]]
+            G_jj_vec <- G_diag[as.character(pvdf[[Trait]])]
+            acc     <- sqrt(pmax(0, 1 - SE_vec^2 / G_jj_vec))
+
+            # Per-trial Cullis H² from diagonal SED blocks (Trait-major ordering)
+            # Rows in pvdf are Trait-major after ordering: trial 1 rows 1:nlines,
+            # trial 2 rows (nlines+1):(2*nlines), etc.
+            sed_mat <- pv$sed[ord, ord]
+            gen.H2_vec <- vapply(seq_len(ntrait), function(j) {
+                idx_j <- seq((j - 1L) * nlines + 1L, j * nlines)
+                .cullis_H2(sed_mat[idx_j, idx_j, drop = FALSE], G_diag[j])
+            }, numeric(1L))
+            gen.H2_named <- setNames(gen.H2_vec, trait.levels)
+
+            gebv <- data.frame(
+                as.character(pvdf[[merge.by]]),
+                factor(as.character(pvdf[[Trait]]), levels = trait.levels),
+                pvdf[["predicted.value"]],
+                SE_vec,
+                acc,
+                stringsAsFactors = FALSE
+            )
+            names(gebv) <- c(genetic.term, Trait, "GEBV", "SE", "Accuracy")
+            # Broadcast per-trial gen.H2 to each line row
+            gebv$gen.H2 <- gen.H2_named[as.character(pvdf[[Trait]])]
 
             # Genetic correlation matrix for display
             sds        <- sqrt(pmax(diag(Ga), 0))
@@ -357,14 +431,19 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
         gebvs    <- as.numeric(genoData %*% q.hat)
         pev      <- sigma2 * gpModel$vcoeff$random[mbf.rows]
         se.gebv  <- sqrt(as.numeric(genoData^2 %*% pev))
-        gebv <- data.frame(
-            rownames(genoData), gebvs, se.gebv,
-            stringsAsFactors = FALSE
-        )
-        names(gebv) <- c(genetic.term, "GEBV", "SE")
         vpar.mbf    <- gpModel$vparameters[grep("mbf", names(gpModel$vparameters))]
         var.genetic <- sigma2 * vpar.mbf * mean(rowSums(genoData^2), na.rm = TRUE)
         var.resid   <- sigma2
+        # Mrode accuracy from diagonal PEV approximation (se.gebv is approximate)
+        acc.mbf <- sqrt(pmax(0, 1 - se.gebv^2 / var.genetic))
+        # Cullis H² requires a SED matrix which is not available on the mbf path
+        gen.H2  <- NA_real_
+        gebv <- data.frame(
+            rownames(genoData), gebvs, se.gebv, acc.mbf,
+            stringsAsFactors = FALSE
+        )
+        names(gebv) <- c(genetic.term, "GEBV", "SE", "Accuracy")
+        gebv$gen.H2 <- gen.H2
     }
 
     h2 <- if (!is.mv) {
@@ -405,6 +484,12 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
         rel.matrix <- relm.raw / rel.scale
     }
 
+    # Collect gen.H2: scalar (or NA) for univariate, named vector for MV.
+    # gen.H2_named is only defined on the MV vm path; fall back to NULL otherwise.
+    gen.H2.stored <- if (is.mv && exists("gen.H2_named")) gen.H2_named
+                     else if (exists("gen.H2"))           gen.H2
+                     else                                 NA_real_
+
     gp.list <- list(
         gebv           = gebv,
         marker.effects = marker.effects,
@@ -413,6 +498,7 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
         var.genetic    = if (!is.mv) as.numeric(var.genetic) else var.genetic,
         var.resid      = if (!is.mv) as.numeric(var.resid)   else var.resid,
         heritability   = h2,
+        gen.H2         = gen.H2.stored,
         n.markers      = n.markers,
         rel.scale      = rel.scale,
         rel.matrix     = rel.matrix,
@@ -433,13 +519,33 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
 }
 
 # =============================================================================
+# Helper: Cullis (2006) generalised H² from a symmetric SED sub-matrix.
+#
+# H² = 1 - mean(upper-triangle SED)² / (2 * G_jj)
+#
+# G_jj  : genetic variance for the group (scalar, must be > 0).
+# sed_sub: square SED matrix for that group's predictions.
+#
+# Only finite, positive SED values contribute.  Returns NA if insufficient
+# data, and clamps to [0, 1].
+# =============================================================================
+#' @keywords internal
+.cullis_H2 <- function(sed_sub, G_jj) {
+    if (is.null(sed_sub) || is.na(G_jj) || G_jj <= 0) return(NA_real_)
+    ut <- sed_sub[upper.tri(sed_sub)]
+    ut <- ut[is.finite(ut) & ut > 0]
+    if (!length(ut)) return(NA_real_)
+    max(0, min(1, 1 - mean(ut)^2 / (2 * G_jj)))
+}
+
+# =============================================================================
 # Helper: extract ntrait x ntrait genetic covariance matrix Ga from a fitted
 # gpAim model.  Logic mirrors .qtlSelect() in engine_select.R so that Ga
 # is consistent regardless of variance structure (diag / corh / fa).
 # =============================================================================
 #' @keywords internal
 .extract_Ga_gp <- function(gpModel, sigma2, ntrait, trait.levels) {
-    sterms    <- "vm.*covObj|mbf.*markers"
+    sterms    <- "vm.*covObj|mbf.*ints"
     gp_names  <- names(gpModel$G.param)
     mterm     <- gp_names[grep(sterms, gp_names)][1L]
     vpar_all  <- gpModel$vparameters
