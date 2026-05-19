@@ -8,7 +8,7 @@
 \usage{
 \method{aimTrace}{gwasAim}(
   object,
-  iter = 1:length(object$QTL$effects),
+  iter = seq_along(object$QTL$diag$coef.list),
   lik.out = TRUE,
   plot = FALSE,
   sig.col = "firebrick",
@@ -19,7 +19,7 @@ aimTrace(object, ...)
 
 \method{aimTrace}{qtlAim}(
   object,
-  iter = 1:length(object$QTL$effects),
+  iter = seq_along(object$QTL$diag$coef.list),
   lik.out = TRUE,
   plot = FALSE,
   sig.col = "firebrick",
@@ -43,7 +43,8 @@ printed regardless). One of:
     QTL labelled.}
   \item{\code{"stability"}}{Returns a \code{ggplot} of QTL effect
     estimates \eqn{\pm}1 SE across every iteration in which the QTL was
-    in the model, one facet per QTL. Large jumps suggest confounding.}
+    in the model, one facet per QTL. For multivariate analyses, one line
+    per trial is shown within each facet. Large jumps suggest confounding.}
   \item{\code{"both"}}{Returns a named list
     \code{list(lrt = ..., stability = ...)} invisibly.}
 }}
@@ -70,6 +71,10 @@ easy to assess whether effects remain stable as further QTL enter.
 The \strong{LRT table} records the base and full model log-likelihoods, the
 LRT statistic, and its p-value at every iteration including the final
 non-significant one.
+
+For multivariate analyses (\code{Trait} non-\code{NULL}), the p-value
+matrix shows the main-effect p-value per QTL per iteration, and the
+stability plot shows per-trial effect estimates coloured by trial level.
 }
 \examples{
 \dontrun{

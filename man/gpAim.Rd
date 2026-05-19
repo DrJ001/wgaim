@@ -18,6 +18,8 @@ gpAim(baseModel, ...)
   gen.type = "marker",
   force = FALSE,
   trace = TRUE,
+  Trait = NULL,
+  str = NULL,
   ...
 )
 }
@@ -64,6 +66,35 @@ markers-to-lines ratio. The two paths are statistically equivalent.}
 \item{trace}{Logical or character string. If \code{TRUE} (default), ASReml
 output is printed to the console. If a file path character string, output
 is redirected there.}
+
+\item{Trait}{Character string naming a factor column in the phenotypic data
+identifying the environment or trial (e.g. \code{"Trial"}). When supplied,
+a multivariate G-BLUP model is fitted and per-environment GEBVs are
+returned. See \code{str} for how the variance structure of the additive
+genomic term is controlled. Default \code{NULL} (univariate).}
+
+\item{str}{Character string controlling the variance structure applied to
+the additive genomic term (\code{vm()} or \code{mbf()}) when
+\code{Trait} is non-\code{NULL}. Options:
+\describe{
+  \item{\code{NULL} (default)}{Mirror the structure on the genetic line
+    term in \code{baseModel}'s random formula: \code{corh}/\code{corgh}/
+    \code{us} maps to \code{corgh(Trait):vm()}; \code{fa(Trait,k)} maps
+    to \code{fa(Trait,k):vm()}; \code{diag} stays as
+    \code{diag(Trait):vm()} (independent per-environment GEBVs).}
+  \item{\code{"corh"} / \code{"corgh"} / \code{"us"}}{Force
+    \code{corgh(Trait):vm()}: heterogeneous variances with a common
+    genetic correlation across environments.}
+  \item{\code{"fa1"}, \code{"fa2"}, \dots}{Force
+    \code{fa(Trait,k):vm()} with \eqn{k} factors. The number must be
+    explicit; \code{str = "fa"} alone returns an error.}
+  \item{\code{"diag"}}{Force \code{diag(Trait):vm()}: independent
+    per-environment GEBVs, no borrowing of information across
+    environments.}
+}
+Ignored when \code{Trait = NULL}. When \code{str} is supplied, the
+structure on the residual genetic term in \code{baseModel} is retained
+unchanged; only the additive genomic term is overridden.}
 }
 \value{
 An object of class \code{c("gpAim","asreml")} -- the fitted ASReml
