@@ -425,10 +425,14 @@ make_mock_gpAim <- function(n_lines = 40, n_chr = 2, n_mar = 8,
     genObj <- make_wgCross_interval(n_lines, n_chr, n_mar)
     ids    <- paste0("L", seq_len(n_lines))
 
+    SE_vals <- runif(n_lines, 0.1, 0.3)
+    Vg_mock <- 0.6
     gebv_df <- data.frame(
-        id   = ids,
-        GEBV = rnorm(n_lines, 0, 1),
-        SE   = runif(n_lines, 0.1, 0.3),
+        id       = ids,
+        GEBV     = rnorm(n_lines, 0, 1),
+        SE       = SE_vals,
+        Accuracy = sqrt(pmax(0, 1 - SE_vals^2 / Vg_mock)),
+        gen.H2   = 0.75,
         stringsAsFactors = FALSE
     )
 
@@ -445,6 +449,7 @@ make_mock_gpAim <- function(n_lines = 40, n_chr = 2, n_mar = 8,
         var.genetic  = 0.6,
         var.resid    = 0.4,
         heritability = 0.6,
+        gen.H2       = 0.75,
         n.markers    = n_markers,
         rel.scale    = n_markers,
         rel.matrix   = rel_mat,

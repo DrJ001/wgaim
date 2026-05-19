@@ -37,9 +37,14 @@ print.gwasAim <- function(x, genObj, ...) {
     if (is.null(x$QTL$effects)) {
         cat("No significant markers detected.\n")
     } else {
-        qtlm <- getQTL(x, genObj)
-        for (z in 1:nrow(qtlm))
-            cat(sprintf("\nSignificant marker on chromosome %s: %s (%.2f cM)\n",
-                        qtlm[z, 1], qtlm[z, 3], as.numeric(qtlm[z, 4])))
+        is.mv <- !is.null(x$QTL$Trait)
+        qtlm  <- getQTL(x, genObj)
+        for (z in 1:nrow(qtlm)) {
+            type <- if (is.mv)
+                if (x$QTL$is.interaction[z]) " [INTERACTION]" else " [MAIN]"
+            else ""
+            cat(sprintf("\nSignificant marker on chromosome %s: %s (%.2f cM)%s\n",
+                        qtlm[z, 1], qtlm[z, 3], as.numeric(qtlm[z, 4]), type))
+        }
     }
 }

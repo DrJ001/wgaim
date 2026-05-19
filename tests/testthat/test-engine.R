@@ -312,9 +312,10 @@ test_that(".lrtTest: baseLogL slot equals base model loglik", {
 test_that(".packResults: non-empty qtl returns list with required slots", {
   inp <- .make_pack_inputs(n_qtl = 2, n_ints = 6)
 
-  res <- do.call(.packResults, inp)
+  out <- do.call(.packResults, inp)
+  res <- out$qtl.list          # unwrap: .packResults returns list(qtl.list, qtlModel.pruned)
 
-  expect_type(res, "list")
+  expect_type(out, "list")
   expect_true(!is.null(res$qtl))
   expect_true(!is.null(res$effects))
   expect_true(!is.null(res$veffects))
@@ -324,7 +325,8 @@ test_that(".packResults: non-empty qtl returns list with required slots", {
 
 test_that(".packResults: lik.mat has four columns with correct names", {
   inp <- .make_pack_inputs(n_qtl = 2, n_ints = 6)
-  res <- do.call(.packResults, inp)
+  out <- do.call(.packResults, inp)
+  res <- out$qtl.list
 
   expect_equal(ncol(res$diag$lik.mat), 4L)
   expect_equal(colnames(res$diag$lik.mat),
@@ -333,14 +335,15 @@ test_that(".packResults: lik.mat has four columns with correct names", {
 
 test_that(".packResults: empty qtl returns list with settings only, no effects", {
   inp       <- .make_pack_inputs(n_qtl = 2, n_ints = 6)
-  inp$qtl   <- character(0)            # empty → no QTL detected
+  inp$qtl   <- character(0)            # empty -> no QTL detected
   # iter must still be 1 for a degenerate run
   inp$iter  <- 1L
   # ldiag needs at least one entry
   inp$ldiag <- list(lik = list(list(baseLogL = -50, stat = 0.5,
                                     pvalue = 0.3, pass = FALSE)))
 
-  res <- do.call(.packResults, inp)
+  out <- do.call(.packResults, inp)
+  res <- out$qtl.list
 
   expect_named(res, c("selection", "method", "type", "TypeI", "diag",
                        "iterations"),
@@ -351,23 +354,26 @@ test_that(".packResults: empty qtl returns list with settings only, no effects",
 
 test_that(".packResults: breakout slot is logical (FALSE when breakout == -1)", {
   inp <- .make_pack_inputs(n_qtl = 2, n_ints = 6)
-  res <- do.call(.packResults, inp)
+  out <- do.call(.packResults, inp)
+  res <- out$qtl.list
 
   expect_type(res$breakout, "logical")
-  expect_false(res$breakout)   # breakout = -1 → breakout != -1 is FALSE
+  expect_false(res$breakout)   # breakout = -1 -> breakout != -1 is FALSE
 })
 
 test_that(".packResults: breakout slot is TRUE when breakout > 0", {
   inp          <- .make_pack_inputs(n_qtl = 2, n_ints = 6)
   inp$breakout <- 3L
-  res          <- do.call(.packResults, inp)
+  out          <- do.call(.packResults, inp)
+  res          <- out$qtl.list
 
   expect_true(res$breakout)
 })
 
 test_that(".packResults: settings slots are correctly passed through", {
   inp <- .make_pack_inputs(n_qtl = 2, n_ints = 6)
-  res <- do.call(.packResults, inp)
+  out <- do.call(.packResults, inp)
+  res <- out$qtl.list
 
   expect_equal(res$method,    "fixed")
   expect_equal(res$type,      "interval")
