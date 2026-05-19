@@ -30,7 +30,8 @@ aimTrace(object, ...)
 \item{object}{A fitted object of class \code{"qtlAim"} or \code{"gwasAim"}.}
 
 \item{iter}{Integer vector of iterations to include in the p-value matrix.
-Default is all iterations: \code{1:length(object$QTL$effects)}.}
+Default is all iterations:
+\code{seq_along(object$QTL$diag$coef.list)}.}
 
 \item{lik.out}{Logical. If \code{TRUE} (default), print the LRT table.}
 

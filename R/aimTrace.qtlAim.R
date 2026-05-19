@@ -26,7 +26,8 @@
 #'
 #' @param object A fitted object of class \code{"qtlAim"} or \code{"gwasAim"}.
 #' @param iter Integer vector of iterations to include in the p-value matrix.
-#'   Default is all iterations: \code{1:length(object$QTL$effects)}.
+#'   Default is all iterations:
+#'   \code{seq_along(object$QTL$diag$coef.list)}.
 #' @param lik.out Logical. If \code{TRUE} (default), print the LRT table.
 #' @param plot Controls optional diagnostic plot output (console output always
 #'   printed regardless). One of:
