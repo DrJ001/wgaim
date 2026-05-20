@@ -149,7 +149,6 @@ plot.gpAim <- function(x,
     # Determine selection threshold
     thr <- .gp_threshold(gebv$GEBV, threshold, prop.select)
     n.sel   <- sum(gebv$GEBV >= thr)
-    sel.dif <- mean(gebv$GEBV[gebv$GEBV >= thr]) - mean(gebv$GEBV)
 
     # Colour: selected (above threshold) vs not
     gebv$col <- ifelse(gebv$GEBV >= thr, pt.col[1], pt.col[2])
@@ -165,8 +164,8 @@ plot.gpAim <- function(x,
     h2.lbl    <- if (!is.null(gp$gen.H2) && !is.na(gp$gen.H2))
                      "gen.H\u00b2" else "h\u00b2"
     ann.label <- sprintf(
-        "Selected: %d  (%.0f%%)\nSel. differential: %+.3f\n%s = %.3f",
-        n.sel, 100 * n.sel / n, sel.dif, h2.lbl, h2.val)
+        "Selected: %d  (%.0f%%)\n%s = %.3f",
+        n.sel, 100 * n.sel / n, h2.lbl, h2.val)
 
     gp.obj <- ggplot(gebv, aes_string(x = "rank", y = "GEBV", colour = "col")) +
         geom_hline(yintercept = 0,   colour = "grey70", linewidth = 0.3) +
@@ -255,7 +254,6 @@ plot.gpAim <- function(x,
     thr      <- .gp_threshold(gebv.vals, threshold, prop.select)
     n.sel    <- sum(gebv.vals >= thr)
     prop.sel <- n.sel / length(gebv.vals)
-    sel.dif  <- mean(gebv.vals[gebv.vals >= thr]) - mean(gebv.vals)
 
     # Per-line colour and selection flag
     sel.flag <- gebv.vals >= thr
@@ -299,8 +297,8 @@ plot.gpAim <- function(x,
     h2.lbl    <- if (!is.null(gp$gen.H2) && !is.na(gp$gen.H2))
                      "gen.H\u00b2" else "h\u00b2"
     ann.label <- sprintf(
-        "Selected: %d  (%.0f%%)\nSel. differential: %+.3f\n%s = %.3f",
-        n.sel, round(100 * prop.sel), sel.dif, h2.lbl, h2.val)
+        "Selected: %d  (%.0f%%)\n%s = %.3f",
+        n.sel, round(100 * prop.sel), h2.lbl, h2.val)
 
     # -------------------------------------------------------------------------
     # Build plot
@@ -531,7 +529,6 @@ plot.gpAim <- function(x,
         thr       <- .gp_threshold(vals, threshold, prop.select)
         n.sel     <- sum(vals >= thr)
         prop.sel  <- n.sel / length(vals)
-        sel.dif   <- mean(vals[vals >= thr]) - mean(vals)
         # Use gen.H2 per trial when available, otherwise naive h2
         h2.t   <- if (!is.null(gp$gen.H2) && !is.na(gp$gen.H2[tname]))
                       gp$gen.H2[tname] else gp$heritability[tname]
@@ -547,8 +544,8 @@ plot.gpAim <- function(x,
             shade,
             data.frame(x = max(shade$x), y = 0, trial = tname))
 
-        ann <- sprintf("n=%d (%.0f%%)\nSel.dif=%+.3f\n%s=%.3f",
-                       n.sel, 100 * prop.sel, sel.dif, h2.lbl, h2.t)
+        ann <- sprintf("n=%d (%.0f%%)\n%s=%.3f",
+                       n.sel, 100 * prop.sel, h2.lbl, h2.t)
         list(dens = dens.df, shade = shade, thr = thr,
              max.y = max(dens$y), ann.x = min(dens$x), ann = ann)
     })
