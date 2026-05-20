@@ -62,10 +62,10 @@
                 # Test only the non-aliased (non-zero reference) coefficients
                 int.test[[i]] <- list(coef = zind[ci != 0], type = "zero")
             }
-            wt <- waldTest(qtlModel, cc = int.test)
+            wt <- .waldTest(qtlModel, cc = int.test)
 
             # Decide per QTL: keep interaction or reduce to main effect
-            keep.int    <- wt$Zero[, "P-Value"] <= TypeI
+            keep.int    <- wt[, "P-Value"] <= TypeI
             final.terms <- ifelse(keep.int, imarks, mmarks)
             other.terms <- trms[!grepl("X\\.", trms)]
             fix.form    <- as.formula(paste(
@@ -73,7 +73,7 @@
 
             cat("\nWald Test: Pruning Trait x QTL interaction terms:\n")
             cat("==================================================\n")
-            print(wt$Zero)
+            print(wt)
             cat("\n")
 
             qtlModel.pruned <- update(qtlModel, fixed. = fix.form)
@@ -81,10 +81,87 @@
             # Store multivariate-specific slots
             qtl.list$Trait        <- Trait
             qtl.list$trait.levels <- trait.levels
-            qtl.list$wald.test    <- wt$Zero
+            qtl.list$wald.test    <- wt
             qtl.list$final.terms  <- final.terms
             qtl.list$is.interaction <- keep.int
         }
     }
     list(qtl.list = qtl.list, qtlModel.pruned = qtlModel.pruned)
+}
+
+# =============================================================================
+# .waldTest -- internal zero-equality Wald test for multivariate QTL pruning.
+#
+# Tests whether a set of fixed-effect coefficients (identified by numeric
+# index in cc) are jointly zero, using the Cfixed variance matrix from a
+# fitted ASReml model.  Used by .packResults() to decide whether each
+# detected Trait:QTL interaction is significant or reduces to a main effect.
+#
+# Arguments:
+#   object : fitted asreml model with $Cfixed, $coefficients$fixed, $sigma2
+#   cc     : named list, each element a list with:
+#              $coef  -- integer indices of the coefficients to test
+#              $group -- optional character label for the output row
+# Returns:
+#   data.frame with columns "Wald Statistic" and "P-Value", one row per
+#   element of cc.
+# =============================================================================
+#' @keywords internal
+.waldTest <- function(object, cc) {
+    if (is.null(object$Cfixed)) {
+        asreml::asreml.options(Cfixed = TRUE)
+        object <- update(object)
+    }
+
+    vrb    <- as.matrix(object$Cfixed)
+    tau    <- c(object$coefficients$fixed)
+    names(tau) <- rownames(object$coefficients$fixed)
+    nc     <- length(tau)
+    sigma2 <- object$sigma2
+    vrb    <- vrb / sigma2
+    ccnams <- names(tau)
+
+    # Resolve any name-based coef references to integer indices
+    cc <- lapply(cc, function(el) {
+        if (!is.numeric(el$coef)) {
+            idx <- pmatch(el$coef, ccnams)
+            if (any(is.na(idx)))
+                stop("Names in cc$coef do not match coefficient names of model.")
+            el$coef <- idx
+        }
+        if (max(el$coef) > nc)
+            stop("Coefficient subscript out of bounds.")
+        el
+    })
+
+    # Build row labels
+    znam <- vapply(cc, function(el) {
+        if (!is.null(el$group)) el$group
+        else paste(ccnams[el$coef], collapse = ":")
+    }, character(1L))
+
+    if (any(table(znam) > 1L))
+        stop("Duplicate group names in zero-equality tests.")
+
+    # Zero-equality Wald statistics
+    zwtest <- zpval <- numeric(length(cc))
+    for (i in seq_along(cc)) {
+        coef_idx <- cc[[i]]$coef
+        nr       <- length(coef_idx)
+        rows     <- rep(rep(0, nc), nr)
+        dum      <- seq(0L, (nr - 1L) * nc, by = nc)
+        rows[coef_idx + dum] <- 1
+        Zmat      <- matrix(rows, nrow = nr, byrow = TRUE)
+        varmat    <- Zmat %*% crossprod(vrb, t(Zmat))
+        Ctau      <- Zmat %*% tau
+        zwtest[i] <- sum(Ctau * crossprod(solve(varmat), Ctau)) / sigma2
+        zpval[i]  <- 1 - pchisq(zwtest[i], nr)
+    }
+
+    data.frame(
+        "Wald Statistic" = round(zwtest, 6),
+        "P-Value"        = round(zpval,  6),
+        check.names = FALSE,
+        row.names   = znam
+    )
 }

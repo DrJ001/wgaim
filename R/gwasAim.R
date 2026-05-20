@@ -79,7 +79,7 @@
 #' @param Trait Character string naming a factor column in the phenotypic data
 #'   that identifies the environment or trial (e.g. \code{"Site"}).  When
 #'   supplied, a multivariate multi-environment GWAS model is fitted using a
-#'   mixture chi-squared LRT and \code{\link{waldTest}} pruning to separate
+#'   mixture chi-squared LRT and Wald test pruning to separate
 #'   main-effect from G\eqn{\times}E associations.  Default \code{NULL}
 #'   (univariate).
 #' @param str Character string controlling the variance structure of the
