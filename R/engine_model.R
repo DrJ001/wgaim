@@ -57,7 +57,7 @@
     # (After fix.lines, Variety may have been replaced by "Gsave", but the
     # structure prefix, if any, is preserved by .fixLines.)
     # -------------------------------------------------------------------------
-    all.rand   <- unlist(strsplit(deparse(baseModel$call$random[[2]]), " \\+ "))
+    all.rand   <- .rhs_terms(baseModel$call$random)
     resid.term <- all.rand[grep(merge.by, all.rand)][1L]
 
     # Isolate the variance structure prefix by stripping ":merge.by" from the end.
@@ -250,7 +250,7 @@
             # as extracted from the original base model; it is passed through
             # unchanged.
             attr(intervalObj, "env") <- NULL
-            all.rterms <- unlist(strsplit(deparse(qtlModel$call$random[[2]]), " \\+ "))
+            all.rterms <- .rhs_terms(qtlModel$call$random)
             # Find the additive vm term in the current formula.  It may carry
             # any variance structure prefix so match on "vm.*covObj".
             vm.term      <- all.rterms[grep("vm.*covObj", all.rterms)][1L]
@@ -288,6 +288,32 @@
         }
     }
     model
+}
+
+# =============================================================================
+# .rhs_terms() -- robustly split a random formula RHS into individual terms.
+#
+# Problem: deparse() wraps long expressions into a character vector of length
+# > 1 when the expression exceeds width.cutoff (default 60).  Continuation
+# lines are indented with leading spaces.  Naively splitting on " + " then
+# fails because:
+#   - The wrap boundary produces " +\n    " not " + ", so the pattern misses
+#     the split entirely and a mangled term containing the newline survives.
+#   - Or the wrap produces a trailing empty element at end of line 1.
+#   - Leading spaces on continuation lines leave " Day" instead of "Day".
+#
+# This affects any model whose random formula exceeds ~60 characters, which
+# is common in field trials with spatial terms (at(Day):Plate:PCol etc.).
+#
+# Fix: use width.cutoff = 500L (no practical formula will exceed this), join
+# the elements with a space, then split on whitespace-tolerant \\s*+\\s* and
+# drop any empty strings that survive.
+# =============================================================================
+#' @keywords internal
+.rhs_terms <- function(formula.obj) {
+    raw   <- paste(deparse(formula.obj[[2L]], width.cutoff = 500L), collapse = " ")
+    terms <- trimws(unlist(strsplit(raw, "\\s*\\+\\s*")))
+    terms[nchar(terms) > 0L]
 }
 
 #' @keywords internal

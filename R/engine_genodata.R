@@ -22,7 +22,7 @@
 
 #' @keywords internal
 .fixLines <- function(baseModel, phenoData, genoData, merge.by, plines, fix.lines, ...) {
-    rterms <- unlist(strsplit(deparse(baseModel$call$random[[2]]), " \\+ "))
+    rterms <- .rhs_terms(baseModel$call$random)
     # Split off the genetic term (contains merge.by) from the other random terms.
     gen.idx <- grep(merge.by, rterms)
     gen.term.orig <- rterms[gen.idx]    # e.g. "corgh(Trial):Variety" or bare "Variety"
