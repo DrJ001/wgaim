@@ -11,7 +11,7 @@
 #   - .buildGenomeModel Trait prefix term order (engine_model.R) -- formula string only
 #   - qtlAim.asreml / gwasAim.asreml guard clauses for Trait
 #   - summary.qtlAim / summary.gwasAim Trait-aware Env column
-#   - waldTest.asreml zero-equality path
+#   - .waldTest internal zero-equality path
 # =============================================================================
 
 # Bring internal functions into scope
@@ -652,12 +652,11 @@ test_that(".packResults Trait non-NULL: $QTL$Trait slot is set", {
     inp <- .make_pack_inputs_mv()
     inp$trait.levels <- c("A", "B")
     with_mocked_bindings(
-        waldTest = function(object, cc) {
-            zdf <- data.frame("Wald Statistic" = c(0.5, 0.3),
-                              "P-Value"         = c(0.48, 0.58),
-                              check.names = FALSE,
-                              row.names   = c("q1", "q2"))
-            invisible(list(Contrasts = NULL, Zero = zdf))
+        .waldTest = function(object, cc) {
+            data.frame("Wald Statistic" = c(0.5, 0.3),
+                       "P-Value"         = c(0.48, 0.58),
+                       check.names = FALSE,
+                       row.names   = c("q1", "q2"))
         },
         update = function(object, ...) object,
         .package = "wgAim",
@@ -672,12 +671,11 @@ test_that(".packResults Trait non-NULL: $QTL$wald.test slot is a data.frame", {
     inp <- .make_pack_inputs_mv()
     inp$trait.levels <- c("A", "B")
     with_mocked_bindings(
-        waldTest = function(object, cc) {
-            zdf <- data.frame("Wald Statistic" = c(0.5, 0.3),
-                              "P-Value"         = c(0.48, 0.58),
-                              check.names = FALSE,
-                              row.names   = c("q1", "q2"))
-            invisible(list(Contrasts = NULL, Zero = zdf))
+        .waldTest = function(object, cc) {
+            data.frame("Wald Statistic" = c(0.5, 0.3),
+                       "P-Value"         = c(0.48, 0.58),
+                       check.names = FALSE,
+                       row.names   = c("q1", "q2"))
         },
         update = function(object, ...) object,
         .package = "wgAim",
@@ -689,17 +687,16 @@ test_that(".packResults Trait non-NULL: $QTL$wald.test slot is a data.frame", {
     expect_equal(nrow(out$qtl.list$wald.test), 2L)
 })
 
-test_that(".packResults Trait non-NULL: is.interaction matches waldTest p-values", {
+test_that(".packResults Trait non-NULL: is.interaction matches .waldTest p-values", {
     inp <- .make_pack_inputs_mv()
     inp$trait.levels <- c("A", "B")
     with_mocked_bindings(
-        waldTest = function(object, cc) {
+        .waldTest = function(object, cc) {
             # First QTL significant interaction (p=0.01), second not (p=0.60)
-            zdf <- data.frame("Wald Statistic" = c(6.5, 0.27),
-                              "P-Value"         = c(0.01, 0.60),
-                              check.names = FALSE,
-                              row.names   = c("q1", "q2"))
-            invisible(list(Contrasts = NULL, Zero = zdf))
+            data.frame("Wald Statistic" = c(6.5, 0.27),
+                       "P-Value"         = c(0.01, 0.60),
+                       check.names = FALSE,
+                       row.names   = c("q1", "q2"))
         },
         update = function(object, ...) object,
         .package = "wgAim",
@@ -899,20 +896,19 @@ test_that("summary.gwasAim: no Trait column when Trait=NULL (univariate)", {
 })
 
 # =============================================================================
-# 10. waldTest.asreml zero-equality path (self-contained)
+# 10. .waldTest internal zero-equality path (self-contained)
 # =============================================================================
 
 # Build a minimal fake asreml model with a known Cfixed matrix
 .make_wald_model <- function() {
     set.seed(42)
-    n    <- 4L
     tau  <- setNames(c(1.0, 0.5, -0.3, 0.8), c("mu", "X.C1.2", "Site_B:X.C1.2", "other"))
-    vrb  <- diag(c(0.04, 0.01, 0.02, 0.03)) * 2   # Cfixed = vrb * sigma2
+    vrb  <- diag(c(0.04, 0.01, 0.02, 0.03)) * 2
     m <- list(
         coefficients = list(fixed = matrix(tau, ncol = 1L, dimnames = list(names(tau), "e"))),
         vcoeff       = list(fixed = setNames(diag(vrb) / 1.5, names(tau))),
         sigma2       = 1.5,
-        Cfixed       = vrb * 1.5,    # Cfixed stored pre-multiplied in real asreml
+        Cfixed       = vrb * 1.5,
         converge     = TRUE,
         call         = list(fixed = quote(y ~ 1))
     )
@@ -920,48 +916,88 @@ test_that("summary.gwasAim: no Trait column when Trait=NULL (univariate)", {
     m
 }
 
-test_that("waldTest.asreml: zero-equality test returns data.frame with correct structure", {
+test_that(".waldTest: zero-equality test returns data.frame with correct structure", {
     m  <- .make_wald_model()
-    cc <- list(list(coef = 3L, type = "zero"))   # test coefficient 3 (Site_B:X.C1.2) = 0
-    res <- waldTest(m, cc = cc)
-    expect_null(res$Contrasts)
-    expect_s3_class(res$Zero, "data.frame")
-    expect_true("Wald Statistic" %in% names(res$Zero))
-    expect_true("P-Value" %in% names(res$Zero))
+    cc <- list(list(coef = 3L))
+    res <- wgAim:::.waldTest(m, cc = cc)
+    expect_s3_class(res, "data.frame")
+    expect_true("Wald Statistic" %in% names(res))
+    expect_true("P-Value" %in% names(res))
 })
 
-test_that("waldTest.asreml: Wald statistic is positive", {
+test_that(".waldTest: Wald statistic is positive", {
     m   <- .make_wald_model()
-    cc  <- list(list(coef = 3L, type = "zero"))
-    res <- waldTest(m, cc = cc)
-    expect_gt(res$Zero[["Wald Statistic"]], 0)
+    cc  <- list(list(coef = 3L))
+    res <- wgAim:::.waldTest(m, cc = cc)
+    expect_gt(res[["Wald Statistic"]], 0)
 })
 
-test_that("waldTest.asreml: p-value in [0, 1]", {
+test_that(".waldTest: p-value in [0, 1]", {
     m   <- .make_wald_model()
-    cc  <- list(list(coef = 3L, type = "zero"))
-    res <- waldTest(m, cc = cc)
-    p   <- res$Zero[["P-Value"]]
+    cc  <- list(list(coef = 3L))
+    res <- wgAim:::.waldTest(m, cc = cc)
+    p   <- res[["P-Value"]]
     expect_gte(p, 0); expect_lte(p, 1)
 })
 
-test_that("waldTest.asreml: coefficient near zero gives large p-value", {
+test_that(".waldTest: coefficient near zero gives large p-value", {
     m  <- .make_wald_model()
-    # Replace tau for coefficient 3 with something near zero
     m$coefficients$fixed[3L, 1L] <- 0.001
-    cc  <- list(list(coef = 3L, type = "zero"))
-    res <- waldTest(m, cc = cc)
-    expect_gt(res$Zero[["P-Value"]], 0.2)
+    cc  <- list(list(coef = 3L))
+    res <- wgAim:::.waldTest(m, cc = cc)
+    expect_gt(res[["P-Value"]], 0.2)
 })
 
-test_that("waldTest.asreml: large coefficient gives small p-value", {
+test_that(".waldTest: large coefficient gives small p-value", {
     m  <- .make_wald_model()
-    m$coefficients$fixed[3L, 1L] <- 5.0    # far from zero
-    cc  <- list(list(coef = 3L, type = "zero"))
-    res <- waldTest(m, cc = cc)
-    expect_lt(res$Zero[["P-Value"]], 0.01)
+    m$coefficients$fixed[3L, 1L] <- 5.0
+    cc  <- list(list(coef = 3L))
+    res <- wgAim:::.waldTest(m, cc = cc)
+    expect_lt(res[["P-Value"]], 0.01)
 })
 
-test_that("waldTest.default: stops with informative message", {
-    expect_error(waldTest(list()), "only implemented")
+test_that(".waldTest: group label used as row name", {
+    m  <- .make_wald_model()
+    cc <- list(list(coef = 3L, group = "MyQTL"))
+    res <- wgAim:::.waldTest(m, cc = cc)
+    expect_equal(rownames(res), "MyQTL")
+})
+
+test_that(".waldTest: multiple groups produce multiple rows", {
+    m  <- .make_wald_model()
+    cc <- list(
+        list(coef = 2L, group = "Q1"),
+        list(coef = 3L, group = "Q2")
+    )
+    res <- wgAim:::.waldTest(m, cc = cc)
+    expect_equal(nrow(res), 2L)
+    expect_equal(rownames(res), c("Q1", "Q2"))
+})
+
+test_that(".waldTest: coefficient resolved by name string", {
+    m   <- .make_wald_model()
+    cc  <- list(list(coef = "Site_B:X.C1.2"))
+    res <- wgAim:::.waldTest(m, cc = cc)
+    expect_s3_class(res, "data.frame")
+})
+
+test_that(".waldTest: subscript out of bounds stops with error", {
+    m  <- .make_wald_model()
+    cc <- list(list(coef = 99L))
+    expect_error(wgAim:::.waldTest(m, cc = cc), regexp = "bounds")
+})
+
+test_that(".waldTest: unmatched name stops with error", {
+    m  <- .make_wald_model()
+    cc <- list(list(coef = "DOES_NOT_EXIST"))
+    expect_error(wgAim:::.waldTest(m, cc = cc), regexp = "match")
+})
+
+test_that(".waldTest: duplicate group names stops with error", {
+    m  <- .make_wald_model()
+    cc <- list(
+        list(coef = 2L, group = "Same"),
+        list(coef = 3L, group = "Same")
+    )
+    expect_error(wgAim:::.waldTest(m, cc = cc), regexp = "[Dd]uplicate")
 })
