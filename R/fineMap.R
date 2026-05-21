@@ -20,7 +20,8 @@
 #' @description
 #' Performs single-QTL fine mapping in a window around each significant QTL
 #' (for \code{\link{qtlAim}} models) or marker (for \code{\link{gwasAim}}
-#' models) found in a fitted model.
+#' models) found in a fitted model.  Both univariate and multivariate
+#' (\code{Trait}) models are supported.
 #'
 #' For \code{qtlAim} models a dense inferred-marker grid is constructed inside
 #' the window using the Haldane-map weight approach of \code{\link{primeCross}},
@@ -31,6 +32,14 @@
 #' For \code{gwasAim} models the window is defined around the significant
 #' marker (in cM) and all panel markers within the window are tested
 #' individually; no inferred midpoints are added.
+#'
+#' For multivariate models, QTL that were retained as main effects after
+#' Wald pruning are scanned using the same single-df z-ratio as the
+#' univariate case.  QTL retained as \code{Trait}-interaction effects are
+#' scanned by substituting \code{Trait:candidate} for \code{Trait:QTL} and
+#' computing a joint Wald statistic across all non-aliased interaction
+#' coefficients via an internal Wald test; the LOD score is derived as
+#' \eqn{\chi^2 / (2 \log 10)}, consistent with the univariate formula.
 #'
 #' @param object A fitted object of class \code{"qtlAim"} or \code{"gwasAim"}.
 #' @param genObj The \code{wgCross} or \code{wgPanel} object used in the
@@ -106,6 +115,10 @@ fineMap <- function(object, genObj, qtl = NULL, window = 50, step = 2,
     state    <- object$QTL$diag$state
     method   <- object$QTL$method     # always "fixed" for gwasAim
 
+    # Multivariate flag and per-QTL interaction flag
+    is_mv    <- !is.null(object$QTL$Trait)
+    mv_trait <- object$QTL$Trait      # e.g. "Trial" or NULL
+
     # Retrieve phenoData: qtlAim/gwasAim write it back to the caller's
     # environment under the name  "<response>.data" (e.g. "yld.data").
     # The formula environment still holds a reference to that environment.
@@ -160,6 +173,19 @@ fineMap <- function(object, genObj, qtl = NULL, window = 50, step = 2,
 
         # The existing QTL fixed effect column name in phenoData
         mark_qtl  <- gsub("Chr\\.", "X.", tgt)
+
+        # For MV: did the Wald test keep the interaction for this QTL?
+        # object$QTL$is.interaction is a named logical vector (name = mark_qtl or
+        # its interaction form); we match by position in object$QTL$qtl.
+        tgt_is_interaction <- if (is_mv && !is.null(object$QTL$is.interaction)) {
+            tgt_pos <- match(tgt, all_qtl)
+            if (!is.na(tgt_pos) && tgt_pos <= length(object$QTL$is.interaction))
+                object$QTL$is.interaction[tgt_pos]
+            else
+                TRUE   # conservative default: assume interaction present
+        } else {
+            FALSE
+        }
 
         # ----------------------------------------------------------------
         # 3a.  Derive the fine-mapping map and genotype matrix for window
@@ -353,15 +379,30 @@ fineMap <- function(object, genObj, qtl = NULL, window = 50, step = 2,
             }
             assign("covObj", covObj, envir = parent.frame())
 
-            # Update formula: swap mark_qtl for cand_x
+            # ------------------------------------------------------------------
+            # Update formula: swap old QTL term for candidate.
+            #
+            # MV interaction QTL (is.interaction = TRUE):
+            #   old term = "Trait:mark_qtl"  →  new term = "Trait:cand_x"
+            #
+            # UV or MV main-effect QTL (is.interaction = FALSE):
+            #   old term = "mark_qtl"         →  new term = "cand_x"
+            # ------------------------------------------------------------------
+            fixed_labels <- labels(terms(object$call$fixed))
+            if (is_mv && isTRUE(tgt_is_interaction)) {
+                old_term  <- paste0(mv_trait, ":", mark_qtl)
+                new_term  <- paste0(mv_trait, ":", cand_x)
+            } else {
+                old_term  <- mark_qtl
+                new_term  <- cand_x
+            }
+            remove_str <- if (old_term %in% fixed_labels) paste("-", old_term) else ""
+
             if (method == "fixed") {
-                fix_form <- as.formula(
-                    paste(". ~ . +", cand_x,
-                          if (mark_qtl %in% labels(terms(object$call$fixed))) paste("-", mark_qtl) else "")
-                )
+                fix_form  <- as.formula(paste(". ~ . +", new_term, remove_str))
                 tempmodel <- update(object, fixed. = fix_form, data = pScan_k, ...)
             } else {
-                ran_form <- update(
+                ran_form  <- update(
                     formula(object$call$random),
                     as.formula(paste("~ . -", mark_qtl, "+", cand_x))
                 )
@@ -369,7 +410,17 @@ fineMap <- function(object, genObj, qtl = NULL, window = 50, step = 2,
                 tempmodel <- update(tempmodel, random. = ran_form, data = pScan_k, ...)
             }
 
-            # Extract z-ratio for the candidate effect
+            # ------------------------------------------------------------------
+            # Extract test statistic for the candidate effect.
+            #
+            # UV or MV main-effect QTL:
+            #   Single-df z-ratio from the candidate's main-effect coefficient.
+            #
+            # MV interaction QTL:
+            #   Joint Wald chi-square via .waldTest() across all non-aliased
+            #   Trait:cand_x coefficients.  LOD = stat / (2 * log(10)),
+            #   consistent with the UV formula since zrat^2 = 1-df Wald stat.
+            # ------------------------------------------------------------------
             cf  <- tempmodel$coefficients[[method]]
             whr <- grep(cand_x, rownames(cf), fixed = TRUE)
             if (length(whr) == 0L) {
@@ -377,11 +428,27 @@ fineMap <- function(object, genObj, qtl = NULL, window = 50, step = 2,
                 lod[k]    <- NA_real_
                 next
             }
-            mcf  <- cf[whr[1L], 1L]
-            vcf  <- tempmodel$vcoeff[[method]][whr[1L]]
-            zrat <- mcf / sqrt(vcf * tempmodel$sigma2)
-            pvalue[k] <- round(1 - pchisq(zrat^2, df = 1L), 4L)
-            lod[k]    <- round(0.5 * log(exp(zrat^2), base = 10), 4L)
+
+            if (is_mv && isTRUE(tgt_is_interaction)) {
+                # Drop aliased (zero-variance) coefficients before Wald test
+                vcf_all <- tempmodel$vcoeff[[method]][whr]
+                whr_nz  <- whr[vcf_all > 0]
+                if (length(whr_nz) == 0L) {
+                    pvalue[k] <- NA_real_
+                    lod[k]    <- NA_real_
+                    next
+                }
+                wt        <- .waldTest(tempmodel, cc = list(list(coef = whr_nz, type = "zero")))
+                stat      <- wt[1L, "Wald Statistic"]
+                pvalue[k] <- round(wt[1L, "P-Value"], 4L)
+                lod[k]    <- round(stat / (2 * log(10)), 4L)
+            } else {
+                mcf  <- cf[whr[1L], 1L]
+                vcf  <- tempmodel$vcoeff[[method]][whr[1L]]
+                zrat <- mcf / sqrt(vcf * tempmodel$sigma2)
+                pvalue[k] <- round(1 - pchisq(zrat^2, df = 1L), 4L)
+                lod[k]    <- round(0.5 * log(exp(zrat^2), base = 10), 4L)
+            }
         }
 
         df <- data.frame(

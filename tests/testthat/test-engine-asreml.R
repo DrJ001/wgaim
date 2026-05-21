@@ -15,45 +15,8 @@
 # =============================================================================
 
 # ---- shared mock factories ---------------------------------------------------
-
-# Build a minimal post-update model that satisfies all engine reads.
-# n_int: total number of intervals/markers across all chromosomes.
-make_updated_model <- function(merge.by = "id", n_int = 15, loglik = -50,
-                                lrt_pass = TRUE, sigma2 = 1.0) {
-    # vparameters: one vm or mbf term + residual
-    mbf_name  <- paste0("mbf(ints)_", merge.by, "!mbf(ints)!var")
-    vm_name   <- paste0("vm(", merge.by, ", covObj)!vm!var")
-    vpar      <- c(0.3, 1.0)
-    names(vpar) <- c(mbf_name, "R!variance")
-    vpar.con  <- c(0L, 0L); names(vpar.con) <- names(vpar)
-
-    # Make loglik such that 2*(loglik - base) >= qchisq(0.90, 1) ~ 2.71
-    # if lrt_pass=TRUE, or below threshold if FALSE
-    ll <- if (lrt_pass) loglik + 2 else loglik - 2
-
-    # Coefficients: one fixed intercept + mbf random effects for each interval
-    int_nams  <- paste0("mbf(ints)_", merge.by, "_", seq_len(n_int))
-    rand_mat  <- matrix(rnorm(n_int, 0, 0.1), n_int, 1,
-                        dimnames = list(int_nams, "effect"))
-    fix_mat   <- matrix(5.0, 1, 1, dimnames = list("(Intercept)", "effect"))
-
-    list(
-        converge        = TRUE,
-        loglik          = ll,
-        sigma2          = sigma2,
-        vparameters     = vpar,
-        vparameters.con = vpar.con,
-        vcoeff          = list(
-            random = setNames(rep(0.05, n_int), int_nams),
-            fixed  = setNames(0.1, "(Intercept)")
-        ),
-        coefficients    = list(fixed = fix_mat, random = rand_mat),
-        call            = call("asreml"),
-        G.param         = list(),
-        formulae        = list(fixed = yld ~ 1, random = ~ id),
-        mf              = data.frame(id = factor(paste0("L", 1:5)), yld = 1:5)
-    )
-}
+# Note: make_updated_model() is defined in helper-fixtures.R so it is
+# available to all test files without duplication.
 
 # Build a minimal predict() return value for the vm path in .qtlSelect
 make_predict_return <- function(merge.by = "id", ids = paste0("L", 1:10)) {

@@ -503,3 +503,184 @@ make_mock_fineMap <- function(n_qtl = 2, n_pos = 15) {
     class(result) <- "fineMap"
     result
 }
+
+# ---- 7. Shared minimal post-update ASReml mock (used by engine-asreml and
+#         fineMap-mv tests) ----------------------------------------------------
+
+#' Build a minimal post-update model that satisfies all engine reads.
+#' n_int: total number of intervals/markers across all chromosomes.
+make_updated_model <- function(merge.by = "id", n_int = 15, loglik = -50,
+                                lrt_pass = TRUE, sigma2 = 1.0) {
+    mbf_name <- paste0("mbf(ints)_", merge.by, "!mbf(ints)!var")
+    vpar     <- c(0.3, 1.0); names(vpar) <- c(mbf_name, "R!variance")
+    vpar.con <- c(0L, 0L);   names(vpar.con) <- names(vpar)
+    ll       <- if (lrt_pass) loglik + 2 else loglik - 2
+    int_nams <- paste0("mbf(ints)_", merge.by, "_", seq_len(n_int))
+    rand_mat <- matrix(rnorm(n_int, 0, 0.1), n_int, 1,
+                       dimnames = list(int_nams, "effect"))
+    fix_mat  <- matrix(5.0, 1, 1, dimnames = list("(Intercept)", "effect"))
+    list(
+        converge        = TRUE,
+        loglik          = ll,
+        sigma2          = sigma2,
+        vparameters     = vpar,
+        vparameters.con = vpar.con,
+        vcoeff          = list(
+            random = setNames(rep(0.05, n_int), int_nams),
+            fixed  = setNames(0.1, "(Intercept)")
+        ),
+        coefficients    = list(fixed = fix_mat, random = rand_mat),
+        call            = call("asreml"),
+        G.param         = list(),
+        formulae        = list(fixed = yld ~ 1, random = ~ id),
+        mf              = data.frame(id = factor(paste0("L", 1:5)), yld = 1:5)
+    )
+}
+
+# ---- 8. MV mock qtlAim object (Trait path) -----------------------------------
+
+#' Build a mock multivariate qtlAim object for fineMap MV tests.
+#'
+#' @param n_qtl       Number of QTL to simulate.
+#' @param trait_name  Name of the Trait factor column (default "Trial").
+#' @param n_trials    Number of trait/trial levels.
+#' @param interact    Logical vector (length n_qtl): TRUE = QTL retained as
+#'                    Trait:X.chr.idx interaction; FALSE = main effect only.
+#'                    Recycled if shorter than n_qtl.
+#' @param n_lines     Number of lines.
+#' @param n_chr       Number of chromosomes.
+#' @param n_mar       Markers per chromosome.
+make_mock_mv_qtlAim <- function(n_qtl     = 2,
+                                 trait_name = "Trial",
+                                 n_trials   = 3,
+                                 interact   = c(TRUE, FALSE),
+                                 n_lines    = 40,
+                                 n_chr      = 3,
+                                 n_mar      = 5) {
+    set.seed(77)
+    interact <- rep_len(interact, n_qtl)
+    genObj   <- make_wgCross_interval(n_lines, n_chr, n_mar)
+    chrs     <- names(genObj$geno)
+    trials   <- paste0("T", seq_len(n_trials))
+
+    chr_idx  <- chrs[seq_len(n_qtl) %% n_chr + 1]
+    int_idx  <- seq_len(n_qtl) + 1L
+    qtl_keys  <- paste("Chr", chr_idx, int_idx, sep = ".")
+    eff_names <- paste("X",   chr_idx, int_idx, sep = ".")
+
+    # Fixed formula terms: interaction QTL -> "Trial:X.chr.idx"; main -> "X.chr.idx"
+    final_terms <- ifelse(interact,
+                          paste0(trait_name, ":", eff_names),
+                          eff_names)
+
+    # Fixed coefficient matrix: intercepts-by-trial + one row per final term
+    trial_int_nams <- paste0(trait_name, "_", trials)
+    fix_nams <- c("(Intercept)", trial_int_nams, final_terms)
+    fix_mat  <- matrix(rnorm(length(fix_nams), 0.3, 0.1), length(fix_nams), 1,
+                       dimnames = list(fix_nams, "effect"))
+
+    n_ints_total <- n_chr * n_mar
+    all_keys     <- paste("Chr", rep(chrs, each = n_mar),
+                          rep(seq_len(n_mar), times = n_chr), sep = ".")
+    state        <- setNames(rep(1L, n_ints_total), all_keys)
+
+    effects  <- setNames(rnorm(n_qtl, 0.4, 0.1), eff_names)
+    veffects <- setNames(runif(n_qtl, 0.02, 0.05), eff_names)
+
+    coef.list  <- lapply(seq_len(n_qtl), function(k) effects[seq_len(k)])
+    vcoef.list <- lapply(seq_len(n_qtl), function(k) veffects[seq_len(k)])
+
+    lik_list <- lapply(seq_len(n_qtl), function(k)
+        list(baseLogL = -50 + k, stat = 4 + k, pvalue = 0.02, pass = TRUE))
+    lik.mat  <- matrix(
+        c(sapply(lik_list, function(l) c(l$baseLogL, l$baseLogL + l$stat/2, l$stat, l$pvalue))),
+        ncol = 4, byrow = TRUE,
+        dimnames = list(NULL, c("L0", "L1", "Statistic", "Pvalue"))
+    )
+
+    # Wald test result placeholder
+    wald_df <- data.frame(
+        "Wald Statistic" = round(runif(n_qtl, 5, 15), 4),
+        "P-Value"        = round(runif(n_qtl, 0, 0.03), 4),
+        check.names  = FALSE,
+        row.names    = final_terms
+    )
+
+    QTL <- list(
+        qtl           = qtl_keys,
+        effects       = effects,
+        veffects      = veffects,
+        method        = "fixed",
+        type          = "interval",
+        selection     = "interval",
+        TypeI         = 0.05,
+        iterations    = n_qtl + 1L,
+        breakout      = FALSE,
+        Trait         = trait_name,
+        trait.levels  = trials,
+        wald.test     = wald_df,
+        final.terms   = final_terms,
+        is.interaction = interact,
+        diag          = list(
+            oint         = lapply(seq_len(n_qtl), function(k) {
+                v <- runif(n_ints_total, 0, 2); names(v) <- all_keys; v }),
+            blups        = lapply(seq_len(n_qtl), function(k) {
+                m <- matrix(rnorm(n_ints_total * n_trials), n_ints_total, n_trials,
+                            dimnames = list(all_keys, trials)); m }),
+            lik          = lik_list,
+            lik.mat      = lik.mat,
+            state        = state,
+            genetic.term = "id",
+            rel.scale    = 1,
+            coef.list    = coef.list,
+            vcoef.list   = vcoef.list
+        )
+    )
+
+    ids       <- paste0("L", seq_len(n_lines))
+    phenoData <- data.frame(
+        id    = factor(rep(ids, each = n_trials)),
+        Trial = factor(rep(trials, times = n_lines)),
+        yld   = rnorm(n_lines * n_trials, 5, 1),
+        stringsAsFactors = FALSE
+    )
+    for (k in seq_len(n_qtl)) {
+        xcol <- eff_names[k]
+        phenoData[[xcol]] <- genObj$geno[[chr_idx[k]]]$interval.data[
+            as.character(phenoData$id), int_idx[k]
+        ]
+    }
+
+    vpar     <- setNames(c(0.3, 1.0), c("id", "R!variance"))
+    vpar.con <- setNames(c(0L,  0L),  names(vpar))
+
+    # Fixed formula contains the pruned terms
+    fix_formula <- as.formula(
+        paste("yld ~", trait_name, "+",
+              paste(final_terms, collapse = " + "))
+    )
+
+    obj <- list(
+        converge        = TRUE,
+        loglik          = -45,
+        sigma2          = 1.0,
+        vparameters     = vpar,
+        vparameters.con = vpar.con,
+        coefficients    = list(fixed  = fix_mat,
+                               random = matrix(rnorm(n_lines), n_lines, 1,
+                                               dimnames = list(paste0("id_", ids),
+                                                               "effect"))),
+        formulae        = list(fixed = fix_formula, random = ~ id),
+        mf              = phenoData,
+        call            = call("asreml",
+                               fixed  = fix_formula,
+                               random = quote(~ id),
+                               data   = quote(phenoData)),
+        QTL             = QTL
+    )
+    environment(obj$call$fixed)    <- globalenv()
+    environment(obj$formulae$fixed) <- globalenv()
+    class(obj) <- c("qtlAim", "asreml")
+    attr(obj, "genObj") <- genObj
+    obj
+}
