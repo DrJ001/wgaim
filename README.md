@@ -37,7 +37,7 @@ All three analyses share a common internal engine and the same
 unifying statistical idea: the full complement of markers or intervals
 enters the mixed model simultaneously as a composite genome-wide random
 effect, represented either as a genomic relationship matrix (`vm` path)
-or as a direct marker-by-file random effect (`mbf` path). All methods
+or as a contiguous block of markers (`mbf` path). All methods
 support multivariate (multi-environment) analysis through a `Trait`
 argument that extends the model to capture genotype-by-environment
 interaction.
@@ -77,14 +77,6 @@ wgCross <- primeCross(object, type = "interval", impute = "MartinezCurnow",
 | `subset` | Character vector of chromosome names to retain; `NULL` (default) uses all chromosomes |
 | `infer` | `"mid"` (default) places interval markers at midpoints; a numeric cM step size generates a finer grid. Only used when `type = "interval"` |
 
-Two supporting functions assist with data quality:
-
-- **`fixMap()`** — corrects marker ordering on a linkage map when
-  markers have been placed out of sequence.
-- **`imputeGen()`** — performs standalone genotype imputation on a
-  `cross` object prior to calling `primeCross()`, useful when finer
-  control over imputation is needed.
-
 ### Diversity panels — `primePanel()`
 
 `primePanel()` prepares genotype and map data from a diversity panel
@@ -110,15 +102,14 @@ wgPanel <- primePanel(geno, map, id = "id", map.id = "marker",
 
 Both `primeCross()` and `primePanel()` recode genotypes internally to
 the ±1 scale used by the analysis engine and store the prepared
-matrices in `$imputed.data` (and `$interval.data` for interval type).
+matrices in `$imputed.data`.
 
 ---
 
 ## Part 2 — Analysis
 
-Each analysis function takes a fitted **base ASReml-R model** (capturing
-the experimental design) and a prepared genotype object, then
-progressively builds a whole-genome model using forward selection.
+Each analysis function takes a fitted **base ASReml-R model** and a prepared
+genotype object, then progressively builds a whole-genome model using forward selection.
 
 ### QTL mapping — `qtlAim()`
 
@@ -145,10 +136,10 @@ qtl.fit <- qtlAim(baseModel, genObj, merge.by, fix.lines = TRUE,
 | `gen.type` | `"interval"` or `"marker"` — which genotype scores to use; inferred from the `primeCross()` type if `NULL` |
 | `method` | `"fixed"` (default) — QTL enter as fixed effects; `"random"` — QTL enter as random effects (recommended when many QTL are expected) |
 | `selection` | `"interval"` (default) — globally best interval; `"chromosome"` — best interval within the best chromosome |
-| `force` | If `TRUE`, forces the `mbf` (marker-by-file) engine regardless of the markers-to-lines ratio |
+| `force` | If `TRUE`, forces the `mbf` engine regardless of the markers-to-lines ratio |
 | `exclusion.window` | cM exclusion zone around each detected QTL in subsequent iterations. Default `20` |
 | `breakout` | Positive integer to stop after that many iterations without adding the final QTL; `-1` (default) runs to completion |
-| `TypeI` | Family-wise significance threshold for the likelihood ratio test. Default `0.05`; no Bonferroni correction is needed |
+| `TypeI` | Family-wise significance threshold for the likelihood ratio test. Default `0.05` |
 | `trace` | `TRUE` (default) prints ASReml output to console; a file path redirects it to that file |
 | `verboseLev` | `0` (default, silent) or `1` — prints per-interval outlier statistics at each iteration |
 | `Trait` | Column name of a trial/environment factor for multivariate G×E QTL analysis |
@@ -177,7 +168,7 @@ gwas.fit <- gwasAim(baseModel, genObj, merge.by, fix.lines = TRUE,
 | `force` | If `TRUE`, forces the `mbf` engine regardless of panel dimensions |
 | `exclusion.window` | cM exclusion zone around each detected marker in subsequent iterations. Default `20` |
 | `breakout` | Positive integer to stop after that many iterations; `-1` (default) runs to completion |
-| `TypeI` | Significance threshold for the LRT. Default `0.05`; the single omnibus test per iteration makes Bonferroni correction unnecessary |
+| `TypeI` | Significance threshold for the LRT. Default `0.05` |
 | `trace` | `TRUE` (default) prints ASReml output to console; a file path redirects it to that file |
 | `verboseLev` | `0` (default) or `1` — prints per-marker outlier statistics at each iteration |
 | `Trait` | Column name of a trial/environment factor for multivariate G×E GWAS |
@@ -218,7 +209,6 @@ Key outputs stored in `$GP`:
 |---|---|
 | `$gebv` | Data frame: line, GEBV, SE, accuracy (Mrode formula), generalised H² (Cullis) |
 | `$var.genetic` | Estimated additive genetic variance |
-| `$heritability` | Narrow-sense h² |
 | `$rel.matrix` | Genomic relationship matrix (vm path) |
 
 ### Selection index — `selIndex()`
@@ -228,17 +218,19 @@ into a single selection index. Three index types are available:
 
 ```r
 si <- selIndex(gp.fit, weights = c(E1 = 1, E2 = 2),
-               type = "smith-hazel", prop.select = 0.10)
+               type = "smith-hazel", prop.select = 0.10, selection = NULL)
 ```
 
 | `type` | Method |
 |---|---|
-| `"weighted"` | Weighted sum of GEBVs: **I** = **b′g** |
-| `"smith-hazel"` | Classical Smith-Hazel index: **b** = **P**⁻¹**Ga w** |
-| `"desired-gains"` | Pesek-Baker desired-gains index: **b** ∝ **Ga**⁻¹**d** |
+| `"weighted"` | Weighted sum of GEBVs |
+| `"smith-hazel"` | Classical Smith-Hazel index |
+| `"desired-gains"` | Pesek-Baker desired-gains index |
 
-The `$gain` slot reports the expected genetic gain per environment for
-the selected proportion of lines.
+Users can use the various method to help select the top `prop.select` of
+lines. A `selection` of lines can also be passed to the function. in both
+instamces the `$gain` output reports the expected genetic gain per trait (or
+environment) for the selection of lines.
 
 ---
 
@@ -280,9 +272,6 @@ argument selecting the display:
 | `"heatmap"` | `selIndex` | GEBV × environment heatmap for selected lines |
 | `"weights"` | `selIndex` | Index weight bar chart |
 
-For multivariate models, `"effects"` and `"contrast"` produce grouped
-displays with one panel or line per trial level.
-
 ### Iteration diagnostics — `aimTrace()`
 
 `aimTrace()` traces the forward-selection iterations of a `qtlAim` or
@@ -294,9 +283,6 @@ aimTrace(qtl.fit, plot = "lrt")       # LRT statistic at each iteration
 aimTrace(qtl.fit, plot = "stability") # QTL effect ± 1 SE across iterations
 aimTrace(qtl.fit, plot = "both")      # returns both plots as a list
 ```
-
-For multivariate models, the stability plot shows one trajectory per
-trial level.
 
 ### Fine mapping — `fineMap()`
 
