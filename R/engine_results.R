@@ -109,7 +109,7 @@
 #' @keywords internal
 .waldTest <- function(object, cc) {
     if (is.null(object$Cfixed)) {
-        asreml::asreml.options(Cfixed = TRUE)
+        asreml.options(Cfixed = TRUE)
         object <- update(object)
     }
 
