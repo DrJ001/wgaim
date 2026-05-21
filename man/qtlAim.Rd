@@ -228,9 +228,8 @@ qtl.fit <- qtlAim(base.mod, genObj = genoRxK,
 # Results
 print(qtl.fit,   genObj = genoRxK)
 summary(qtl.fit, genObj = genoRxK)
-tr(qtl.fit)
+aimTrace(qtl.fit)
 linkMap(qtl.fit, genObj = genoRxK)
-outStat(qtl.fit, genObj = genoRxK)
 }
 
 }

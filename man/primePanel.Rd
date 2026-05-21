@@ -158,5 +158,5 @@ panel <- primePanel(geno.mat, map.df, encoding = "012", impute = "mean")
 }
 \seealso{
 \code{\link{gwasAim}}, \code{\link{gpAim}},
-  \code{\link[wgAim]{primeCross}}
+  \code{\link{primeCross}}
 }

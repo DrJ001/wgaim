@@ -1,0 +1,106 @@
+url: https://drj001.github.io/wgAim/
+
+template:
+  bootstrap: 5
+  bootswatch: flatly
+
+home:
+  title: "wgAim — Whole Genome Analyses via Integrated Modelling"
+  description: >
+    A unified toolkit for QTL detection, GWAS, and genomic prediction in
+    plant breeding populations, built on ASReml-R.
+
+navbar:
+  structure:
+    left: [intro, reference, articles, news]
+    right: [search, github]
+  components:
+    github:
+      icon: fab fa-github fa-lg
+      href: https://github.com/DrJ001/wgAim
+
+authors:
+  Julian Taylor:
+    href: https://github.com/DrJ001
+  Ari Verbyla:
+    href: https://avdataanalytics.com.au
+
+reference:
+
+  - title: "Data Preparation"
+    desc: >
+      Prepare genotypic data objects for analysis. Use `primeCross()` for
+      biparental mapping populations and `primePanel()` for diversity panels.
+    contents:
+      - primeCross
+      - fixMap
+      - primePanel
+
+  - title: "QTL Mapping Pipeline"
+    desc: >
+      Forward-selection whole-genome QTL detection in biparental mapping
+      populations. Supports univariate and multivariate multi-environment
+      (G×E) models.
+    contents:
+      - qtlAim
+      - print.qtlAim
+      - summary.qtlAim
+      - plot.qtlAim
+
+  - title: "GWAS Pipeline"
+    desc: >
+      Forward-selection genome-wide association analysis in diversity panels.
+      Supports univariate and multivariate multi-environment models.
+    contents:
+      - gwasAim
+      - print.gwasAim
+      - summary.gwasAim
+      - plot.gwasAim
+
+  - title: "Genomic Prediction & Selection Pipeline"
+    desc: >
+      Genomic best linear unbiased prediction (G-BLUP) and selection indexing.
+      `gpAim()` delivers GEBVs and accuracies; `selIndex()` combines
+      per-environment GEBVs into an optimised selection index.
+    contents:
+      - gpAim
+      - print.gpAim
+      - summary.gpAim
+      - plot.gpAim
+      - selIndex
+      - print.selIndex
+      - summary.selIndex
+      - plot.selIndex
+
+  - title: "Supporting Functions"
+    desc: >
+      Fine mapping, multi-trait summaries, algorithm diagnostics, and
+      genetic map visualisation.
+    contents:
+      - fineMap
+      - print.fineMap
+      - plot.fineMap
+      - aimTable
+      - print.aimTable
+      - aimTrace
+      - getQTL
+      - linkMap
+      - linkMap.cross
+      - linkMap.qtlAim
+      - linkMap.gwasAim
+
+  - title: "Datasets"
+    desc: >
+      Three paired genotype/phenotype datasets from biparental wheat
+      populations, included for use in examples and vignettes.
+    contents:
+      - genoRxK
+      - phenoRxK
+      - genoCxR
+      - phenoCxR
+      - genoSxT
+      - phenoSxT
+
+  - title: "Package"
+    contents:
+      - wgAim-package
