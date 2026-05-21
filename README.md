@@ -62,16 +62,20 @@ marker imputation and constructs the interval genotype scores used in
 interval mapping.
 
 ```r
-wgCross <- primeCross(cross, type = "interval", id = "Genotype")
+wgCross <- primeCross(object, type = "interval", impute = "MartinezCurnow",
+                      consensus.mark = TRUE, id = "id", subset = NULL,
+                      infer = "mid")
 ```
-
-Key arguments:
 
 | Argument | Description |
 |---|---|
-| `type` | `"interval"` (default) for interval mapping using Haldane-weighted midpoint scores; `"marker"` for direct marker analysis |
-| `id` | Name of the line identifier column in `cross$pheno` |
-| `impute` | Missing genotype imputation method: `"Martinez"` (default) or `"Martini"` |
+| `object` | A `cross` object produced by the **qtl** package (`"bc"`, `"dh"`, `"f2"`, or `"riself"`) |
+| `type` | `"interval"` (default) — Haldane-weighted midpoint scores; `"marker"` — imputed marker genotypes only |
+| `impute` | Imputation method for missing marker genotypes: `"MartinezCurnow"` (default) or `"Broman"` |
+| `consensus.mark` | If `TRUE` (default), co-located markers are collapsed to consensus genotypes before imputation |
+| `id` | Name of the line identifier column in `object$pheno`. Default `"id"` |
+| `subset` | Character vector of chromosome names to retain; `NULL` (default) uses all chromosomes |
+| `infer` | `"mid"` (default) places interval markers at midpoints; a numeric cM step size generates a finer grid. Only used when `type = "interval"` |
 
 Two supporting functions assist with data quality:
 
@@ -87,18 +91,22 @@ Two supporting functions assist with data quality:
 into a `wgPanel` object for `gwasAim()` or `gpAim()`.
 
 ```r
-wgPanel <- primePanel(geno, map, id = "Genotype",
-                      map.id = "marker", map.chr = "chr", map.pos = "pos",
-                      encoding = "012", maf = 0.05)
+wgPanel <- primePanel(geno, map, id = "id", map.id = "marker",
+                      map.chr = "chr", map.pos = "pos",
+                      encoding = "012", maf = 0.05, impute = "none")
 ```
-
-Key arguments:
 
 | Argument | Description |
 |---|---|
-| `encoding` | Input coding of the genotype matrix: `"012"` (default, AA/AB/BB counts) or `"-101"` (already centred) |
-| `maf` | Minor allele frequency threshold; markers below this are removed |
-| `impute` | Missing genotype imputation: `"none"` (default), `"mean"`, or `"mode"` |
+| `geno` | Matrix (lines × markers) with row names identifying lines, or a data frame with a line identifier column named by `id` |
+| `map` | Data frame containing the genetic map with columns for marker name, chromosome, and cM position |
+| `id` | Name of the line identifier column when `geno` is a data frame; ignored when `geno` is a matrix. Default `"id"` |
+| `map.id` | Column name in `map` holding marker names. Default `"marker"` |
+| `map.chr` | Column name in `map` holding chromosome labels. Default `"chr"` |
+| `map.pos` | Column name in `map` holding cM positions. Default `"pos"` |
+| `encoding` | Genotype coding in `geno`: `"012"` (default) — allele counts 0/1/2 (also accepts dosage values in [0,2]); `"pm1"` — already in ±1 coding |
+| `maf` | Minor allele frequency threshold; markers below this are removed. Default `0.05`; set to `0` or `NULL` to disable |
+| `impute` | Handling of missing values after encoding: `"none"` (default, stops with an error if NAs remain); `"mean"` — column-mean imputation (a warning is always issued) |
 
 Both `primeCross()` and `primePanel()` recode genotypes internally to
 the ±1 scale used by the analysis engine and store the prepared
@@ -120,21 +128,32 @@ genome-wide random background, iterating until no further significant
 QTL are detected.
 
 ```r
-qtl.fit <- qtlAim(baseModel, genObj = wgCross, merge.by = "Genotype",
-                  TypeI = 0.05, selection = "interval")
+qtl.fit <- qtlAim(baseModel, genObj, merge.by, fix.lines = TRUE,
+                  gen.type = NULL, method = "fixed",
+                  selection = "interval", force = FALSE,
+                  exclusion.window = 20, breakout = -1,
+                  TypeI = 0.05, trace = TRUE, verboseLev = 0,
+                  Trait = NULL, str = NULL, ...)
 ```
-
-Key arguments:
 
 | Argument | Description |
 |---|---|
-| `selection` | `"interval"` (default) or `"marker"` or `"chromosome"` |
-| `method` | `"fixed"` (default) or `"random"` — whether QTL enter as fixed or random effects |
-| `gen.type` | `"interval"` or `"marker"` — genotype data source from `wgCross`; inferred from `primeCross()` type if `NULL` |
-| `exclusion.window` | cM exclusion zone around detected QTL during search (default 20) |
-| `TypeI` | Significance threshold for the likelihood ratio test (default 0.05) |
-| `Trait` | Column name of a trial/environment factor for multivariate G×E analysis |
-| `str` | Variance structure on the genomic term for multivariate models (e.g. `"corh"`, `"fa1"`) |
+| `baseModel` | A converged ASReml-R model capturing the experimental design; the genetic line term must appear in the random formula |
+| `genObj` | A `wgCross` object from `primeCross()` |
+| `merge.by` | Name of the line identifier column shared by the model data and `genObj` |
+| `fix.lines` | If `TRUE` (default), ungenotyped lines are absorbed into a fixed `Gomit` factor; variance is estimated from genotyped lines only |
+| `gen.type` | `"interval"` or `"marker"` — which genotype scores to use; inferred from the `primeCross()` type if `NULL` |
+| `method` | `"fixed"` (default) — QTL enter as fixed effects; `"random"` — QTL enter as random effects (recommended when many QTL are expected) |
+| `selection` | `"interval"` (default) — globally best interval; `"chromosome"` — best interval within the best chromosome |
+| `force` | If `TRUE`, forces the `mbf` (marker-by-file) engine regardless of the markers-to-lines ratio |
+| `exclusion.window` | cM exclusion zone around each detected QTL in subsequent iterations. Default `20` |
+| `breakout` | Positive integer to stop after that many iterations without adding the final QTL; `-1` (default) runs to completion |
+| `TypeI` | Family-wise significance threshold for the likelihood ratio test. Default `0.05`; no Bonferroni correction is needed |
+| `trace` | `TRUE` (default) prints ASReml output to console; a file path redirects it to that file |
+| `verboseLev` | `0` (default, silent) or `1` — prints per-interval outlier statistics at each iteration |
+| `Trait` | Column name of a trial/environment factor for multivariate G×E QTL analysis |
+| `str` | Variance structure on the multivariate genomic term: `NULL` (default, mirrors base model), `"corh"`, `"corgh"`, `"us"`, `"diag"`, `"fa1"`, `"fa2"`, etc. |
+| `...` | Additional arguments passed to `update.asreml()` at each iteration |
 
 ### GWAS — `gwasAim()`
 
@@ -143,13 +162,29 @@ selection engine as `qtlAim()` but scans actual panel markers and
 applies a panel-size-adjusted significance threshold.
 
 ```r
-gwas.fit <- gwasAim(baseModel, genObj = wgPanel, merge.by = "Genotype",
-                    TypeI = 0.05)
+gwas.fit <- gwasAim(baseModel, genObj, merge.by, fix.lines = TRUE,
+                    force = FALSE, exclusion.window = 20, breakout = -1,
+                    TypeI = 0.05, trace = TRUE, verboseLev = 0,
+                    Trait = NULL, str = NULL, ...)
 ```
 
-The interface is deliberately close to `qtlAim()`. The `method` and
-`selection` arguments are fixed internally (`"fixed"` and `"interval"`
-respectively); all other arguments are shared.
+| Argument | Description |
+|---|---|
+| `baseModel` | A converged ASReml-R model capturing the experimental design, including any population structure covariates |
+| `genObj` | A `wgPanel` object from `primePanel()` |
+| `merge.by` | Name of the line identifier column shared by the model data and `genObj` |
+| `fix.lines` | If `TRUE` (default), ungenotyped lines are absorbed into a fixed `Gomit` factor |
+| `force` | If `TRUE`, forces the `mbf` engine regardless of panel dimensions |
+| `exclusion.window` | cM exclusion zone around each detected marker in subsequent iterations. Default `20` |
+| `breakout` | Positive integer to stop after that many iterations; `-1` (default) runs to completion |
+| `TypeI` | Significance threshold for the LRT. Default `0.05`; the single omnibus test per iteration makes Bonferroni correction unnecessary |
+| `trace` | `TRUE` (default) prints ASReml output to console; a file path redirects it to that file |
+| `verboseLev` | `0` (default) or `1` — prints per-marker outlier statistics at each iteration |
+| `Trait` | Column name of a trial/environment factor for multivariate G×E GWAS |
+| `str` | Variance structure on the multivariate genomic term: `NULL` (default, mirrors base model), `"corh"`, `"corgh"`, `"us"`, `"diag"`, `"fa1"`, `"fa2"`, etc. |
+| `...` | Additional arguments passed to `update.asreml()` at each iteration |
+
+Note: `method = "fixed"` and `selection = "interval"` are fixed internally.
 
 ### Genomic prediction — `gpAim()`
 
@@ -159,9 +194,23 @@ heritabilities for all genotyped lines. Works with both `wgCross`
 and `wgPanel` objects.
 
 ```r
-gp.fit <- gpAim(baseModel, genObj = wgCross, merge.by = "Genotype",
-                gen.type = "marker")
+gp.fit <- gpAim(baseModel, genObj, merge.by, fix.lines = TRUE,
+                gen.type = "marker", force = FALSE,
+                trace = TRUE, Trait = NULL, str = NULL, ...)
 ```
+
+| Argument | Description |
+|---|---|
+| `baseModel` | A converged ASReml-R model capturing the experimental design; no genomic term should be present |
+| `genObj` | A `wgCross` object from `primeCross()` or a `wgPanel` object from `primePanel()` |
+| `merge.by` | Name of the line identifier column shared by the model data and `genObj` |
+| `fix.lines` | If `TRUE` (default), ungenotyped lines are absorbed into a fixed `Gomit` factor |
+| `gen.type` | `"marker"` (default) — uses `$imputed.data`; `"interval"` — uses `$interval.data` (requires `wgCross`) |
+| `force` | If `TRUE`, forces the `mbf` engine regardless of the markers-to-lines ratio |
+| `trace` | `TRUE` (default) prints ASReml output to console; a file path redirects it to that file |
+| `Trait` | Column name of a trial/environment factor for multivariate genomic prediction |
+| `str` | Variance structure on the multivariate genomic term: `NULL` (default, mirrors base model), `"corh"`, `"corgh"`, `"us"`, `"diag"`, `"fa1"`, `"fa2"`, etc. |
+| `...` | Additional arguments passed to `update.asreml()` |
 
 Key outputs stored in `$GP`:
 
