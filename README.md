@@ -3,7 +3,7 @@
 <!-- badges: start -->
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![minimal R version](https://img.shields.io/badge/R%3E%3D-3.5.0-6666ff.svg)](https://cran.r-project.org/)
-[![Package version](https://img.shields.io/badge/Package%20version-0.9.0-orange.svg?style=flat-square)](https://github.com/DrJ001/wgAim/commits/dev)
+[![Package version](https://img.shields.io/github/r-package/v/DrJ001/wgAim?color=orange&label=Package%20version&style=flat-square)](https://github.com/DrJ001/wgAim/commits/dev)
 [![codecov](https://codecov.io/gh/DrJ001/wgAim/branch/dev/graph/badge.svg)](https://app.codecov.io/gh/DrJ001/wgAim)
 <!-- badges: end -->
 
