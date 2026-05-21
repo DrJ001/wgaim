@@ -1,5 +1,7 @@
-citHeader("To cite wgAim in publications use:")
+citHeader("To cite wgAim in publications use the software paper and/or the
+underlying methods papers:")
 
+## Software paper (wgaim -- the predecessor package; methods are equivalent)
 bibentry(bibtype = "Article",
   title        = "{R} Package {wgaim}: QTL Analysis in Bi-Parental Populations Using Linear Mixed Models",
   author       = c(person("Julian", "Taylor"), person("Arunas", "Verbyla")),
@@ -8,12 +10,47 @@ bibentry(bibtype = "Article",
   volume       = "40",
   number       = "7",
   pages        = "1--18",
+  doi          = "10.18637/jss.v040.i07",
   url          = "https://www.jstatsoft.org/v40/i07/",
-
   textVersion  =
-  paste("Julian Taylor, Arunas Verbyla (2011).",
-        "R Package wgaim: QTL Analysis in Bi-Parental Populations Using Linear Mixed Models.",
-        "Journal of Statistical Software, 40(7), 1-18.",
-        "URL https://www.jstatsoft.org/v40/i07/")
+    paste("Taylor J, Verbyla A (2011).",
+          "R Package wgaim: QTL Analysis in Bi-Parental Populations Using Linear Mixed Models.",
+          "Journal of Statistical Software, 40(7), 1-18.",
+          "doi:10.18637/jss.v040.i07")
 )
 
+## Interval mapping methods paper
+bibentry(bibtype = "Article",
+  title        = "The analysis of QTL by simultaneous use of the full linkage map",
+  author       = c(person("Ari P.", "Verbyla"),
+                   person("Brian R.", "Cullis"),
+                   person("Robin", "Thompson")),
+  journal      = "Theoretical and Applied Genetics",
+  year         = "2007",
+  volume       = "116",
+  pages        = "95--111",
+  doi          = "10.1007/s00122-007-0650-x",
+  textVersion  =
+    paste("Verbyla AP, Cullis BR, Thompson R (2007).",
+          "The analysis of QTL by simultaneous use of the full linkage map.",
+          "Theoretical and Applied Genetics, 116, 95-111.",
+          "doi:10.1007/s00122-007-0650-x")
+)
+
+## RWGAIM whole-genome random-effects methods paper
+bibentry(bibtype = "Article",
+  title        = "{RWGAIM}: An efficient high-dimensional random whole genome average ({QTL}) interval mapping approach",
+  author       = c(person("Ari P.", "Verbyla"),
+                   person("Julian D.", "Taylor"),
+                   person("Klara L.", "Verbyla")),
+  journal      = "Genetics Research",
+  year         = "2012",
+  volume       = "94",
+  pages        = "291--306",
+  doi          = "10.1017/S0016672312000493",
+  textVersion  =
+    paste("Verbyla AP, Taylor JD, Verbyla KL (2012).",
+          "RWGAIM: An efficient high-dimensional random whole genome average (QTL) interval mapping approach.",
+          "Genetics Research, 94, 291-306.",
+          "doi:10.1017/S0016672312000493")
+)

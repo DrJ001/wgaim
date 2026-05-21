@@ -5,7 +5,7 @@
   population in R/qtl format}
 \description{Linkage map marker data for the Sunco x Tasman doubled haploid
   population in the form of an R/qtl cross object.}
-\usage{data(phenoSxT)}
+\usage{data(genoSxT)}
 \format{
   This data relates to a linkage map of 287 genetic markers genotyped on 190
   individuals from the Sunco x Tasman population. This set is reduced from

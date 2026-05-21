@@ -7,3 +7,5 @@
 ^cran-comments.md$
 ^CRAN-SUBMISSION$
 ^scratch$
+^_pkgdown\.yml$
+^docs$

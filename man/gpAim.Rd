@@ -35,7 +35,7 @@ update attempt is made automatically.}
 \code{na.action = na.method(x = "include")}.}
 
 \item{genObj}{A genotypic data object of class \code{"wgCross"} (from
-\code{\link[wgAim]{primeCross}}, for biparental populations) or class
+\code{\link{primeCross}}, for biparental populations) or class
 \code{"wgPanel"} (from \code{\link{primePanel}}, for diversity panels).
 Must contain per-chromosome genotype matrices accessible at
 \code{$geno[[chr]]$imputed.data} (marker mode) or
@@ -201,6 +201,6 @@ gp.fit2 <- gpAim(base.mod2, genObj = genoRxK,
 \seealso{
 \code{\link{print.gpAim}}, \code{\link{summary.gpAim}},
   \code{\link{plot.gpAim}}, \code{\link{primePanel}},
-  \code{\link[wgAim]{primeCross}}, \code{\link{qtlAim}},
+  \code{\link{primeCross}}, \code{\link{qtlAim}},
   \code{\link{gwasAim}}
 }

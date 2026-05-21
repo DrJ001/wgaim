@@ -15,7 +15,7 @@ Imports: ggplot2, ggrepel, MASS
 Suggests: knitr, rmarkdown, prettydoc, testthat (>= 3.0.0), covr
 VignetteBuilder: knitr
 SystemRequirements: asreml-R 4.x
-URL: https://github.com/DrJ001/wgAim
+URL: https://drj001.github.io/wgAim/, https://github.com/DrJ001/wgAim
 BugReports: https://github.com/DrJ001/wgAim/issues
 Description: A unified whole-genome analysis toolkit for plant breeding
     populations, built around the ASReml-R linear mixed modelling engine.

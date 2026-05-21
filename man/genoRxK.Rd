@@ -5,7 +5,7 @@
   population in R/qtl format}
 \description{Linkage map marker data for the RAC875 x Kukri doubled haploid
   population in the form of an R/qtl cross object.}
-\usage{data(phenoSxT)}
+\usage{data(genoRxK)}
 \format{
   This data relates to a linkage map of 500 genetic markers genotyped on 368
   individuals from the RAC875 x Kukri population. The linkage map

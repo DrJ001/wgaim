@@ -1,7 +1,7 @@
 # wgAim — Whole Genome Analyses via Integrated Modelling
 
 <!-- badges: start -->
-[![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
+[![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![minimal R version](https://img.shields.io/badge/R%3E%3D-3.5.0-6666ff.svg)](https://cran.r-project.org/)
 [![Package version](https://img.shields.io/badge/Package%20version-0.1--0-orange.svg?style=flat-square)](https://github.com/DrJ001/wgAim/commits/dev)
 [![codecov](https://codecov.io/gh/DrJ001/wgAim/branch/dev/graph/badge.svg)](https://app.codecov.io/gh/DrJ001/wgAim)
@@ -9,10 +9,9 @@
 
 **Authors**: Julian Taylor & Ari Verbyla
 
-> ⚠️ **This package is under active development.** The API is not yet
-> stable and breaking changes may occur between commits. Check back
-> regularly for updates — a first release will be announced here when
-> the package is ready for general use.
+> **This package is under active development.** The API may change
+> between commits ahead of the first stable release. Vignettes are in
+> preparation — see the function reference for full documentation.
 
 ---
 
@@ -26,11 +25,11 @@ engine. It extends and supersedes the
 the scope from QTL detection alone into a three-pillar framework for
 whole-genome inference:
 
-| Pillar | Function | Description |
+| Pillar | Functions | Description |
 |---|---|---|
 | QTL detection | `qtlAim()` | Forward-selection whole-genome marker or interval mapping in biparental populations |
 | GWAS | `gwasAim()` | Forward-selection genome-wide association analysis in diversity panels |
-| Genomic prediction | `gpAim()` | Genomic best linear unbiased prediction (G-BLUP) delivering GEBVs |
+| Genomic prediction & selection | `gpAim()` · `selIndex()` | G-BLUP delivering GEBVs and accuracies; `selIndex()` combines per-environment GEBVs into a weighted, Smith-Hazel, or Pesek-Baker selection index |
 
 All three analyses share a common internal engine and the same
 unifying statistical idea: the full complement of markers or intervals
