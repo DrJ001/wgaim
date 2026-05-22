@@ -230,7 +230,7 @@ test_that("primePanel with matrix input returns wgPanel with correct class", {
   )
 
   expect_message(
-    panel <- primePanel(gmat, map_df, encoding = "012", maf = 0),
+    panel <- primePanel(gmat, map_df, encoding = "012"),
     regexp = "wgPanel object created"
   )
 
@@ -264,7 +264,7 @@ test_that("primePanel accepts data.frame input with id column", {
   )
 
   expect_message(
-    panel <- primePanel(gdf, map_df, id = "id", encoding = "012", maf = 0),
+    panel <- primePanel(gdf, map_df, id = "id", encoding = "012"),
     regexp = "wgPanel object created"
   )
 
@@ -292,7 +292,7 @@ test_that("primePanel encoding='pm1' does not alter values", {
   )
 
   expect_message(
-    panel <- primePanel(gmat, map_df, encoding = "pm1", maf = 0),
+    panel <- primePanel(gmat, map_df, encoding = "pm1"),
     regexp = "wgPanel object created"
   )
 
@@ -401,7 +401,7 @@ test_that("primePanel stops with informative error when NAs remain and impute='n
 
   expect_error(
     suppressMessages(primePanel(gmat, map_df, encoding = "012",
-                                maf = 0, impute = "none")),
+                                impute = "none")),
     regexp = "missing genotype"
   )
 })
@@ -429,7 +429,7 @@ test_that("primePanel impute='mean' emits a warning and fills NAs", {
   expect_warning(
     suppressMessages(
       panel <- primePanel(gmat, map_df, encoding = "012",
-                          maf = 0, impute = "mean")
+                          impute = "mean")
     ),
     regexp = "Imputing"
   )
@@ -460,7 +460,7 @@ test_that("primePanel drops markers absent from map and emits a message", {
   )
 
   expect_message(
-    panel <- primePanel(gmat, map_df, encoding = "012", maf = 0),
+    panel <- primePanel(gmat, map_df, encoding = "012"),
     regexp = "not found in map"
   )
 
@@ -490,7 +490,7 @@ test_that("primePanel warns when chromosome names contain dots", {
   )
 
   expect_warning(
-    suppressMessages(primePanel(gmat, map_df, encoding = "012", maf = 0)),
+    suppressMessages(primePanel(gmat, map_df, encoding = "012")),
     regexp = "[Dd]ots? found"
   )
 })
@@ -514,7 +514,7 @@ test_that("primePanel $geno each chromosome has $data, $map, $imputed.data", {
   )
 
   expect_message(
-    panel <- primePanel(gmat, map_df, encoding = "012", maf = 0),
+    panel <- primePanel(gmat, map_df, encoding = "012"),
     regexp = "wgPanel object created"
   )
 
@@ -547,7 +547,7 @@ test_that("primePanel preserves line IDs as rownames in imputed.data", {
   )
 
   expect_message(
-    panel <- primePanel(gmat, map_df, encoding = "012", maf = 0),
+    panel <- primePanel(gmat, map_df, encoding = "012"),
     regexp = "wgPanel object created"
   )
 
@@ -556,3 +556,4 @@ test_that("primePanel preserves line IDs as rownames in imputed.data", {
                  info = paste("rownames mismatch in chr", chr))
   }
 })
+

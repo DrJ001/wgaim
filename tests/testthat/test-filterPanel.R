@@ -370,11 +370,10 @@ test_that("primePanel.filteredPanel works with impute='knn'", {
 # =============================================================================
 
 test_that("primePanel no longer accepts maf argument", {
+    # maf was removed from primePanel(); passing it should now error
     expect_error(
         primePanel(p_min$geno, p_min$map, maf = 0.05),
-        NA   # should NOT error on the call itself — maf goes to ... silently
-        # Actually in R, extra args go to ...; they won't error unless
-        # .primePanel_core explicitly rejects them. Adjust test accordingly.
+        "unused argument"
     )
 })
 

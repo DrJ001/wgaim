@@ -166,8 +166,7 @@ primePanel <- function(geno, map,
                        map.pos = "pos",
                        encoding = "012",
                        impute  = "none",
-                       knn.k   = 5L,
-                       ...) {
+                       knn.k   = 5L) {
     # Accept a filteredPanel object as the first argument; extract stored fields.
     if (inherits(geno, "filteredPanel")) {
         fp   <- geno
