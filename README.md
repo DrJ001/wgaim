@@ -77,28 +77,91 @@ wgCross <- primeCross(object, type = "interval", impute = "MartinezCurnow",
 | `subset` | Character vector of chromosome names to retain; `NULL` (default) uses all chromosomes |
 | `infer` | `"mid"` (default) places interval markers at midpoints; a numeric cM step size generates a finer grid. Only used when `type = "interval"` |
 
-### Diversity panels — `primePanel()`
+### Diversity panels — `checkPanel()`, `filterPanel()`, and `primePanel()`
 
-`primePanel()` prepares genotype and map data from a diversity panel
-into a `wgPanel` object for `gwasAim()` or `gpAim()`.
+Preparing a diversity panel for analysis follows a three-step workflow:
+diagnose data quality with `checkPanel()`, apply filters with
+`filterPanel()`, then build the analysis-ready object with `primePanel()`.
+Each function accepts the output of the previous step directly, so the
+typical call sequence is:
+
+```r
+chk   <- checkPanel(geno, map)
+print(chk)
+clean <- filterPanel(chk, miss.marker = 0.20, miss.line = 0.20, maf = 0.05)
+print(clean)
+panel <- primePanel(clean, impute = "knn", knn.k = 5)
+```
+
+#### `checkPanel()` — diagnose data quality
+
+`checkPanel()` is a **pure diagnostic** tool. It inspects the raw
+genotype matrix and map, reports everything it finds, and returns a
+`"checkPanel"` object without modifying any data. The results are
+intended to guide the choice of thresholds for `filterPanel()`.
+
+| Check | What is reported |
+|---|---|
+| Encoding validation | Whether genotype values lie within the expected range for the stated encoding |
+| Map consistency | Markers present in `geno` but absent from `map` (unplaceable), and vice versa |
+| Marker missingness | Per-marker proportion of missing genotypes; count above a flagging threshold |
+| Line missingness | Per-line proportion of missing genotypes; count above a flagging threshold |
+| MAF distribution | Min / median / mean / max MAF; count of monomorphic markers; count removed at standard thresholds (0.01, 0.02, 0.05, 0.10) |
+| Heterozygosity | Per-line and per-marker heterozygosity rates; count above a flagging threshold |
+| Duplicate lines | Lines with identical genotype profiles across all common markers |
+| Duplicate markers | Markers with identical genotype profiles across all lines |
+| Chromosome coverage | Number of markers and cM range per chromosome |
+
+The `print()` method accepts `miss.line.thresh`, `miss.marker.thresh`,
+and `het.thresh` to control which lines and markers are flagged in the
+summary output.
+
+#### `filterPanel()` — apply data quality filters
+
+`filterPanel()` applies a sequential set of filters in a statistically
+principled order. Each step operates on data already cleaned by the
+preceding steps. Passing a `"checkPanel"` object as the first argument
+automatically reuses the stored `geno`, `map`, `encoding`, and column-name
+arguments.
+
+| Step | Filter | Default |
+|---|---|---|
+| 1 | **Map consistency** — markers absent from `map` are dropped | always applied |
+| 2 | **Marker missingness** — markers above `miss.marker` are removed first, before lines are assessed | `0.20` |
+| 3 | **Line missingness** — lines above `miss.line` are removed, computed on the cleaned marker set | `0.20` |
+| 4 | **Line heterozygosity** — lines above `het.line` are removed; excess het indicates a mislabelled or contaminated sample | `NULL` (skipped) |
+| 5 | **Marker heterozygosity** — markers above `het.marker` are removed; high per-marker het suggests a paralogous locus | `NULL` (skipped) |
+| 6 | **Duplicate lines** — second and subsequent copies removed after quality filters, so clean copies are retained | `TRUE` |
+| 7 | **Duplicate markers** — second and subsequent copies removed | `FALSE` |
+| 8 | **MAF** — markers below `maf` are removed last, on the fully cleaned dataset | `0.05` |
+
+The `print()` method reports each step, the number of lines or markers
+removed, and the final panel dimensions.
+
+#### `primePanel()` — build the analysis-ready object
+
+`primePanel()` converts the filtered (and optionally imputed) genotype
+data into a `wgPanel` object for use with `gwasAim()` or `gpAim()`.
+It accepts a `"filteredPanel"` object directly; all column-name and
+encoding arguments are then extracted automatically.
 
 ```r
 wgPanel <- primePanel(geno, map, id = "id", map.id = "marker",
                       map.chr = "chr", map.pos = "pos",
-                      encoding = "012", maf = 0.05, impute = "none")
+                      encoding = "012", impute = "none", knn.k = 5L)
 ```
 
 | Argument | Description |
 |---|---|
-| `geno` | Matrix (lines × markers) with row names identifying lines, or a data frame with a line identifier column named by `id` |
-| `map` | Data frame containing the genetic map with columns for marker name, chromosome, and cM position |
+| `geno` | Matrix (lines × markers) with row names identifying lines, a data frame with a line identifier column named by `id`, or a `"filteredPanel"` object from `filterPanel()` |
+| `map` | Data frame containing the genetic map with columns for marker name, chromosome, and cM position. Not required when `geno` is a `"filteredPanel"` object |
 | `id` | Name of the line identifier column when `geno` is a data frame; ignored when `geno` is a matrix. Default `"id"` |
 | `map.id` | Column name in `map` holding marker names. Default `"marker"` |
 | `map.chr` | Column name in `map` holding chromosome labels. Default `"chr"` |
 | `map.pos` | Column name in `map` holding cM positions. Default `"pos"` |
-| `encoding` | Genotype coding in `geno`: `"012"` (default) — allele counts 0/1/2 (also accepts dosage values in [0,2]); `"pm1"` — already in ±1 coding |
-| `maf` | Minor allele frequency threshold; markers below this are removed. Default `0.05`; set to `0` or `NULL` to disable |
-| `impute` | Handling of missing values after encoding: `"none"` (default, stops with an error if NAs remain); `"mean"` — column-mean imputation (a warning is always issued) |
+| `encoding` | Genotype coding in `geno`: `"012"` (default) — allele counts 0/1/2, also accepts dosage values in [0, 2]; `"pm1"` — already in ±1 coding |
+| `impute` | Handling of missing values: `"none"` (default) — stops with an informative error if any NAs remain; `"knn"` — chromosome-wise k-nearest-neighbour imputation (recommended in-package option); `"mean"` — column-mean imputation (a warning is always issued; not recommended above 1–2% missingness) |
+| `knn.k` | Number of nearest neighbours for `impute = "knn"`. Default `5`. Ignored otherwise |
 
 Both `primeCross()` and `primePanel()` recode genotypes internally to
 the ±1 scale used by the analysis engine and store the prepared
