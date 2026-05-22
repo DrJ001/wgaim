@@ -206,16 +206,13 @@ checkPanel <- function(geno, map,
     )
 
     # -------------------------------------------------------------------------
-    # 9.  Heterozygosity per line
+    # 9.  Heterozygosity — per line and per marker
     # -------------------------------------------------------------------------
-    het <- if (encoding == "012") {
-        # heterozygous call = 1 in 0/1/2 coding
-        rowMeans(geno.chk == 1L, na.rm = TRUE)
-    } else {
-        # heterozygous call = 0 in pm1 coding
-        rowMeans(geno.chk == 0L, na.rm = TRUE)
-    }
-    names(het) <- ids
+    is_het <- if (encoding == "012") geno.chk == 1L else geno.chk == 0L
+
+    het         <- rowMeans(is_het, na.rm = TRUE)   # per line
+    names(het)  <- ids
+    het.marker  <- colMeans(is_het, na.rm = TRUE)   # per marker
 
     # -------------------------------------------------------------------------
     # 10.  Chromosome coverage
@@ -261,6 +258,7 @@ checkPanel <- function(geno, map,
             maf.table    = maf.table,
             monomorphic  = monomorphic,
             het          = het,
+            het.marker   = het.marker,
             chr.coverage = chr.coverage
         ),
         class = "checkPanel"
@@ -347,13 +345,19 @@ print.checkPanel <- function(x,
                     r$threshold, r$n.removed, r$pct.removed))
     }
 
-    # Heterozygosity
-    .hdr("Heterozygosity (per line):")
+    # Heterozygosity — per line then per marker
+    .hdr("Heterozygosity:")
     ht <- x$het
-    cat(sprintf("  Mean: %.3f  Max: %.3f",  mean(ht), max(ht)))
+    cat(sprintf("  Per line   -- Mean: %.3f  Max: %.3f",  mean(ht), max(ht)))
     n_fh <- sum(ht > het.thresh)
-    if (n_fh > 0L) cat(sprintf("  (%d lines above %.0f%% threshold)",
+    if (n_fh > 0L) cat(sprintf("  (%d above %.0f%% threshold)",
                                 n_fh, 100 * het.thresh))
+    cat("\n")
+    hm <- x$het.marker
+    cat(sprintf("  Per marker -- Mean: %.3f  Max: %.3f",  mean(hm), max(hm)))
+    n_fm <- sum(hm > het.thresh)
+    if (n_fm > 0L) cat(sprintf("  (%d above %.0f%% threshold)",
+                                n_fm, 100 * het.thresh))
     cat("\n")
 
     # Chromosome coverage

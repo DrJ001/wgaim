@@ -57,9 +57,9 @@ test_that("filteredPanel$geno is a matrix with row and column names", {
 
 test_that("filteredPanel$removed has one entry per filter step", {
     fp <- filterPanel(p$geno, p$map)
-    expect_true(all(c("map_consistency", "dup_lines", "dup_markers",
-                      "miss_marker", "miss_line", "maf", "het") %in%
-                    names(fp$removed)))
+    expect_true(all(c("map_consistency", "miss_marker", "miss_line",
+                      "het_line", "het_marker", "dup_lines", "dup_markers",
+                      "maf") %in% names(fp$removed)))
 })
 
 test_that("filteredPanel n.original records pre-filter dimensions", {
@@ -127,18 +127,27 @@ test_that("Step 6: MAF filter removes monomorphic and low-MAF markers", {
     expect_true(all(mafs >= 0.05 - 1e-9))
 })
 
-test_that("Step 7: het filter removes high-heterozygosity lines", {
+test_that("Step 4: het.line filter removes high-heterozygosity lines", {
     fp <- filterPanel(p$geno, p$map, miss.line = NULL, miss.marker = NULL,
                       maf = NULL, dup.lines = FALSE, dup.markers = FALSE,
-                      het = 0.55)
-    expect_true(length(fp$removed$het) >= p$n_highhet)
+                      het.line = 0.55)
+    expect_true(length(fp$removed$het_line) >= p$n_highhet)
     het_vals <- rowMeans(fp$geno == 1L, na.rm = TRUE)
     expect_true(all(het_vals <= 0.55))
 })
 
-test_that("Step 7: het = NULL skips heterozygosity filter", {
-    fp <- filterPanel(p$geno, p$map, het = NULL)
-    expect_equal(length(fp$removed$het), 0L)
+test_that("Step 5: het.marker filter removes high-heterozygosity markers", {
+    fp <- filterPanel(p$geno, p$map, miss.line = NULL, miss.marker = NULL,
+                      maf = NULL, dup.lines = FALSE, dup.markers = FALSE,
+                      het.marker = 0.55)
+    het_vals <- colMeans(fp$geno == 1L, na.rm = TRUE)
+    expect_true(all(het_vals <= 0.55))
+})
+
+test_that("het.line = NULL and het.marker = NULL skip heterozygosity filters", {
+    fp <- filterPanel(p$geno, p$map, het.line = NULL, het.marker = NULL)
+    expect_equal(length(fp$removed$het_line),   0L)
+    expect_equal(length(fp$removed$het_marker), 0L)
 })
 
 # =============================================================================

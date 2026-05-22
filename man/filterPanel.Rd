@@ -12,12 +12,13 @@ filterPanel(
   map.chr = "chr",
   map.pos = "pos",
   encoding = "012",
-  miss.line = 0.2,
   miss.marker = 0.2,
-  maf = 0.05,
+  miss.line = 0.2,
+  het.line = NULL,
+  het.marker = NULL,
   dup.lines = TRUE,
   dup.markers = FALSE,
-  het = NULL
+  maf = 0.05
 )
 }
 \arguments{
@@ -46,26 +47,33 @@ Default \code{"chr"}.}
 \item{encoding}{Character string specifying the genotype encoding:
 \code{"012"} (default) or \code{"pm1"}.}
 
-\item{miss.line}{Numeric scalar.  Lines with a missing rate above this
-threshold are removed.  Default \code{0.20}.  Set to \code{NULL} to
-skip.}
-
 \item{miss.marker}{Numeric scalar.  Markers with a missing rate above this
 threshold are removed.  Default \code{0.20}.  Set to \code{NULL} to
 skip.}
 
+\item{miss.line}{Numeric scalar.  Lines with a missing rate above this
+threshold are removed.  Default \code{0.20}.  Set to \code{NULL} to
+skip.}
+
+\item{het.line}{Numeric scalar.  Lines with a heterozygosity rate above
+this threshold are removed (step 4).  Excess heterozygosity in a line
+typically indicates a mislabelled or contaminated sample.
+\code{NULL} (default) skips this filter.}
+
+\item{het.marker}{Numeric scalar.  Markers with a heterozygosity rate
+above this threshold are removed (step 5).  High per-marker
+heterozygosity can indicate a paralogous locus or genotyping artefact.
+\code{NULL} (default) skips this filter.}
+
+\item{dup.lines}{Logical.  If \code{TRUE} (default), duplicate lines are
+removed (step 6, after quality filters so clean copies are retained).}
+
+\item{dup.markers}{Logical.  If \code{FALSE} (default), duplicate markers
+are \emph{not} removed.  Set to \code{TRUE} to drop them (step 7).}
+
 \item{maf}{Numeric scalar.  Markers with minor allele frequency below this
 threshold are removed.  Default \code{0.05}.  Set to \code{NULL} to
 skip.}
-
-\item{dup.lines}{Logical.  If \code{TRUE} (default), duplicate lines are
-removed.}
-
-\item{dup.markers}{Logical.  If \code{FALSE} (default), duplicate markers
-are \emph{not} removed.  Set to \code{TRUE} to drop them.}
-
-\item{het}{Numeric scalar.  Lines with a heterozygosity rate above this
-threshold are removed.  \code{NULL} (default) skips this filter.}
 }
 \value{
 An object of class \code{"filteredPanel"} — a list containing:
@@ -92,24 +100,28 @@ cleaned by the preceding steps:
 \enumerate{
   \item \strong{Map consistency} — markers absent from \code{map} are
     dropped; these cannot be placed on the genome.
-  \item \strong{Duplicate lines} — lines with identical genotype profiles
-    are dropped (second and subsequent copies).  Performed before
-    population-level statistics so allele frequencies are not inflated.
-  \item \strong{Duplicate markers} — markers with identical genotype
-    profiles are dropped (second and subsequent copies).  Performed before
-    missingness calculations.
   \item \strong{Marker missingness} — markers with a missing rate above
-    \code{miss.marker} are removed \emph{before} line missingness is
-    assessed, because a failed genotyping assay can make many lines appear
+    \code{miss.marker} are removed first, because a failed genotyping
+    assay creates a column of \code{NA}s that can make good lines appear
     more missing than they really are.
   \item \strong{Line missingness} — lines with a missing rate above
     \code{miss.line} are removed, calculated on the cleaned marker set.
+  \item \strong{Line heterozygosity} — lines with a heterozygosity rate
+    above \code{het.line} are removed.  Excess heterozygosity typically
+    indicates a mislabelled or contaminated sample.
+    Skipped when \code{het.line = NULL} (default).
+  \item \strong{Marker heterozygosity} — markers with a heterozygosity
+    rate above \code{het.marker} are removed.  High per-marker
+    heterozygosity suggests a paralogous locus or genotyping artefact.
+    Skipped when \code{het.marker = NULL} (default).
+  \item \strong{Duplicate lines} — lines with identical genotype profiles
+    are dropped (second and subsequent copies).  Performed after quality
+    filters so that clean copies are retained over artefact copies.
+  \item \strong{Duplicate markers} — markers with identical genotype
+    profiles are dropped (second and subsequent copies).
   \item \strong{MAF} — markers with minor allele frequency below
-    \code{maf} are removed, calculated on the cleaned line set so that
-    allele frequencies reflect the retained population.
-  \item \strong{Heterozygosity} — lines with a heterozygosity rate above
-    \code{het} are removed.  Performed last on the MAF-filtered data.
-    Skipped when \code{het = NULL} (default).
+    \code{maf} are removed last, so that allele frequencies are computed
+    on the fully cleaned dataset.
 }
 }
 \seealso{

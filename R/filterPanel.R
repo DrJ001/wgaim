@@ -27,24 +27,28 @@
 #' \enumerate{
 #'   \item \strong{Map consistency} — markers absent from \code{map} are
 #'     dropped; these cannot be placed on the genome.
-#'   \item \strong{Duplicate lines} — lines with identical genotype profiles
-#'     are dropped (second and subsequent copies).  Performed before
-#'     population-level statistics so allele frequencies are not inflated.
-#'   \item \strong{Duplicate markers} — markers with identical genotype
-#'     profiles are dropped (second and subsequent copies).  Performed before
-#'     missingness calculations.
 #'   \item \strong{Marker missingness} — markers with a missing rate above
-#'     \code{miss.marker} are removed \emph{before} line missingness is
-#'     assessed, because a failed genotyping assay can make many lines appear
+#'     \code{miss.marker} are removed first, because a failed genotyping
+#'     assay creates a column of \code{NA}s that can make good lines appear
 #'     more missing than they really are.
 #'   \item \strong{Line missingness} — lines with a missing rate above
 #'     \code{miss.line} are removed, calculated on the cleaned marker set.
+#'   \item \strong{Line heterozygosity} — lines with a heterozygosity rate
+#'     above \code{het.line} are removed.  Excess heterozygosity typically
+#'     indicates a mislabelled or contaminated sample.
+#'     Skipped when \code{het.line = NULL} (default).
+#'   \item \strong{Marker heterozygosity} — markers with a heterozygosity
+#'     rate above \code{het.marker} are removed.  High per-marker
+#'     heterozygosity suggests a paralogous locus or genotyping artefact.
+#'     Skipped when \code{het.marker = NULL} (default).
+#'   \item \strong{Duplicate lines} — lines with identical genotype profiles
+#'     are dropped (second and subsequent copies).  Performed after quality
+#'     filters so that clean copies are retained over artefact copies.
+#'   \item \strong{Duplicate markers} — markers with identical genotype
+#'     profiles are dropped (second and subsequent copies).
 #'   \item \strong{MAF} — markers with minor allele frequency below
-#'     \code{maf} are removed, calculated on the cleaned line set so that
-#'     allele frequencies reflect the retained population.
-#'   \item \strong{Heterozygosity} — lines with a heterozygosity rate above
-#'     \code{het} are removed.  Performed last on the MAF-filtered data.
-#'     Skipped when \code{het = NULL} (default).
+#'     \code{maf} are removed last, so that allele frequencies are computed
+#'     on the fully cleaned dataset.
 #' }
 #'
 #' @param geno A numeric matrix (\code{lines x markers}) with row names
@@ -74,12 +78,18 @@
 #' @param maf Numeric scalar.  Markers with minor allele frequency below this
 #'   threshold are removed.  Default \code{0.05}.  Set to \code{NULL} to
 #'   skip.
+#' @param het.line Numeric scalar.  Lines with a heterozygosity rate above
+#'   this threshold are removed (step 4).  Excess heterozygosity in a line
+#'   typically indicates a mislabelled or contaminated sample.
+#'   \code{NULL} (default) skips this filter.
+#' @param het.marker Numeric scalar.  Markers with a heterozygosity rate
+#'   above this threshold are removed (step 5).  High per-marker
+#'   heterozygosity can indicate a paralogous locus or genotyping artefact.
+#'   \code{NULL} (default) skips this filter.
 #' @param dup.lines Logical.  If \code{TRUE} (default), duplicate lines are
-#'   removed.
+#'   removed (step 6, after quality filters so clean copies are retained).
 #' @param dup.markers Logical.  If \code{FALSE} (default), duplicate markers
-#'   are \emph{not} removed.  Set to \code{TRUE} to drop them.
-#' @param het Numeric scalar.  Lines with a heterozygosity rate above this
-#'   threshold are removed.  \code{NULL} (default) skips this filter.
+#'   are \emph{not} removed.  Set to \code{TRUE} to drop them (step 7).
 #'
 #' @return An object of class \code{"filteredPanel"} — a list containing:
 #' \describe{
@@ -104,39 +114,45 @@ filterPanel <- function(geno, map,
                         map.chr     = "chr",
                         map.pos     = "pos",
                         encoding    = "012",
-                        miss.line   = 0.20,
                         miss.marker = 0.20,
-                        maf         = 0.05,
+                        miss.line   = 0.20,
+                        het.line    = NULL,
+                        het.marker  = NULL,
                         dup.lines   = TRUE,
                         dup.markers = FALSE,
-                        het         = NULL) {
+                        maf         = 0.05) {
     # Accept a checkPanel object as the first argument; extract stored fields.
     if (inherits(geno, "checkPanel")) {
-        chk     <- geno
-        geno    <- chk$geno
-        map     <- chk$map
-        id      <- chk$id
-        map.id  <- chk$map.id
-        map.chr <- chk$map.chr
-        map.pos <- chk$map.pos
+        chk      <- geno
+        geno     <- chk$geno
+        map      <- chk$map
+        id       <- chk$id
+        map.id   <- chk$map.id
+        map.chr  <- chk$map.chr
+        map.pos  <- chk$map.pos
         encoding <- chk$encoding
     }
     .filterPanel_core(geno = geno, map = map, id = id, map.id = map.id,
                       map.chr = map.chr, map.pos = map.pos,
-                      encoding = encoding, miss.line = miss.line,
-                      miss.marker = miss.marker, maf = maf,
-                      dup.lines = dup.lines, dup.markers = dup.markers,
-                      het = het)
+                      encoding = encoding, miss.marker = miss.marker,
+                      miss.line = miss.line, het.line = het.line,
+                      het.marker = het.marker, dup.lines = dup.lines,
+                      dup.markers = dup.markers, maf = maf)
 }
 
 # =============================================================================
 # Internal workhorse
 # =============================================================================
 .filterPanel_core <- function(geno, map, id, map.id, map.chr, map.pos,
-                               encoding, miss.line, miss.marker, maf,
-                               dup.lines, dup.markers, het) {
+                               encoding, miss.marker, miss.line,
+                               het.line, het.marker, dup.lines,
+                               dup.markers, maf) {
 
     encoding <- match.arg(encoding, c("012", "pm1"))
+
+    # Helper: is value heterozygous under the current encoding?
+    .is_het <- function(mat)
+        if (encoding == "012") mat == 1L else mat == 0L
 
     # Extract matrix and IDs
     if (is.data.frame(geno)) {
@@ -174,44 +190,11 @@ filterPanel <- function(geno, map,
     removed$map_consistency <- not_in_map
 
     # -------------------------------------------------------------------------
-    # Step 2: Duplicate lines
-    # -------------------------------------------------------------------------
-    if (dup.lines) {
-        line_sigs <- apply(geno.mat, 1L, function(x)
-            paste(ifelse(is.na(x), "NA", as.character(x)), collapse = "|"))
-        dup_idx  <- duplicated(line_sigs)
-        dup_nms  <- rownames(geno.mat)[dup_idx]
-        if (length(dup_nms)) {
-            geno.mat <- geno.mat[!dup_idx, , drop = FALSE]
-        }
-        removed$dup_lines <- dup_nms
-    } else {
-        removed$dup_lines <- character(0L)
-    }
-
-    # -------------------------------------------------------------------------
-    # Step 3: Duplicate markers
-    # -------------------------------------------------------------------------
-    if (dup.markers) {
-        mark_sigs <- apply(geno.mat, 2L, function(x)
-            paste(ifelse(is.na(x), "NA", as.character(x)), collapse = "|"))
-        dup_midx  <- duplicated(mark_sigs)
-        dup_mnms  <- colnames(geno.mat)[dup_midx]
-        if (length(dup_mnms)) {
-            geno.mat <- geno.mat[, !dup_midx, drop = FALSE]
-            map      <- map[map[[map.id]] %in% colnames(geno.mat), , drop = FALSE]
-        }
-        removed$dup_markers <- dup_mnms
-    } else {
-        removed$dup_markers <- character(0L)
-    }
-
-    # -------------------------------------------------------------------------
-    # Step 4: Marker missingness
+    # Step 2: Marker missingness  (before line missingness)
     # -------------------------------------------------------------------------
     if (!is.null(miss.marker)) {
-        mm       <- colMeans(is.na(geno.mat))
-        drop_m   <- names(mm)[mm > miss.marker]
+        mm     <- colMeans(is.na(geno.mat))
+        drop_m <- names(mm)[mm > miss.marker]
         if (length(drop_m)) {
             geno.mat <- geno.mat[, !colnames(geno.mat) %in% drop_m, drop = FALSE]
             map      <- map[map[[map.id]] %in% colnames(geno.mat), , drop = FALSE]
@@ -222,7 +205,7 @@ filterPanel <- function(geno, map,
     }
 
     # -------------------------------------------------------------------------
-    # Step 5: Line missingness
+    # Step 3: Line missingness  (on cleaned marker set)
     # -------------------------------------------------------------------------
     if (!is.null(miss.line)) {
         ml     <- rowMeans(is.na(geno.mat))
@@ -235,7 +218,67 @@ filterPanel <- function(geno, map,
     }
 
     # -------------------------------------------------------------------------
-    # Step 6: MAF  (on cleaned line set)
+    # Step 4: Line heterozygosity  (mislabelled / contaminated samples)
+    # -------------------------------------------------------------------------
+    if (!is.null(het.line)) {
+        hl     <- rowMeans(.is_het(geno.mat), na.rm = TRUE)
+        drop_l <- names(hl)[!is.na(hl) & hl > het.line]
+        if (length(drop_l))
+            geno.mat <- geno.mat[!rownames(geno.mat) %in% drop_l, , drop = FALSE]
+        removed$het_line <- drop_l
+    } else {
+        removed$het_line <- character(0L)
+    }
+
+    # -------------------------------------------------------------------------
+    # Step 5: Marker heterozygosity  (paralogous / artefact loci)
+    # -------------------------------------------------------------------------
+    if (!is.null(het.marker)) {
+        hm     <- colMeans(.is_het(geno.mat), na.rm = TRUE)
+        drop_m <- names(hm)[!is.na(hm) & hm > het.marker]
+        if (length(drop_m)) {
+            geno.mat <- geno.mat[, !colnames(geno.mat) %in% drop_m, drop = FALSE]
+            map      <- map[map[[map.id]] %in% colnames(geno.mat), , drop = FALSE]
+        }
+        removed$het_marker <- drop_m
+    } else {
+        removed$het_marker <- character(0L)
+    }
+
+    # -------------------------------------------------------------------------
+    # Step 6: Duplicate lines  (after quality filters)
+    # -------------------------------------------------------------------------
+    if (dup.lines) {
+        line_sigs <- apply(geno.mat, 1L, function(x)
+            paste(ifelse(is.na(x), "NA", as.character(x)), collapse = "|"))
+        dup_idx <- duplicated(line_sigs)
+        dup_nms <- rownames(geno.mat)[dup_idx]
+        if (length(dup_nms))
+            geno.mat <- geno.mat[!dup_idx, , drop = FALSE]
+        removed$dup_lines <- dup_nms
+    } else {
+        removed$dup_lines <- character(0L)
+    }
+
+    # -------------------------------------------------------------------------
+    # Step 7: Duplicate markers  (after quality filters)
+    # -------------------------------------------------------------------------
+    if (dup.markers) {
+        mark_sigs <- apply(geno.mat, 2L, function(x)
+            paste(ifelse(is.na(x), "NA", as.character(x)), collapse = "|"))
+        dup_midx <- duplicated(mark_sigs)
+        dup_mnms <- colnames(geno.mat)[dup_midx]
+        if (length(dup_mnms)) {
+            geno.mat <- geno.mat[, !dup_midx, drop = FALSE]
+            map      <- map[map[[map.id]] %in% colnames(geno.mat), , drop = FALSE]
+        }
+        removed$dup_markers <- dup_mnms
+    } else {
+        removed$dup_markers <- character(0L)
+    }
+
+    # -------------------------------------------------------------------------
+    # Step 8: MAF  (last — on the fully cleaned dataset)
     # -------------------------------------------------------------------------
     if (!is.null(maf) && maf > 0) {
         col_means <- colMeans(geno.mat, na.rm = TRUE)
@@ -250,22 +293,6 @@ filterPanel <- function(geno, map,
         removed$maf <- drop_maf
     } else {
         removed$maf <- character(0L)
-    }
-
-    # -------------------------------------------------------------------------
-    # Step 7: Heterozygosity  (on MAF-filtered data)
-    # -------------------------------------------------------------------------
-    if (!is.null(het)) {
-        het_line <- if (encoding == "012")
-            rowMeans(geno.mat == 1L, na.rm = TRUE)
-        else
-            rowMeans(geno.mat == 0L, na.rm = TRUE)
-        drop_het <- names(het_line)[!is.na(het_line) & het_line > het]
-        if (length(drop_het))
-            geno.mat <- geno.mat[!rownames(geno.mat) %in% drop_het, , drop = FALSE]
-        removed$het <- drop_het
-    } else {
-        removed$het <- character(0L)
     }
 
     if (nrow(geno.mat) == 0L)
@@ -284,9 +311,10 @@ filterPanel <- function(geno, map,
             map.id     = map.id,
             map.chr    = map.chr,
             map.pos    = map.pos,
-            thresholds = list(miss.line = miss.line, miss.marker = miss.marker,
-                              maf = maf, dup.lines = dup.lines,
-                              dup.markers = dup.markers, het = het),
+            thresholds = list(miss.marker = miss.marker, miss.line = miss.line,
+                              het.line = het.line, het.marker = het.marker,
+                              dup.lines = dup.lines, dup.markers = dup.markers,
+                              maf = maf),
             removed    = removed,
             n.original = c(lines = n.orig.lines, markers = n.orig.markers),
             n.final    = c(lines   = nrow(geno.mat),
@@ -314,27 +342,34 @@ print.filteredPanel <- function(x, ...) {
     cat("\n")
 
     steps <- list(
-        list(key = "map_consistency", label = "Map consistency",
-             what = "marker"),
-        list(key = "dup_lines",       label = "Duplicate lines",
-             what = "line"),
-        list(key = "dup_markers",     label = "Duplicate markers",
-             what = "marker"),
+        list(key = "map_consistency",
+             label = "Map consistency",
+             what  = "marker"),
         list(key = "miss_marker",
              label = sprintf("Marker missingness > %.0f%%",
                              100 * (x$thresholds$miss.marker %||% 0)),
-             what = "marker"),
+             what  = "marker"),
         list(key = "miss_line",
              label = sprintf("Line missingness > %.0f%%",
                              100 * (x$thresholds$miss.line %||% 0)),
-             what = "line"),
+             what  = "line"),
+        list(key = "het_line",
+             label = sprintf("Line heterozygosity > %.0f%%",
+                             100 * (x$thresholds$het.line %||% 0)),
+             what  = "line"),
+        list(key = "het_marker",
+             label = sprintf("Marker heterozygosity > %.0f%%",
+                             100 * (x$thresholds$het.marker %||% 0)),
+             what  = "marker"),
+        list(key = "dup_lines",
+             label = "Duplicate lines",
+             what  = "line"),
+        list(key = "dup_markers",
+             label = "Duplicate markers",
+             what  = "marker"),
         list(key = "maf",
              label = sprintf("MAF < %.2f", x$thresholds$maf %||% 0),
-             what = "marker"),
-        list(key = "het",
-             label = sprintf("Heterozygosity > %.0f%%",
-                             100 * (x$thresholds$het %||% 0)),
-             what = "line")
+             what  = "marker")
     )
 
     for (i in seq_along(steps)) {
