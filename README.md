@@ -39,7 +39,7 @@ enters the mixed model simultaneously as a composite genome-wide random
 effect, represented either as a genomic relationship matrix (`vm` path)
 or as a contiguous block of markers (`mbf` path). All methods
 support multivariate (multi-environment) analysis through a `Trait`
-argument that extends the model to capture genotype-by-environment
+argument that extends the model to capture genotype-by-trait
 interaction.
 
 Each pipeline follows the same three-stage workflow: **pre-analysis**
