@@ -684,3 +684,143 @@ make_mock_mv_qtlAim <- function(n_qtl     = 2,
     attr(obj, "genObj") <- genObj
     obj
 }
+
+# ---- 9. Raw panel data for checkPanel / filterPanel tests -------------------
+
+#' Build a synthetic raw genotype matrix + map with controllable issues.
+#'
+#' @param n_lines      Number of lines.
+#' @param n_chr        Number of chromosomes.
+#' @param n_mar_chr    Markers per chromosome.
+#' @param miss_rate    Baseline random missing rate.
+#' @param n_dup_lines  Number of extra duplicate lines to inject.
+#' @param n_dup_marks  Number of extra duplicate markers to inject.
+#' @param n_mono       Number of monomorphic markers to inject.
+#' @param n_highmiss_marks  Number of markers forced to high missingness.
+#' @param n_highmiss_lines  Number of lines forced to high missingness.
+#' @param n_highhet    Number of lines forced to high heterozygosity.
+#' @param n_notinmap   Number of geno markers to exclude from the map.
+#' @param encoding     `"012"` (default) or `"pm1"`.
+make_raw_panel <- function(n_lines          = 60,
+                            n_chr            = 2,
+                            n_mar_chr        = 20,
+                            miss_rate        = 0.03,
+                            n_dup_lines      = 2,
+                            n_dup_marks      = 2,
+                            n_mono           = 3,
+                            n_highmiss_marks = 2,
+                            n_highmiss_lines = 2,
+                            n_highhet        = 2,
+                            n_notinmap       = 1,
+                            encoding         = "012") {
+    set.seed(101)
+    n_markers <- n_chr * n_mar_chr
+    chrs      <- paste0("Chr", seq_len(n_chr))
+    line_ids  <- paste0("L", sprintf("%02d", seq_len(n_lines)))
+    mar_ids   <- paste0(rep(chrs, each = n_mar_chr), "_M",
+                        sprintf("%02d", rep(seq_len(n_mar_chr), times = n_chr)))
+
+    # ---- Index regions so injected issues never overlap ----
+    # Marker layout (all indices into 1..n_markers):
+    #   [1..n_mono]                         : monomorphic (always 0)
+    #   [n_mono+1 .. n_mono+n_highmiss_marks]: high-missingness markers
+    #   [n_mono+n_highmiss_marks+1 .. -dup-notinmap]: polymorphic base markers
+    #   [n_markers-n_notinmap-n_dup_marks+1 ..
+    #    n_markers-n_notinmap]              : duplicate markers (in map)
+    #   [n_markers-n_notinmap+1..n_markers] : not-in-map markers
+    #
+    # Line layout (1..n_lines):
+    #   [1..n_highmiss_lines]               : high-missingness lines
+    #   [n_highmiss_lines+1..+n_highhet]    : high-heterozygosity lines
+    #   [n_lines-n_dup_lines+1..n_lines]    : duplicate lines
+    #   source line for duplicates          : n_highmiss_lines+n_highhet+1
+
+    src_line <- n_highmiss_lines + n_highhet + 1L   # the line we copy from
+    src_mark <- n_mono + n_highmiss_marks + 1L      # the marker we copy from
+
+    # Allele frequencies: polymorphic markers get realistic frequencies
+    p_freq <- runif(n_markers, 0.2, 0.8)
+    p_freq[seq_len(n_mono)] <- 0   # force first n_mono to monomorphic
+
+    # Generate 0/1/2 base genotypes
+    geno <- matrix(NA_real_, nrow = n_lines, ncol = n_markers,
+                   dimnames = list(line_ids, mar_ids))
+    for (j in seq_len(n_markers)) {
+        pj <- p_freq[j]
+        if (pj == 0) {
+            geno[, j] <- 0
+        } else {
+            pr <- c((1 - pj)^2, 2 * pj * (1 - pj), pj^2)
+            geno[, j] <- sample(0:2, n_lines, replace = TRUE, prob = pr)
+        }
+    }
+
+    # Random background missing (only on polymorphic non-highhet lines)
+    safe_lines <- seq(n_highmiss_lines + 1L,
+                      n_lines - n_dup_lines)
+    safe_marks <- seq(n_mono + 1L, n_markers - n_notinmap - n_dup_marks)
+    if (miss_rate > 0 && length(safe_lines) && length(safe_marks)) {
+        sub  <- geno[safe_lines, safe_marks, drop = FALSE]
+        idx  <- sample(length(sub), round(miss_rate * length(sub)))
+        sub[idx] <- NA
+        geno[safe_lines, safe_marks] <- sub
+    }
+
+    # High-missingness markers (avoid mono markers)
+    if (n_highmiss_marks > 0) {
+        hi_m <- seq(n_mono + 1L, n_mono + n_highmiss_marks)
+        for (j in hi_m)
+            geno[sample(n_lines, round(0.35 * n_lines)), j] <- NA
+    }
+
+    # High-missingness lines (only on polymorphic markers to preserve mono=0)
+    poly_marks <- seq(n_mono + 1L, n_markers)
+    if (n_highmiss_lines > 0) {
+        for (i in seq_len(n_highmiss_lines))
+            geno[i, sample(poly_marks, round(0.35 * length(poly_marks)))] <- NA
+    }
+
+    # High-heterozygosity lines (only on polymorphic markers)
+    if (n_highhet > 0) {
+        het_idx <- seq(n_highmiss_lines + 1L, n_highmiss_lines + n_highhet)
+        for (i in het_idx)
+            geno[i, sample(poly_marks, round(0.60 * length(poly_marks)))] <- 1L
+    }
+
+    # Duplicate lines: copy src_line to last n_dup_lines positions
+    if (n_dup_lines > 0 && src_line <= n_lines - n_dup_lines) {
+        for (i in seq_len(n_dup_lines))
+            geno[n_lines - n_dup_lines + i, ] <- geno[src_line, ]
+    }
+
+    # Duplicate markers: copy src_mark to positions just before the
+    # not-in-map zone so they ARE in the map (and thus in common with geno)
+    dup_mark_positions <- seq(n_markers - n_notinmap - n_dup_marks + 1L,
+                               n_markers - n_notinmap)
+    if (n_dup_marks > 0 && length(dup_mark_positions) > 0L) {
+        for (j in dup_mark_positions)
+            geno[, j] <- geno[, src_mark]
+    }
+
+    # Convert to pm1 if requested (after all injections in 012 space)
+    if (encoding == "pm1")
+        geno <- geno - 1
+
+    # Build map: exclude the last n_notinmap markers (never duplicates)
+    map_df <- data.frame(
+        marker = mar_ids,
+        chr    = rep(chrs, each = n_mar_chr),
+        pos    = rep(seq(0, 100, length.out = n_mar_chr), times = n_chr),
+        stringsAsFactors = FALSE
+    )
+    if (n_notinmap > 0)
+        map_df <- map_df[seq_len(nrow(map_df) - n_notinmap), , drop = FALSE]
+
+    list(geno = geno, map = map_df, encoding = encoding,
+         n_lines = n_lines, n_markers = n_markers, n_chr = n_chr,
+         n_mar_chr = n_mar_chr, n_mono = n_mono,
+         n_dup_lines = n_dup_lines, n_dup_marks = n_dup_marks,
+         n_highmiss_marks = n_highmiss_marks,
+         n_highmiss_lines = n_highmiss_lines,
+         n_highhet = n_highhet, n_notinmap = n_notinmap)
+}

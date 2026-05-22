@@ -53,7 +53,8 @@ An object of class \code{"fineMap"}: a named list with one element
 \description{
 Performs single-QTL fine mapping in a window around each significant QTL
 (for \code{\link{qtlAim}} models) or marker (for \code{\link{gwasAim}}
-models) found in a fitted model.
+models) found in a fitted model.  Both univariate and multivariate
+(\code{Trait}) models are supported.
 
 For \code{qtlAim} models a dense inferred-marker grid is constructed inside
 the window using the Haldane-map weight approach of \code{\link{primeCross}},
@@ -64,6 +65,14 @@ turn, with all other detected QTL effects held in the model.
 For \code{gwasAim} models the window is defined around the significant
 marker (in cM) and all panel markers within the window are tested
 individually; no inferred midpoints are added.
+
+For multivariate models, QTL that were retained as main effects after
+Wald pruning are scanned using the same single-df z-ratio as the
+univariate case.  QTL retained as \code{Trait}-interaction effects are
+scanned by substituting \code{Trait:candidate} for \code{Trait:QTL} and
+computing a joint Wald statistic across all non-aliased interaction
+coefficients via an internal Wald test; the LOD score is derived as
+\eqn{\chi^2 / (2 \log 10)}, consistent with the univariate formula.
 }
 \seealso{
 \code{\link{qtlAim}}, \code{\link{gwasAim}},

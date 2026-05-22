@@ -230,7 +230,7 @@ test_that("primePanel with matrix input returns wgPanel with correct class", {
   )
 
   expect_message(
-    panel <- primePanel(gmat, map_df, encoding = "012", maf = 0),
+    panel <- primePanel(gmat, map_df, encoding = "012"),
     regexp = "wgPanel object created"
   )
 
@@ -264,7 +264,7 @@ test_that("primePanel accepts data.frame input with id column", {
   )
 
   expect_message(
-    panel <- primePanel(gdf, map_df, id = "id", encoding = "012", maf = 0),
+    panel <- primePanel(gdf, map_df, id = "id", encoding = "012"),
     regexp = "wgPanel object created"
   )
 
@@ -292,7 +292,7 @@ test_that("primePanel encoding='pm1' does not alter values", {
   )
 
   expect_message(
-    panel <- primePanel(gmat, map_df, encoding = "pm1", maf = 0),
+    panel <- primePanel(gmat, map_df, encoding = "pm1"),
     regexp = "wgPanel object created"
   )
 
@@ -326,7 +326,8 @@ test_that("primePanel stops on unrecognised encoding", {
 # primePanel() — MAF filter removes low-frequency markers
 # =============================================================================
 
-test_that("primePanel MAF filter drops low-frequency markers with a message", {
+test_that("filterPanel MAF filter drops monomorphic markers", {
+  # MAF filtering is now handled by filterPanel(), not primePanel().
   set.seed(25)
   n_lines <- 30; n_mar <- 10
   ids     <- paste0("L", seq_len(n_lines))
@@ -343,28 +344,26 @@ test_that("primePanel MAF filter drops low-frequency markers with a message", {
     stringsAsFactors = FALSE
   )
 
-  # Should emit a message about removed markers AND the creation message
-  expect_message(
-    panel <- primePanel(gmat, map_df, encoding = "012", maf = 0.05),
-    regexp = "marker\\(s\\) removed"
-  )
+  fp <- filterPanel(gmat, map_df, encoding = "012", maf = 0.05,
+                    miss.line = NULL, miss.marker = NULL,
+                    dup.lines = FALSE, dup.markers = FALSE)
 
-  # Monomorphic marker must be absent
-  all_markers <- unlist(lapply(panel$geno, function(el) names(el$map)))
-  expect_false(paste0("M", n_mar) %in% all_markers)
+  # Monomorphic marker must be removed
+  expect_false(paste0("M", n_mar) %in% colnames(fp$geno))
+  expect_true(length(fp$removed$maf) >= 1L)
 })
 
 # =============================================================================
-# primePanel() — maf=0 skips MAF filter
+# filterPanel() — maf=NULL skips MAF filter
 # =============================================================================
 
-test_that("primePanel with maf=0 keeps all markers (no MAF-filter message)", {
+test_that("filterPanel with maf=NULL keeps all markers", {
   set.seed(26)
   n_lines <- 20; n_mar <- 6
   ids  <- paste0("L", seq_len(n_lines))
   gmat <- matrix(0L, nrow = n_lines, ncol = n_mar,
                  dimnames = list(ids, paste0("M", seq_len(n_mar))))
-  # All monomorphic — with maf=0 they should survive
+  # All monomorphic — with maf=NULL they should survive
   map_df <- data.frame(
     marker = paste0("M", seq_len(n_mar)),
     chr    = "ChrX",
@@ -372,16 +371,12 @@ test_that("primePanel with maf=0 keeps all markers (no MAF-filter message)", {
     stringsAsFactors = FALSE
   )
 
-  # Only the creation message; no "removed" message
-  msgs <- character(0)
-  withCallingHandlers(
-    panel <- primePanel(gmat, map_df, encoding = "012", maf = 0),
-    message = function(m) { msgs <<- c(msgs, conditionMessage(m)); invokeRestart("muffleMessage") }
-  )
-  expect_false(any(grepl("removed", msgs)))
-  # All markers present
-  all_markers <- unlist(lapply(panel$geno, function(el) names(el$map)))
-  expect_equal(length(all_markers), n_mar)
+  fp <- filterPanel(gmat, map_df, encoding = "012", maf = NULL,
+                    miss.line = NULL, miss.marker = NULL,
+                    dup.lines = FALSE, dup.markers = FALSE)
+
+  expect_equal(ncol(fp$geno), n_mar)
+  expect_equal(length(fp$removed$maf), 0L)
 })
 
 # =============================================================================
@@ -406,7 +401,7 @@ test_that("primePanel stops with informative error when NAs remain and impute='n
 
   expect_error(
     suppressMessages(primePanel(gmat, map_df, encoding = "012",
-                                maf = 0, impute = "none")),
+                                impute = "none")),
     regexp = "missing genotype"
   )
 })
@@ -434,7 +429,7 @@ test_that("primePanel impute='mean' emits a warning and fills NAs", {
   expect_warning(
     suppressMessages(
       panel <- primePanel(gmat, map_df, encoding = "012",
-                          maf = 0, impute = "mean")
+                          impute = "mean")
     ),
     regexp = "Imputing"
   )
@@ -465,7 +460,7 @@ test_that("primePanel drops markers absent from map and emits a message", {
   )
 
   expect_message(
-    panel <- primePanel(gmat, map_df, encoding = "012", maf = 0),
+    panel <- primePanel(gmat, map_df, encoding = "012"),
     regexp = "not found in map"
   )
 
@@ -495,7 +490,7 @@ test_that("primePanel warns when chromosome names contain dots", {
   )
 
   expect_warning(
-    suppressMessages(primePanel(gmat, map_df, encoding = "012", maf = 0)),
+    suppressMessages(primePanel(gmat, map_df, encoding = "012")),
     regexp = "[Dd]ots? found"
   )
 })
@@ -519,7 +514,7 @@ test_that("primePanel $geno each chromosome has $data, $map, $imputed.data", {
   )
 
   expect_message(
-    panel <- primePanel(gmat, map_df, encoding = "012", maf = 0),
+    panel <- primePanel(gmat, map_df, encoding = "012"),
     regexp = "wgPanel object created"
   )
 
@@ -552,7 +547,7 @@ test_that("primePanel preserves line IDs as rownames in imputed.data", {
   )
 
   expect_message(
-    panel <- primePanel(gmat, map_df, encoding = "012", maf = 0),
+    panel <- primePanel(gmat, map_df, encoding = "012"),
     regexp = "wgPanel object created"
   )
 
@@ -561,3 +556,4 @@ test_that("primePanel preserves line IDs as rownames in imputed.data", {
                  info = paste("rownames mismatch in chr", chr))
   }
 })
+
