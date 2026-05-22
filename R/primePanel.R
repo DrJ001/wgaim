@@ -159,36 +159,31 @@
 #' }
 #'
 #' @export
-primePanel <- function(geno, ...) UseMethod("primePanel")
-
-#' @rdname primePanel
-#' @export
-primePanel.filteredPanel <- function(geno, impute = "none", knn.k = 5L, ...) {
-    fp  <- geno
-    mat <- fp$geno
-    if (is.null(rownames(mat)) && !is.null(fp$id))
-        stop("filteredPanel object has no row names on $geno.")
-    .primePanel_core(geno     = mat,
-                     map      = fp$map,
-                     id       = fp$id,
-                     map.id   = fp$map.id,
-                     map.chr  = fp$map.chr,
-                     map.pos  = fp$map.pos,
-                     encoding = fp$encoding,
-                     impute   = impute,
-                     knn.k    = knn.k)
-}
-
-#' @rdname primePanel
-#' @export
-primePanel.default <- function(geno, map, id = "id",
-                                map.id   = "marker",
-                                map.chr  = "chr",
-                                map.pos  = "pos",
-                                encoding = "012",
-                                impute   = "none",
-                                knn.k    = 5L,
-                                ...) {
+primePanel <- function(geno, map,
+                       id      = "id",
+                       map.id  = "marker",
+                       map.chr = "chr",
+                       map.pos = "pos",
+                       encoding = "012",
+                       impute  = "none",
+                       knn.k   = 5L,
+                       ...) {
+    # Accept a filteredPanel object as the first argument; extract stored fields.
+    if (inherits(geno, "filteredPanel")) {
+        fp   <- geno
+        mat  <- fp$geno
+        if (is.null(rownames(mat)))
+            stop("filteredPanel object has no row names on $geno.")
+        return(.primePanel_core(geno     = mat,
+                                map      = fp$map,
+                                id       = fp$id,
+                                map.id   = fp$map.id,
+                                map.chr  = fp$map.chr,
+                                map.pos  = fp$map.pos,
+                                encoding = fp$encoding,
+                                impute   = impute,
+                                knn.k    = knn.k))
+    }
     .primePanel_core(geno = geno, map = map, id = id, map.id = map.id,
                      map.chr = map.chr, map.pos = map.pos,
                      encoding = encoding, impute = impute, knn.k = knn.k)

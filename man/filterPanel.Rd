@@ -2,14 +2,10 @@
 % Please edit documentation in R/filterPanel.R
 \name{filterPanel}
 \alias{filterPanel}
-\alias{filterPanel.default}
-\alias{filterPanel.checkPanel}
 \title{Filter a Marker Panel by Data Quality Thresholds}
 \usage{
-filterPanel(x, ...)
-
-\method{filterPanel}{default}(
-  x,
+filterPanel(
+  geno,
   map,
   id = "id",
   map.id = "marker",
@@ -21,30 +17,19 @@ filterPanel(x, ...)
   maf = 0.05,
   dup.lines = TRUE,
   dup.markers = FALSE,
-  het = NULL,
-  ...
-)
-
-\method{filterPanel}{checkPanel}(
-  x,
-  miss.line = 0.2,
-  miss.marker = 0.2,
-  maf = 0.05,
-  dup.lines = TRUE,
-  dup.markers = FALSE,
-  het = NULL,
-  ...
+  het = NULL
 )
 }
 \arguments{
-\item{x}{For the \code{checkPanel} method: a \code{"checkPanel"} object
-from \code{\link{checkPanel}}.  The stored \code{geno}, \code{map},
-\code{encoding}, and column-name arguments are used automatically.}
+\item{geno}{A numeric matrix (\code{lines x markers}) with row names
+identifying lines, a \code{data.frame} with a line identifier column, or
+a \code{"checkPanel"} object from \code{\link{checkPanel}}.  When a
+\code{"checkPanel"} object is supplied the stored \code{geno},
+\code{map}, \code{encoding}, and column-name arguments are used
+automatically and the remaining arguments below need not be specified.}
 
-\item{\dots}{Currently ignored.}
-
-\item{map}{A \code{data.frame} containing the genetic map.
-(Default method only.)}
+\item{map}{A \code{data.frame} containing the genetic map.  Not required
+when \code{geno} is a \code{"checkPanel"} object.}
 
 \item{id}{Character string naming the line identifier column when
 \code{geno} is a \code{data.frame}.  Default \code{"id"}.}
@@ -81,10 +66,6 @@ are \emph{not} removed.  Set to \code{TRUE} to drop them.}
 
 \item{het}{Numeric scalar.  Lines with a heterozygosity rate above this
 threshold are removed.  \code{NULL} (default) skips this filter.}
-
-\item{geno}{A numeric matrix (\code{lines x markers}) with row names
-identifying lines, or a \code{data.frame} with a line identifier column.
-(Default method only.)}
 }
 \value{
 An object of class \code{"filteredPanel"} — a list containing:

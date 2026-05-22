@@ -2,15 +2,9 @@
 % Please edit documentation in R/primePanel.R
 \name{primePanel}
 \alias{primePanel}
-\alias{primePanel.filteredPanel}
-\alias{primePanel.default}
 \title{Prepare Marker Panel Data for Whole-Genome Analysis for gwasAim and gpAim}
 \usage{
-primePanel(geno, ...)
-
-\method{primePanel}{filteredPanel}(geno, impute = "none", knn.k = 5L, ...)
-
-\method{primePanel}{default}(
+primePanel(
   geno,
   map,
   id = "id",
@@ -37,34 +31,6 @@ primePanel(geno, ...)
   are integers, yielding dosage values in \eqn{[-1, 1]}. A pre-imputed
   dosage matrix therefore requires no further imputation inside
   \code{primePanel}.}
-
-\item{impute}{Character string controlling how missing values (\code{NA})
-are handled \emph{after} encoding:
-\describe{
-  \item{\code{"none"} (default)}{No imputation is performed. If any
-    \code{NA}s remain, \code{primePanel} stops with an informative error
-    recommending pre-imputation with dedicated software. This is the
-    recommended path for large panels.}
-  \item{\code{"knn"}}{Chromosome-wise \emph{k}-nearest neighbour
-    imputation.  For each chromosome the pairwise distance matrix is
-    computed via \code{tcrossprod()} (BLAS), the neighbour ranking is
-    pre-sorted once, and each missing value is imputed from the mean of
-    the \code{knn.k} nearest lines that carry a non-missing call at that
-    marker.  Imputation respects linkage disequilibrium within each
-    chromosome and is the recommended in-package option when pre-imputation
-    with dedicated software is not feasible.}
-  \item{\code{"mean"}}{Missing values are replaced with the column mean
-    (mean genotype across lines at each marker). This is a crude
-    approximation that ignores linkage disequilibrium and haplotype
-    structure; it is provided only as a convenience for small panels or
-    exploratory analyses. A warning is always issued when this option
-    is used.}
-}}
-
-\item{knn.k}{Positive integer. Number of nearest neighbours used when
-\code{impute = "knn"}.  Default \code{5}.  Larger values produce
-smoother imputations but are slower; values between 3 and 10 are
-typical.  Ignored when \code{impute != "knn"}.}
 
 \item{map}{A \code{data.frame} containing the genetic map with at minimum
 three columns: marker names (\code{map.id}), chromosome identifiers
@@ -99,6 +65,34 @@ Default \code{"pos"}.}
     coding. No transformation is applied. Fractional values in
     \eqn{[-1, 1]} are accepted.}
 }}
+
+\item{impute}{Character string controlling how missing values (\code{NA})
+are handled \emph{after} encoding:
+\describe{
+  \item{\code{"none"} (default)}{No imputation is performed. If any
+    \code{NA}s remain, \code{primePanel} stops with an informative error
+    recommending pre-imputation with dedicated software. This is the
+    recommended path for large panels.}
+  \item{\code{"knn"}}{Chromosome-wise \emph{k}-nearest neighbour
+    imputation.  For each chromosome the pairwise distance matrix is
+    computed via \code{tcrossprod()} (BLAS), the neighbour ranking is
+    pre-sorted once, and each missing value is imputed from the mean of
+    the \code{knn.k} nearest lines that carry a non-missing call at that
+    marker.  Imputation respects linkage disequilibrium within each
+    chromosome and is the recommended in-package option when pre-imputation
+    with dedicated software is not feasible.}
+  \item{\code{"mean"}}{Missing values are replaced with the column mean
+    (mean genotype across lines at each marker). This is a crude
+    approximation that ignores linkage disequilibrium and haplotype
+    structure; it is provided only as a convenience for small panels or
+    exploratory analyses. A warning is always issued when this option
+    is used.}
+}}
+
+\item{knn.k}{Positive integer. Number of nearest neighbours used when
+\code{impute = "knn"}.  Default \code{5}.  Larger values produce
+smoother imputations but are slower; values between 3 and 10 are
+typical.  Ignored when \code{impute != "knn"}.}
 }
 \value{
 An object of class \code{c("wgPanel", "wgCross")} -- a list with:

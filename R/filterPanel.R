@@ -47,14 +47,14 @@
 #'     Skipped when \code{het = NULL} (default).
 #' }
 #'
-#' @param x For the \code{checkPanel} method: a \code{"checkPanel"} object
-#'   from \code{\link{checkPanel}}.  The stored \code{geno}, \code{map},
-#'   \code{encoding}, and column-name arguments are used automatically.
 #' @param geno A numeric matrix (\code{lines x markers}) with row names
-#'   identifying lines, or a \code{data.frame} with a line identifier column.
-#'   (Default method only.)
-#' @param map A \code{data.frame} containing the genetic map.
-#'   (Default method only.)
+#'   identifying lines, a \code{data.frame} with a line identifier column, or
+#'   a \code{"checkPanel"} object from \code{\link{checkPanel}}.  When a
+#'   \code{"checkPanel"} object is supplied the stored \code{geno},
+#'   \code{map}, \code{encoding}, and column-name arguments are used
+#'   automatically and the remaining arguments below need not be specified.
+#' @param map A \code{data.frame} containing the genetic map.  Not required
+#'   when \code{geno} is a \code{"checkPanel"} object.
 #' @param id Character string naming the line identifier column when
 #'   \code{geno} is a \code{data.frame}.  Default \code{"id"}.
 #' @param map.id Character string naming the marker column in \code{map}.
@@ -80,7 +80,6 @@
 #'   are \emph{not} removed.  Set to \code{TRUE} to drop them.
 #' @param het Numeric scalar.  Lines with a heterozygosity rate above this
 #'   threshold are removed.  \code{NULL} (default) skips this filter.
-#' @param \dots Currently ignored.
 #'
 #' @return An object of class \code{"filteredPanel"} — a list containing:
 #' \describe{
@@ -99,47 +98,35 @@
 #'
 #' @seealso \code{\link{checkPanel}}, \code{\link{primePanel}}
 #' @export
-filterPanel <- function(x, ...) UseMethod("filterPanel")
-
-#' @rdname filterPanel
-#' @export
-filterPanel.default <- function(x, map,
-                                 id           = "id",
-                                 map.id       = "marker",
-                                 map.chr      = "chr",
-                                 map.pos      = "pos",
-                                 encoding     = "012",
-                                 miss.line    = 0.20,
-                                 miss.marker  = 0.20,
-                                 maf          = 0.05,
-                                 dup.lines    = TRUE,
-                                 dup.markers  = FALSE,
-                                 het          = NULL,
-                                 ...) {
-    .filterPanel_core(geno = x, map = map, id = id, map.id = map.id,
+filterPanel <- function(geno, map,
+                        id          = "id",
+                        map.id      = "marker",
+                        map.chr     = "chr",
+                        map.pos     = "pos",
+                        encoding    = "012",
+                        miss.line   = 0.20,
+                        miss.marker = 0.20,
+                        maf         = 0.05,
+                        dup.lines   = TRUE,
+                        dup.markers = FALSE,
+                        het         = NULL) {
+    # Accept a checkPanel object as the first argument; extract stored fields.
+    if (inherits(geno, "checkPanel")) {
+        chk     <- geno
+        geno    <- chk$geno
+        map     <- chk$map
+        id      <- chk$id
+        map.id  <- chk$map.id
+        map.chr <- chk$map.chr
+        map.pos <- chk$map.pos
+        encoding <- chk$encoding
+    }
+    .filterPanel_core(geno = geno, map = map, id = id, map.id = map.id,
                       map.chr = map.chr, map.pos = map.pos,
                       encoding = encoding, miss.line = miss.line,
                       miss.marker = miss.marker, maf = maf,
                       dup.lines = dup.lines, dup.markers = dup.markers,
                       het = het)
-}
-
-#' @rdname filterPanel
-#' @export
-filterPanel.checkPanel <- function(x,
-                                    miss.line    = 0.20,
-                                    miss.marker  = 0.20,
-                                    maf          = 0.05,
-                                    dup.lines    = TRUE,
-                                    dup.markers  = FALSE,
-                                    het          = NULL,
-                                    ...) {
-    .filterPanel_core(geno = x$geno, map = x$map, id = x$id,
-                      map.id = x$map.id, map.chr = x$map.chr,
-                      map.pos = x$map.pos, encoding = x$encoding,
-                      miss.line = miss.line, miss.marker = miss.marker,
-                      maf = maf, dup.lines = dup.lines,
-                      dup.markers = dup.markers, het = het)
 }
 
 # =============================================================================
