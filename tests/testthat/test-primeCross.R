@@ -326,7 +326,8 @@ test_that("primePanel stops on unrecognised encoding", {
 # primePanel() — MAF filter removes low-frequency markers
 # =============================================================================
 
-test_that("primePanel MAF filter drops low-frequency markers with a message", {
+test_that("filterPanel MAF filter drops monomorphic markers", {
+  # MAF filtering is now handled by filterPanel(), not primePanel().
   set.seed(25)
   n_lines <- 30; n_mar <- 10
   ids     <- paste0("L", seq_len(n_lines))
@@ -343,28 +344,26 @@ test_that("primePanel MAF filter drops low-frequency markers with a message", {
     stringsAsFactors = FALSE
   )
 
-  # Should emit a message about removed markers AND the creation message
-  expect_message(
-    panel <- primePanel(gmat, map_df, encoding = "012", maf = 0.05),
-    regexp = "marker\\(s\\) removed"
-  )
+  fp <- filterPanel(gmat, map_df, encoding = "012", maf = 0.05,
+                    miss.line = NULL, miss.marker = NULL,
+                    dup.lines = FALSE, dup.markers = FALSE)
 
-  # Monomorphic marker must be absent
-  all_markers <- unlist(lapply(panel$geno, function(el) names(el$map)))
-  expect_false(paste0("M", n_mar) %in% all_markers)
+  # Monomorphic marker must be removed
+  expect_false(paste0("M", n_mar) %in% colnames(fp$geno))
+  expect_true(length(fp$removed$maf) >= 1L)
 })
 
 # =============================================================================
-# primePanel() — maf=0 skips MAF filter
+# filterPanel() — maf=NULL skips MAF filter
 # =============================================================================
 
-test_that("primePanel with maf=0 keeps all markers (no MAF-filter message)", {
+test_that("filterPanel with maf=NULL keeps all markers", {
   set.seed(26)
   n_lines <- 20; n_mar <- 6
   ids  <- paste0("L", seq_len(n_lines))
   gmat <- matrix(0L, nrow = n_lines, ncol = n_mar,
                  dimnames = list(ids, paste0("M", seq_len(n_mar))))
-  # All monomorphic — with maf=0 they should survive
+  # All monomorphic — with maf=NULL they should survive
   map_df <- data.frame(
     marker = paste0("M", seq_len(n_mar)),
     chr    = "ChrX",
@@ -372,16 +371,12 @@ test_that("primePanel with maf=0 keeps all markers (no MAF-filter message)", {
     stringsAsFactors = FALSE
   )
 
-  # Only the creation message; no "removed" message
-  msgs <- character(0)
-  withCallingHandlers(
-    panel <- primePanel(gmat, map_df, encoding = "012", maf = 0),
-    message = function(m) { msgs <<- c(msgs, conditionMessage(m)); invokeRestart("muffleMessage") }
-  )
-  expect_false(any(grepl("removed", msgs)))
-  # All markers present
-  all_markers <- unlist(lapply(panel$geno, function(el) names(el$map)))
-  expect_equal(length(all_markers), n_mar)
+  fp <- filterPanel(gmat, map_df, encoding = "012", maf = NULL,
+                    miss.line = NULL, miss.marker = NULL,
+                    dup.lines = FALSE, dup.markers = FALSE)
+
+  expect_equal(ncol(fp$geno), n_mar)
+  expect_equal(length(fp$removed$maf), 0L)
 })
 
 # =============================================================================

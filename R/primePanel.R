@@ -57,16 +57,21 @@
 #'       coding. No transformation is applied. Fractional values in
 #'       \eqn{[-1, 1]} are accepted.}
 #'   }
-#' @param maf Numeric scalar. Markers with minor allele frequency below this
-#'   threshold are removed. Computed from column means after encoding.
-#'   Default \code{0.05}. Set to \code{0} or \code{NULL} to disable.
 #' @param impute Character string controlling how missing values (\code{NA})
-#'   are handled \emph{after} encoding and MAF filtering:
+#'   are handled \emph{after} encoding:
 #'   \describe{
 #'     \item{\code{"none"} (default)}{No imputation is performed. If any
 #'       \code{NA}s remain, \code{primePanel} stops with an informative error
 #'       recommending pre-imputation with dedicated software. This is the
 #'       recommended path for large panels.}
+#'     \item{\code{"knn"}}{Chromosome-wise \emph{k}-nearest neighbour
+#'       imputation.  For each chromosome the pairwise distance matrix is
+#'       computed via \code{tcrossprod()} (BLAS), the neighbour ranking is
+#'       pre-sorted once, and each missing value is imputed from the mean of
+#'       the \code{knn.k} nearest lines that carry a non-missing call at that
+#'       marker.  Imputation respects linkage disequilibrium within each
+#'       chromosome and is the recommended in-package option when pre-imputation
+#'       with dedicated software is not feasible.}
 #'     \item{\code{"mean"}}{Missing values are replaced with the column mean
 #'       (mean genotype across lines at each marker). This is a crude
 #'       approximation that ignores linkage disequilibrium and haplotype
@@ -74,8 +79,21 @@
 #'       exploratory analyses. A warning is always issued when this option
 #'       is used.}
 #'   }
+#' @param knn.k Positive integer. Number of nearest neighbours used when
+#'   \code{impute = "knn"}.  Default \code{5}.  Larger values produce
+#'   smoother imputations but are slower; values between 3 and 10 are
+#'   typical.  Ignored when \code{impute != "knn"}.
 #'
 #' @details
+#' \strong{Data quality and filtering:}
+#'
+#' \code{primePanel} assumes the data are already clean and ready for
+#' analysis.  No MAF filtering, missingness filtering, or duplicate removal
+#' is performed.  Use \code{\link{checkPanel}} to diagnose data quality
+#' issues and \code{\link{filterPanel}} to apply filters before calling
+#' \code{primePanel}.  Alternatively, the \code{filteredPanel} S3 method
+#' accepts the output of \code{\link{filterPanel}} directly.
+#'
 #' \strong{Missing data and imputation:}
 #'
 #' For real association panels, missing genotypes should be imputed using
@@ -123,36 +141,69 @@
 #'
 #' @examples
 #' \dontrun{
-#' # --- Integer 0/1/2 genotypes, no missing data ---
-#' geno.mat <- matrix(sample(0:2, 200 * 500, replace = TRUE),
-#'                    nrow = 200, ncol = 500)
-#' rownames(geno.mat) <- paste0("Line_", 1:200)
-#' colnames(geno.mat) <- paste0("M",     1:500)
-#' map.df <- data.frame(
-#'   marker = paste0("M", 1:500),
-#'   chr    = rep(paste0("Chr", 1:5), each = 100),
-#'   pos    = rep(seq(1, 100), times = 5))
+#' # --- Recommended path: check, filter, then prime with KNN imputation ---
+#' chk   <- checkPanel(geno.mat, map.df)
+#' print(chk)
+#' clean <- filterPanel(chk, maf = 0.05, miss.line = 0.20, miss.marker = 0.20)
+#' panel <- primePanel(clean, impute = "knn", knn.k = 5)
 #'
-#' panel <- primePanel(geno.mat, map.df, encoding = "012", maf = 0.05)
+#' # --- Direct path (data already clean, no imputation needed) ---
+#' panel <- primePanel(geno.mat, map.df, encoding = "012", impute = "none")
 #'
-#' # --- Dosage values from Beagle (fractional, no NAs) ---
-#' # dosage.mat is a matrix of values in [0, 2] from Beagle output
-#' panel <- primePanel(dosage.mat, map.df, encoding = "012", impute = "none")
+#' # --- KNN imputation on raw data ---
+#' panel <- primePanel(geno.mat, map.df, encoding = "012",
+#'                     impute = "knn", knn.k = 5)
 #'
-#' # --- Small panel with some missingness (mean imputation, with warning) ---
+#' # --- Mean imputation for quick exploratory analysis ---
 #' panel <- primePanel(geno.mat, map.df, encoding = "012", impute = "mean")
 #' }
 #'
 #' @export
-primePanel <- function(geno, map, id = "id",
-                      map.id   = "marker",
-                      map.chr  = "chr",
-                      map.pos  = "pos",
-                      encoding = "012",
-                      maf      = 0.05,
-                      impute   = "none") {
+primePanel <- function(geno, ...) UseMethod("primePanel")
 
-    impute <- match.arg(impute, c("none", "mean"))
+#' @rdname primePanel
+#' @export
+primePanel.filteredPanel <- function(geno, impute = "none", knn.k = 5L, ...) {
+    fp  <- geno
+    mat <- fp$geno
+    if (is.null(rownames(mat)) && !is.null(fp$id))
+        stop("filteredPanel object has no row names on $geno.")
+    .primePanel_core(geno     = mat,
+                     map      = fp$map,
+                     id       = fp$id,
+                     map.id   = fp$map.id,
+                     map.chr  = fp$map.chr,
+                     map.pos  = fp$map.pos,
+                     encoding = fp$encoding,
+                     impute   = impute,
+                     knn.k    = knn.k)
+}
+
+#' @rdname primePanel
+#' @export
+primePanel.default <- function(geno, map, id = "id",
+                                map.id   = "marker",
+                                map.chr  = "chr",
+                                map.pos  = "pos",
+                                encoding = "012",
+                                impute   = "none",
+                                knn.k    = 5L,
+                                ...) {
+    .primePanel_core(geno = geno, map = map, id = id, map.id = map.id,
+                     map.chr = map.chr, map.pos = map.pos,
+                     encoding = encoding, impute = impute, knn.k = knn.k)
+}
+
+# =============================================================================
+# Internal workhorse (formerly the body of primePanel())
+# =============================================================================
+.primePanel_core <- function(geno, map, id, map.id, map.chr, map.pos,
+                              encoding, impute, knn.k = 5L) {
+
+    impute <- match.arg(impute, c("none", "mean", "knn"))
+    knn.k  <- as.integer(knn.k)
+    if (impute == "knn" && (length(knn.k) != 1L || knn.k < 1L))
+        stop("knn.k must be a positive integer.")
 
     # -------------------------------------------------------------------------
     # 1. Extract line IDs and raw genotype matrix
@@ -220,28 +271,12 @@ primePanel <- function(geno, map, id = "id",
     }
 
     # -------------------------------------------------------------------------
-    # 5. MAF filter
-    # -------------------------------------------------------------------------
-    if (!is.null(maf) && maf > 0) {
-        # In +/-1 coding: mean = 2p - 1, so p = (mean + 1) / 2
-        allele.freq <- colMeans(geno.mat, na.rm = TRUE)
-        p           <- (allele.freq + 1) / 2
-        minor.freq  <- pmin(p, 1 - p)
-        keep        <- minor.freq >= maf
-        n.filt      <- sum(!keep)
-        if (n.filt > 0)
-            message(n.filt, " marker(s) removed with MAF < ", maf, ".")
-        geno.mat <- geno.mat[, keep, drop = FALSE]
-        map      <- map[map[[map.id]] %in% colnames(geno.mat), , drop = FALSE]
-    }
-
-    # -------------------------------------------------------------------------
-    # 6. Handle missing values
+    # 5. Handle missing values
     # -------------------------------------------------------------------------
     n.missing <- sum(is.na(geno.mat))
     if (n.missing > 0) {
+        pct <- round(100 * n.missing / length(geno.mat), 2)
         if (impute == "none") {
-            pct <- round(100 * n.missing / length(geno.mat), 2)
             stop(
                 n.missing, " missing genotype(s) remain (", pct, "% of values). ",
                 "primePanel does not impute by default.\n\n",
@@ -251,13 +286,13 @@ primePanel <- function(geno, map, id = "id",
                 "       IMPUTE2 : https://mathgen.stats.ox.ac.uk/impute/\n",
                 "       Minimac : https://genome.sph.umich.edu/wiki/Minimac\n",
                 "     Supply the resulting dosage matrix with encoding = '012'.\n\n",
-                "  2. Use column-mean imputation for small panels / exploration:\n",
+                "  2. Chromosome-wise KNN imputation (recommended in-package option):\n",
+                "       primePanel(..., impute = 'knn', knn.k = 5)\n\n",
+                "  3. Column-mean imputation for small panels / exploration:\n",
                 "       primePanel(..., impute = 'mean')\n",
-                "     Warning: mean imputation ignores LD and haplotype structure.\n",
-                "     Not recommended for missing rates above 1-2%."
+                "     Warning: mean imputation ignores LD and haplotype structure."
             )
-        } else {
-            # impute = "mean"
+        } else if (impute == "mean") {
             warning(
                 "Imputing ", n.missing, " missing value(s) with column means.\n",
                 "Column-mean imputation ignores LD and haplotype structure. ",
@@ -271,12 +306,18 @@ primePanel <- function(geno, map, id = "id",
                 if (any(mis))
                     geno.mat[mis, j] <- col.means[j]
             }
+        } else {
+            # impute = "knn" -- chromosome-wise; deferred to step 7
+            message(sprintf(
+                "KNN imputation (k = %d): %d missing value(s) (%.2f%%) ",
+                knn.k, n.missing, pct),
+                "will be imputed within each chromosome.")
         }
     }
     rownames(geno.mat) <- ids
 
     # -------------------------------------------------------------------------
-    # 7. Sanitise chromosome names (dots are field separators internally)
+    # 6. Sanitise chromosome names (dots are field separators internally)
     # -------------------------------------------------------------------------
     chr.vals <- as.character(map[[map.chr]])
     if (any(grepl("\\.", chr.vals))) {
@@ -287,7 +328,7 @@ primePanel <- function(geno, map, id = "id",
     }
 
     # -------------------------------------------------------------------------
-    # 8. Split by chromosome, sort by position
+    # 7. Split by chromosome, sort by position
     # -------------------------------------------------------------------------
     chrs      <- unique(chr.vals)
     geno.list <- lapply(chrs, function(ch) {
@@ -296,16 +337,20 @@ primePanel <- function(geno, map, id = "id",
         mnames  <- as.character(chr.map[[map.id]])
         chr.g   <- geno.mat[, mnames, drop = FALSE]
         chr.pos <- setNames(as.numeric(chr.map[[map.pos]]), mnames)
+        chr.imp <- if (impute == "knn" && anyNA(chr.g))
+            .knn_impute_chr(chr.g, k = knn.k)
+        else
+            chr.g
         list(
             data         = chr.g,
             map          = chr.pos,
-            imputed.data = chr.g   # analysis-ready; marker mode uses this
+            imputed.data = chr.imp
         )
     })
     names(geno.list) <- chrs
 
     # -------------------------------------------------------------------------
-    # 9. Assemble and return
+    # 8. Assemble and return
     # -------------------------------------------------------------------------
     panel <- list(
         pheno = setNames(data.frame(ids, stringsAsFactors = FALSE), id),
@@ -317,6 +362,81 @@ primePanel <- function(geno, map, id = "id",
     message("wgPanel object created: ", length(ids), " lines, ",
             n.final, " markers across ", length(chrs), " chromosomes.")
     panel
+}
+
+# =============================================================================
+# .knn_impute_chr  -- vectorised KNN imputation for a single chromosome matrix
+#
+# Arguments:
+#   geno_chr : numeric matrix (lines x markers), encoded to +/-1, may have NAs
+#   k        : number of nearest neighbours
+#
+# Algorithm:
+#   1. Mean-substitute NAs to build a complete matrix for distance calculation.
+#   2. Compute the n x n pairwise distance matrix via tcrossprod() (BLAS).
+#   3. Pre-sort the neighbour matrix once (n x n; column i = line i's
+#      neighbours ranked by distance).
+#   4. For each marker with missing values, use vectorised logical indexing
+#      on the pre-sorted matrix to identify valid (non-missing) neighbours,
+#      then impute as their mean.
+#
+# Complexity:
+#   O(n^2 * p) for the BLAS tcrossprod  (fast in practice)
+#   O(n^2 log n) for the one-time presort
+#   O(n_miss * n) for the imputation sweep  (n_miss = total missing values)
+# =============================================================================
+.knn_impute_chr <- function(geno_chr, k = 5L) {
+    na_cols <- which(colSums(is.na(geno_chr)) > 0L)
+    if (!length(na_cols)) return(geno_chr)
+
+    n         <- nrow(geno_chr)
+    col_means <- colMeans(geno_chr, na.rm = TRUE)
+
+    # Step 1: mean-substitute for distance calculation
+    geno_sub <- geno_chr
+    for (j in na_cols)
+        geno_sub[is.na(geno_sub[, j]), j] <- col_means[j]
+
+    # Step 2: pairwise distance via tcrossprod (BLAS inner-product formula)
+    #   dist^2(i,j) = ||x_i||^2 + ||x_j||^2 - 2 <x_i, x_j>
+    row_ss  <- rowSums(geno_sub^2)
+    cp      <- tcrossprod(geno_sub)
+    dist_sq <- outer(row_ss, row_ss, "+") - 2 * cp
+    d_mat   <- sqrt(pmax(dist_sq, 0))
+    diag(d_mat) <- 0
+
+    # Step 3: pre-sort neighbour matrix once
+    #   nn_rank[r, i] = index of r-th nearest neighbour of line i
+    nn_rank <- apply(d_mat, 1L, order)
+
+    # Step 4: impute each marker with missing values
+    result <- geno_chr
+    for (j in na_cols) {
+        miss_j    <- which( is.na(geno_chr[, j]))
+        nonmiss_j <- which(!is.na(geno_chr[, j]))
+        if (!length(nonmiss_j)) {
+            result[miss_j, j] <- col_means[j]   # all missing: fall back to mean
+            next
+        }
+
+        # Logical flag: which neighbour slots are valid at this marker
+        nonmiss_flag          <- logical(n)
+        nonmiss_flag[nonmiss_j] <- TRUE
+
+        # Sub-matrix of pre-sorted neighbours for missing lines only
+        nn_sub    <- nn_rank[, miss_j, drop = FALSE]         # n x n_miss
+        valid_mat <- matrix(nonmiss_flag[nn_sub],
+                            nrow = nrow(nn_sub))             # n x n_miss logical
+
+        # Impute each missing line from its k nearest valid neighbours
+        result[miss_j, j] <- vapply(seq_along(miss_j), function(idx) {
+            vr <- which(valid_mat[, idx])
+            if (!length(vr)) return(col_means[j])
+            nn_idx <- nn_sub[vr[seq_len(min(k, length(vr)))], idx]
+            mean(geno_chr[nn_idx, j])
+        }, numeric(1L))
+    }
+    result
 }
 
 
