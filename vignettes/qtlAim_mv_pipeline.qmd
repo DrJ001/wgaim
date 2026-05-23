@@ -393,7 +393,7 @@ qtl_mv <- qtlAim(
   merge.by         = "id",
   Trait            = "Trial",
   exclusion.window = 20,
-  TypeI            = 0.05,
+  TypeI            = 0.01,
   trace            = FALSE,
   na.action        = na.method(x = "include"),
   maxit            = 80
@@ -501,7 +501,7 @@ environments:
 ```{r aimtrace_lrt}
 #| eval: !expr asreml_ok
 #| fig-height: 4
-#| fig-cap: "LRT statistic at each forward-selection iteration. The dashed line is the chi-squared mixture threshold at TypeI = 0.05 for T = 8 environments."
+#| fig-cap: "LRT statistic at each forward-selection iteration. The dashed line is the chi-squared mixture threshold at TypeI = 0.01 for T = 8 environments."
 aimTrace(qtl_mv, plot = "lrt", print.out = FALSE)
 ```
 
@@ -543,7 +543,7 @@ base_fa2  <- asreml(yield ~ Trial + Trial:Rep,
 
 # 3. Multivariate QTL mapping
 qtl_mv <- qtlAim(base_fa2, genObj = genObj, merge.by = "id",
-                 Trait = "Trial",
+                 Trait = "Trial", TypeI = 0.01,
                  na.action = na.method(x = "include"), maxit = 80, ...)
 
 # 4. Results
