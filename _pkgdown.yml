@@ -105,8 +105,9 @@ reference:
 
   - title: "Datasets"
     desc: >
-      Three paired genotype/phenotype datasets from biparental wheat
-      populations, included for use in examples and vignettes.
+      Paired genotype/phenotype datasets from biparental wheat populations
+      and a simulated multi-environment population, included for use in
+      examples and vignettes.
     contents:
       - genoRxK
       - phenoRxK
@@ -114,6 +115,8 @@ reference:
       - phenoCxR
       - genoSxT
       - phenoSxT
+      - genoMVsim
+      - phenoMVsim
 
   - title: "Package"
     contents:
