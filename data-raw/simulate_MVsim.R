@@ -79,8 +79,8 @@ for (i in seq_len(n.qtl))
 # QTL3: fades from strong (T1) to near zero (T8) — partial G×E.
 # QTL4: symmetric crossover — negative T1-T4, positive T5-T8.
 qtl.eff <- matrix(
-    c( 0.35,  0.35,  0.35,  0.35,  0.35,  0.35,  0.35,  0.35,  # QTL1: main
-      -0.30, -0.30, -0.30, -0.30, -0.30, -0.30, -0.30, -0.30,  # QTL2: main
+    c( 0.18,  0.18,  0.18,  0.18,  0.18,  0.18,  0.18,  0.18,  # QTL1: main
+      -0.15, -0.15, -0.15, -0.15, -0.15, -0.15, -0.15, -0.15,  # QTL2: main
        0.30,  0.26,  0.20,  0.14,  0.08,  0.05,  0.03,  0.02,  # QTL3: G×E fade
       -0.25, -0.18, -0.10, -0.03,  0.03,  0.10,  0.18,  0.25), # QTL4: crossover
     nrow    = n.qtl,
