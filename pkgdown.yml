@@ -4,7 +4,7 @@ pkgdown_sha: ~
 articles:
   qtlAim_mv_pipeline: qtlAim_mv_pipeline.html
   qtlAim_pipeline: qtlAim_pipeline.html
-last_built: 2026-05-23T14:15Z
+last_built: 2026-05-23T14:27Z
 urls:
   reference: https://drj001.github.io/wgAim/reference
   article: https://drj001.github.io/wgAim/articles
