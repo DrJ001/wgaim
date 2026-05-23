@@ -1,0 +1,136 @@
+/* ============================================================
+   biomAid vignette custom styles
+   Supplements Quarto's litera Bootstrap theme.
+   ============================================================ */
+
+/* --- Google Fonts ----------------------------------------- */
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,400&family=Source+Sans+3:wght@400;600&family=Fira+Code:wght@400;500&display=swap');
+
+/* --- Body & prose ----------------------------------------- */
+body {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 1.02rem;
+  line-height: 1.75;
+  color: #212529;
+}
+
+/* --- Headings --------------------------------------------- */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-top: 1.6em;
+}
+
+h1 { font-size: 2rem;   border-bottom: 2px solid #4582ec; padding-bottom: 0.3em; }
+h2 { font-size: 1.5rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.2em; }
+h3 { font-size: 1.2rem; }
+
+/* --- Navigation / TOC ------------------------------------- */
+#quarto-sidebar {
+  font-family: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.88rem;
+}
+
+/* --- Code blocks ------------------------------------------ */
+pre, code {
+  font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 0.88rem;
+}
+
+pre.sourceCode {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 0.9em 1em;
+}
+
+/* --- KaTeX display math ----------------------------------- */
+.katex-display {
+  margin: 1.4em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.katex {
+  font-size: 1.08em !important;
+}
+
+/* --- Tables ----------------------------------------------- */
+table {
+  font-family: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.94rem;
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.2em 0;
+}
+
+th {
+  background-color: #f1f4f8;
+  font-weight: 600;
+  text-align: left;
+  padding: 0.55em 0.75em;
+  border-bottom: 2px solid #4582ec;
+}
+
+td {
+  padding: 0.45em 0.75em;
+  border-bottom: 1px solid #dee2e6;
+  vertical-align: top;
+}
+
+tr:hover td {
+  background-color: #f8f9fa;
+}
+
+/* --- Inline code ------------------------------------------ */
+code:not(pre code) {
+  background-color: #f0f4f8;
+  color: #c0392b;
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+  font-size: 0.87em;
+}
+
+/* --- Links ------------------------------------------------ */
+a {
+  color: #4582ec;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #1a5cb8;
+  text-decoration: underline;
+}
+
+/* --- Horizontal rules ------------------------------------- */
+hr {
+  border: none;
+  border-top: 1px solid #dee2e6;
+  margin: 2em 0;
+}
+
+/* --- Subtitle --------------------------------------------- */
+.subtitle {
+  font-family: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
+  color: #6c757d;
+  font-size: 1.05rem;
+  font-weight: 400;
+}
+
+/* --- Package logo in title block -------------------------- */
+/* The <img id="biomaid-logo"> element is injected into       */
+/* #title-block-header by a small inline script in each       */
+/* vignette, so embed-resources embeds the image via its src  */
+/* attribute before the script moves it into the title block. */
+#title-block-header {
+  position: relative;
+}
+
+#biomaid-logo {
+  position: absolute;
+  right: 0;
+  bottom: 0.6em;
+  width: 105px;
+  opacity: 0.92;
+}
