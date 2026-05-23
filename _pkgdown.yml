@@ -12,6 +12,9 @@ home:
 
 articles:
   - title: "QTL Mapping"
+    desc: >
+      Worked examples of the univariate and multivariate QTL mapping pipelines,
+      from data preparation through to display and fine mapping.
     contents:
       - qtlAim_pipeline
       - qtlAim_mv_pipeline

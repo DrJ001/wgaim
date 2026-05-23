@@ -86,6 +86,7 @@ interpretation and display.
 | Vignette | Description |
 |---|---|
 | [Univariate QTL Mapping with wgAim](https://drj001.github.io/wgAim/articles/qtlAim_pipeline.html) | A complete walkthrough of the biparental QTL mapping pipeline: preparing a `wgCross` object with `primeCross()`, fitting a whole-genome composite model with `qtlAim()`, and interrogating the results with `summary()`, `plot()`, `aimTrace()`, `linkMap()`, and `fineMap()`. |
+| [Multivariate QTL Mapping with wgAim](https://drj001.github.io/wgAim/articles/qtlAim_mv_pipeline.html) | Multi-environment QTL mapping using a factor analytic variance structure: base model development from `diag(Trial)` to `fa(Trial, 2)`, forward selection with `qtlAim()`, and visualisation of main-effect and G×E interaction QTL with `summary()`, `plot()`, and `aimTrace()`. |
 | *GWAS with wgAim* (in preparation) | Panel preparation with `checkPanel()`, `filterPanel()`, and `primePanel()`; genome-wide association analysis with `gwasAim()`; and post-analysis display and fine mapping. |
 | *Genomic prediction and selection with wgAim* (in preparation) | Genomic prediction with `gpAim()` and construction of weighted, Smith-Hazel, and desired-gains selection indices with `selIndex()`. |
 
