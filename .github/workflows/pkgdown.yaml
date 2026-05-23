@@ -1,9 +1,13 @@
 # Deploy pkgdown site to GitHub Pages.
 #
 # Vignettes that require ASReml-R (a commercial package) are pre-built
-# locally and stored in inst/doc/.  The workflow copies the pre-built HTML
-# into docs/articles/ before running pkgdown so that build_site(lazy = TRUE)
-# sees an output file newer than the source and skips re-rendering.
+# locally and stored in inst/doc/.  To avoid pkgdown trying to re-render
+# them (which would fail without ASReml-R), we:
+#   1. Call init_site() to create the docs/ directory with pkgdown's marker.
+#   2. Copy the pre-built HTML into docs/articles/ and touch it so its
+#      timestamp is newer than the source .qmd.
+#   3. Call individual build functions (no clean_site()) so the seeded
+#      HTML survives and build_articles(lazy=TRUE) skips re-rendering.
 #
 # Triggers: every push to main, or manual dispatch.
 
@@ -40,22 +44,29 @@ jobs:
           needs: website
           extra-packages: any::pkgdown, local::.
 
-      # Pre-populate docs/articles/ with the pre-built vignette HTML so that
-      # pkgdown's lazy mode skips re-rendering (which would fail without ASReml-R).
-      # The `touch` call ensures the output timestamp is newer than the source.
+      - name: Initialise pkgdown site structure
+        run: pkgdown::init_site()
+        shell: Rscript {0}
+
+      # Copy pre-built vignette HTML into docs/articles/ AFTER init_site()
+      # has created the directory structure, then touch it so its timestamp
+      # is newer than the source .qmd — this is what lazy=TRUE checks.
       - name: Seed pre-built articles
         run: |
           mkdir -p docs/articles
           cp inst/doc/qtlAim_pipeline.html docs/articles/qtlAim_pipeline.html
           touch docs/articles/qtlAim_pipeline.html
 
+      # Build each section individually — deliberately avoiding
+      # build_site_github_pages() which calls clean_site() and would
+      # delete the pre-seeded HTML before lazy=TRUE could skip it.
       - name: Build pkgdown site
         run: |
-          pkgdown::build_site_github_pages(
-            new_process = FALSE,
-            install     = FALSE,
-            lazy        = TRUE
-          )
+          pkgdown::build_home(new_process = FALSE)
+          pkgdown::build_reference(new_process = FALSE)
+          pkgdown::build_articles(lazy = TRUE, new_process = FALSE)
+          if (file.exists("NEWS.md")) pkgdown::build_news(new_process = FALSE)
+          writeLines("", "docs/.nojekyll")
         shell: Rscript {0}
 
       - name: Deploy to GitHub Pages
