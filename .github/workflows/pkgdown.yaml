@@ -62,10 +62,10 @@ jobs:
       # delete the pre-seeded HTML before lazy=TRUE could skip it.
       - name: Build pkgdown site
         run: |
-          pkgdown::build_home(new_process = FALSE)
-          pkgdown::build_reference(new_process = FALSE)
-          pkgdown::build_articles(lazy = TRUE, new_process = FALSE)
-          if (file.exists("NEWS.md")) pkgdown::build_news(new_process = FALSE)
+          pkgdown::build_home()
+          pkgdown::build_reference()
+          pkgdown::build_articles(lazy = TRUE)
+          if (file.exists("NEWS.md")) pkgdown::build_news()
           writeLines("", "docs/.nojekyll")
         shell: Rscript {0}
 
