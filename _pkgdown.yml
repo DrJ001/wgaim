@@ -35,10 +35,15 @@ reference:
   - title: "Data Preparation"
     desc: >
       Prepare genotypic data objects for analysis. Use `primeCross()` for
-      biparental mapping populations and `primePanel()` for diversity panels.
+      biparental mapping populations and the `checkPanel()` /
+      `filterPanel()` / `primePanel()` workflow for diversity panels.
     contents:
       - primeCross
       - fixMap
+      - checkPanel
+      - print.checkPanel
+      - filterPanel
+      - print.filteredPanel
       - primePanel
 
   - title: "QTL Mapping Pipeline"
