@@ -1,0 +1,5 @@
+# Quarto build artefacts — not tracked in version control.
+# The pre-built HTML lives in inst/doc/ and is tracked there.
+*.html
+*_cache/
+*_files/

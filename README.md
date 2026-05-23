@@ -10,10 +10,9 @@
 **Authors**: Julian Taylor & Ari Verbyla
 
 > **This package is under active development.** The API may change
-> between commits ahead of the first stable release. Three vignettes —
-> one each for QTL mapping, GWAS, and genomic prediction & selection —
-> are in preparation and will provide full worked examples of each
-> pipeline.
+> between commits ahead of the first stable release. A vignette for the
+> QTL mapping pipeline is now available; vignettes for GWAS and genomic
+> prediction & selection are in preparation.
 
 ---
 
@@ -391,14 +390,14 @@ linkMap(gwas.fit, genObj = wgPanel)      # map with GWAS marker positions
 
 ## Vignettes
 
-Three vignettes are in preparation, providing full worked examples from
-data preparation through to interpretation:
+Full worked examples of each pipeline, from data preparation through to
+interpretation and display.
 
-| Vignette | Pipeline |
+| Vignette | Description |
 |---|---|
-| *QTL mapping with wgAim* | `primeCross()` → `qtlAim()` → display and fine mapping |
-| *GWAS with wgAim* | `primePanel()` → `gwasAim()` → display and fine mapping |
-| *Genomic prediction and selection with wgAim* | `primeCross()` / `primePanel()` → `gpAim()` → `selIndex()` |
+| [Univariate QTL Mapping with wgAim](https://drj001.github.io/wgAim/articles/qtlAim_pipeline.html) | A complete walkthrough of the biparental QTL mapping pipeline: preparing a `wgCross` object with `primeCross()`, fitting a whole-genome composite model with `qtlAim()`, and interrogating the results with `summary()`, `plot()`, `aimTrace()`, `linkMap()`, and `fineMap()`. |
+| *GWAS with wgAim* (in preparation) | Panel preparation with `checkPanel()`, `filterPanel()`, and `primePanel()`; genome-wide association analysis with `gwasAim()`; and post-analysis display and fine mapping. |
+| *Genomic prediction and selection with wgAim* (in preparation) | Genomic prediction with `gpAim()` and construction of weighted, Smith-Hazel, and desired-gains selection indices with `selIndex()`. |
 
 ---
 

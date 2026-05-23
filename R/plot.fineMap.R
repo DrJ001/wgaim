@@ -22,6 +22,9 @@
 #'   vertical dashed line.  Default \code{"navy"}.
 #' @param ref.col Colour of the vertical dashed reference line.  Defaults to
 #'   \code{qtl.col}.
+#' @param ncol Number of columns in the \code{facet_wrap} layout.  Defaults
+#'   to \code{NULL}, which uses \code{min(n_qtl, 4)} columns (so up to four
+#'   QTL appear on one row; five or more wrap automatically).
 #' @param \dots Currently ignored.
 #'
 #' @return A \code{ggplot} object (invisibly) with attribute
@@ -37,7 +40,7 @@
 #' @exportS3Method
 plot.fineMap <- function(x, col = "steelblue",
                          peak.col = "firebrick", qtl.col = "navy",
-                         ref.col = qtl.col, ...)
+                         ref.col = qtl.col, ncol = NULL, ...)
 {
 
     # -------------------------------------------------------------------------
@@ -138,7 +141,7 @@ plot.fineMap <- function(x, col = "steelblue",
     # 6. Layout
     # -------------------------------------------------------------------------
     n_facets <- length(unique(dfs$qtl))
-    n_cols   <- min(n_facets, 4L)
+    n_cols   <- if (!is.null(ncol)) as.integer(ncol) else min(n_facets, 4L)
     n_rows   <- ceiling(n_facets / n_cols)
 
     # -------------------------------------------------------------------------

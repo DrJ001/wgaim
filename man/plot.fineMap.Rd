@@ -10,6 +10,7 @@
   peak.col = "firebrick",
   qtl.col = "navy",
   ref.col = qtl.col,
+  ncol = NULL,
   ...
 )
 }
@@ -27,6 +28,10 @@ vertical dashed line.  Default \code{"navy"}.}
 
 \item{ref.col}{Colour of the vertical dashed reference line.  Defaults to
 \code{qtl.col}.}
+
+\item{ncol}{Number of columns in the \code{facet_wrap} layout.  Defaults
+to \code{NULL}, which uses \code{min(n_qtl, 4)} columns (so up to four
+QTL appear on one row; five or more wrap automatically).}
 
 \item{\dots}{Currently ignored.}
 }

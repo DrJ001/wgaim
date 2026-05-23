@@ -12,8 +12,8 @@ Authors@R: c(person(given = "Julian",
                       email = "averbyla@avdataanalytics.com.au"))
 Depends: R (>= 3.5.0), qtl
 Imports: ggplot2, ggrepel, MASS
-Suggests: knitr, rmarkdown, prettydoc, testthat (>= 3.0.0), covr
-VignetteBuilder: knitr
+Suggests: quarto, testthat (>= 3.0.0), covr
+VignetteBuilder: quarto
 SystemRequirements: asreml-R 4.x
 URL: https://drj001.github.io/wgAim/, https://github.com/DrJ001/wgAim
 BugReports: https://github.com/DrJ001/wgAim/issues

@@ -7,10 +7,11 @@
 #' @rdname aimTrace
 #' @exportS3Method
 aimTrace.gwasAim <- function(object,
-                              iter    = seq_along(object$QTL$diag$coef.list),
-                              lik.out = TRUE,
-                              plot    = FALSE,
-                              sig.col = "firebrick",
+                              iter      = seq_along(object$QTL$diag$coef.list),
+                              lik.out   = TRUE,
+                              plot      = FALSE,
+                              print.out = TRUE,
+                              sig.col   = "firebrick",
                               ...) {
     dots <- list(...)
     dig  <- if (!is.na(pmatch("digits", names(dots)))) dots$digits else options()$digits
@@ -52,23 +53,25 @@ aimTrace.gwasAim <- function(object,
     qtlmat <- do.call("rbind", pvals)
     dimnames(qtlmat) <- list(paste0("Iter.", seq_along(zrl)), qnams)
 
-    cat(sprintf("\nGWAS  TypeI = %.4f  (%d markers in panel)\n",
-                object$QTL$TypeI, object$QTL$n.markers))
-    cat("\nIncremental Marker P-value Matrix")
-    if (is.mv) cat("  (main effect per marker)")
-    cat("\n==================================\n")
-    qtlmat[qtlmat < 0.001] <- "<0.001"
-    qtlmat[is.na(qtlmat)]  <- ""
-    print.default(qtlmat[iter, seq_len(iter[length(iter)]), drop = FALSE],
-                  quote = FALSE, right = TRUE, ...)
+    if (print.out) {
+        cat(sprintf("\nGWAS  TypeI = %.4f  (%d markers in panel)\n",
+                    object$QTL$TypeI, object$QTL$n.markers))
+        cat("\nIncremental Marker P-value Matrix")
+        if (is.mv) cat("  (main effect per marker)")
+        cat("\n==================================\n")
+        qtlmat[qtlmat < 0.001] <- "<0.001"
+        qtlmat[is.na(qtlmat)]  <- ""
+        print.default(qtlmat[iter, seq_len(iter[length(iter)]), drop = FALSE],
+                      quote = FALSE, right = TRUE, ...)
 
-    if (lik.out) {
-        cat("\nLikelihood Ratio Test of Additive Variance Parameter.\n")
-        cat("======================================================\n")
-        dmat <- round(as.matrix(object$QTL$diag$lik.mat), dig)
-        dimnames(dmat)[[1]] <- paste0("Iter.", seq_len(nrow(dmat)))
-        dmat[, 4][dmat[, 4] < 0.001] <- "<0.001"
-        print.default(dmat, quote = FALSE, right = TRUE, ...)
+        if (lik.out) {
+            cat("\nLikelihood Ratio Test of Additive Variance Parameter.\n")
+            cat("======================================================\n")
+            dmat <- round(as.matrix(object$QTL$diag$lik.mat), dig)
+            dimnames(dmat)[[1]] <- paste0("Iter.", seq_len(nrow(dmat)))
+            dmat[, 4][dmat[, 4] < 0.001] <- "<0.001"
+            print.default(dmat, quote = FALSE, right = TRUE, ...)
+        }
     }
 
     if (identical(plot, FALSE)) return(invisible(NULL))

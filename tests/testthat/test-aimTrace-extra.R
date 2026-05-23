@@ -258,7 +258,36 @@ test_that("aimTrace.qtlAim MV: plot='both' returns named list", {
 })
 
 # =============================================================================
-# 6.  aimTrace.gwasAim — MV object (using gwasAim fixture adapted for MV)
+# 6.  print.out argument — suppresses all console output
+# =============================================================================
+
+test_that("aimTrace.qtlAim: print.out=FALSE produces no console output", {
+    obj <- make_mock_qtlAim(n_qtl = 2)
+    out <- capture.output(aimTrace(obj, plot = FALSE, print.out = FALSE))
+    expect_length(out, 0L)
+})
+
+test_that("aimTrace.qtlAim: print.out=FALSE still returns plot when requested", {
+    obj <- make_mock_qtlAim(n_qtl = 2)
+    gp  <- suppressWarnings(aimTrace(obj, plot = "lrt", print.out = FALSE))
+    expect_s3_class(gp, "ggplot")
+})
+
+test_that("aimTrace.qtlAim: print.out=FALSE suppresses output even with lik.out=TRUE", {
+    obj <- make_mock_qtlAim(n_qtl = 2)
+    out <- capture.output(aimTrace(obj, plot = FALSE,
+                                   print.out = FALSE, lik.out = TRUE))
+    expect_length(out, 0L)
+})
+
+test_that("aimTrace.qtlAim: print.out=TRUE (default) still prints", {
+    obj <- make_mock_qtlAim(n_qtl = 2)
+    out <- capture.output(aimTrace(obj, plot = FALSE, lik.out = FALSE))
+    expect_true(any(nchar(out) > 0L))
+})
+
+# =============================================================================
+# 7.  aimTrace.gwasAim — MV object (using gwasAim fixture adapted for MV)
 # =============================================================================
 
 .make_mv_aimTrace_gwasAim <- function(n_qtl = 2, trials = c("S1", "S2")) {
@@ -279,5 +308,17 @@ test_that("aimTrace.gwasAim MV: plot='stability' returns ggplot", {
     gp  <- suppressWarnings(
         suppressMessages(aimTrace(obj, plot = "stability", lik.out = FALSE))
     )
+    expect_s3_class(gp, "ggplot")
+})
+
+test_that("aimTrace.gwasAim: print.out=FALSE produces no console output", {
+    obj <- .make_mv_aimTrace_gwasAim(n_qtl = 2)
+    out <- capture.output(aimTrace(obj, plot = FALSE, print.out = FALSE))
+    expect_length(out, 0L)
+})
+
+test_that("aimTrace.gwasAim: print.out=FALSE still returns plot when requested", {
+    obj <- .make_mv_aimTrace_gwasAim(n_qtl = 2)
+    gp  <- suppressWarnings(aimTrace(obj, plot = "stability", print.out = FALSE))
     expect_s3_class(gp, "ggplot")
 })

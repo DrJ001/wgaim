@@ -28,9 +28,14 @@
 #' @param iter Integer vector of iterations to include in the p-value matrix.
 #'   Default is all iterations:
 #'   \code{seq_along(object$QTL$diag$coef.list)}.
+#' @param print.out Logical. If \code{TRUE} (default), the p-value matrix and
+#'   (when \code{lik.out = TRUE}) the LRT table are printed to the console.
+#'   Set to \code{FALSE} to suppress all console output and return only the
+#'   plot, which is useful when calling \code{aimTrace()} inside a vignette or
+#'   report where only the graphic is needed.
 #' @param lik.out Logical. If \code{TRUE} (default), print the LRT table.
-#' @param plot Controls optional diagnostic plot output (console output always
-#'   printed regardless). One of:
+#'   Only has an effect when \code{print.out = TRUE}.
+#' @param plot Controls optional diagnostic plot output. One of:
 #'   \describe{
 #'     \item{\code{FALSE} (default)}{No plot is returned.}
 #'     \item{\code{"lrt"}}{Returns a \code{ggplot} of the LRT statistic across
@@ -68,10 +73,11 @@ aimTrace <- function(object, ...) UseMethod("aimTrace")
 #' @rdname aimTrace
 #' @exportS3Method
 aimTrace.qtlAim <- function(object,
-                             iter    = seq_along(object$QTL$diag$coef.list),
-                             lik.out = TRUE,
-                             plot    = FALSE,
-                             sig.col = "firebrick",
+                             iter      = seq_along(object$QTL$diag$coef.list),
+                             lik.out   = TRUE,
+                             plot      = FALSE,
+                             print.out = TRUE,
+                             sig.col   = "firebrick",
                              ...) {
     dots <- list(...)
     dig  <- if (!is.na(pmatch("digits", names(dots)))) dots$digits else options()$digits
@@ -123,21 +129,23 @@ aimTrace.qtlAim <- function(object,
     qtlmat <- do.call("rbind", pvals)
     dimnames(qtlmat) <- list(paste0("Iter.", seq_along(zrl)), qnams)
 
-    cat("\nIncremental QTL P-value Matrix")
-    if (is.mv) cat("  (main effect per QTL)")
-    cat("\n===============================\n")
-    qtlmat[qtlmat < 0.001] <- "<0.001"
-    qtlmat[is.na(qtlmat)]  <- ""
-    print.default(qtlmat[iter, seq_len(iter[length(iter)]), drop = FALSE],
-                  quote = FALSE, right = TRUE, ...)
+    if (print.out) {
+        cat("\nIncremental QTL P-value Matrix")
+        if (is.mv) cat("  (main effect per QTL)")
+        cat("\n===============================\n")
+        qtlmat[qtlmat < 0.001] <- "<0.001"
+        qtlmat[is.na(qtlmat)]  <- ""
+        print.default(qtlmat[iter, seq_len(iter[length(iter)]), drop = FALSE],
+                      quote = FALSE, right = TRUE, ...)
 
-    if (lik.out) {
-        cat("\nLikelihood Ratio Test of Additive Variance Parameter.\n")
-        cat("======================================================\n")
-        dmat <- round(as.matrix(object$QTL$diag$lik.mat), dig)
-        dimnames(dmat)[[1]] <- paste0("Iter.", seq_len(nrow(dmat)))
-        dmat[, 4][dmat[, 4] < 0.001] <- "<0.001"
-        print.default(dmat, quote = FALSE, right = TRUE, ...)
+        if (lik.out) {
+            cat("\nLikelihood Ratio Test of Additive Variance Parameter.\n")
+            cat("======================================================\n")
+            dmat <- round(as.matrix(object$QTL$diag$lik.mat), dig)
+            dimnames(dmat)[[1]] <- paste0("Iter.", seq_len(nrow(dmat)))
+            dmat[, 4][dmat[, 4] < 0.001] <- "<0.001"
+            print.default(dmat, quote = FALSE, right = TRUE, ...)
+        }
     }
 
     if (identical(plot, FALSE)) return(invisible(NULL))

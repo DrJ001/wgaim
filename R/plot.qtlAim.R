@@ -141,8 +141,10 @@ plot.qtlAim <- function(x, genObj,
     if (type == "contrast") {
         if (is.null(data))
             stop("data is required for type = \"contrast\".\n",
-                 "Pass the phenotypic data frame used in the analysis ",
-                 "(e.g. the <response>.data object).")
+                 "Pass the phenoData object assigned to your environment by qtlAim(), ",
+                 "e.g. plot(object, genObj, type = \"contrast\", data = phenoData).\n",
+                 "phenoData contains all QTL genotype columns and Gomit needed for ",
+                 "the contrast plot.")
         dots     <- list(...)
         qtl_sel  <- dots[["qtl"]]
         if (!is.null(x$QTL$Trait)) {

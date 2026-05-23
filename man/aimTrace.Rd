@@ -11,6 +11,7 @@
   iter = seq_along(object$QTL$diag$coef.list),
   lik.out = TRUE,
   plot = FALSE,
+  print.out = TRUE,
   sig.col = "firebrick",
   ...
 )
@@ -22,6 +23,7 @@ aimTrace(object, ...)
   iter = seq_along(object$QTL$diag$coef.list),
   lik.out = TRUE,
   plot = FALSE,
+  print.out = TRUE,
   sig.col = "firebrick",
   ...
 )
@@ -33,10 +35,10 @@ aimTrace(object, ...)
 Default is all iterations:
 \code{seq_along(object$QTL$diag$coef.list)}.}
 
-\item{lik.out}{Logical. If \code{TRUE} (default), print the LRT table.}
+\item{lik.out}{Logical. If \code{TRUE} (default), print the LRT table.
+Only has an effect when \code{print.out = TRUE}.}
 
-\item{plot}{Controls optional diagnostic plot output (console output always
-printed regardless). One of:
+\item{plot}{Controls optional diagnostic plot output. One of:
 \describe{
   \item{\code{FALSE} (default)}{No plot is returned.}
   \item{\code{"lrt"}}{Returns a \code{ggplot} of the LRT statistic across
@@ -49,6 +51,12 @@ printed regardless). One of:
   \item{\code{"both"}}{Returns a named list
     \code{list(lrt = ..., stability = ...)} invisibly.}
 }}
+
+\item{print.out}{Logical. If \code{TRUE} (default), the p-value matrix and
+(when \code{lik.out = TRUE}) the LRT table are printed to the console.
+Set to \code{FALSE} to suppress all console output and return only the
+plot, which is useful when calling \code{aimTrace()} inside a vignette or
+report where only the graphic is needed.}
 
 \item{sig.col}{Colour for highlighted points and ribbons in diagnostic
 plots. Default \code{"firebrick"}.}

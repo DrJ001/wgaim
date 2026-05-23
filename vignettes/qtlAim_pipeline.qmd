@@ -1,0 +1,560 @@
+---
+title: "Univariate QTL Mapping with wgAim"
+author: "Julian Taylor & Ari Verbyla"
+date: today
+vignette: >
+  %\VignetteIndexEntry{QTL Mapping with wgAim}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    number-sections: true
+    smooth-scroll: true
+    embed-resources: true
+    theme: litera
+    css: custom.css
+    highlight-style: github
+    code-fold: false
+    fig-width: 10
+    fig-height: 5
+    fig-dpi: 150
+    html-math-method: katex
+execute:
+  warning: false
+  message: false
+  cache: true
+---
+
+```{r setup}
+#| include: false
+#| cache: false
+asreml_ok <- requireNamespace("asreml", quietly = TRUE)
+if (requireNamespace("wgAim", quietly = TRUE)) {
+  library(wgAim)
+} else {
+  devtools::load_all("C:/jtaylor/Research/Computing/R Packages/Claude/wgaim",
+                     quiet = TRUE)
+}
+library(ggplot2)
+if (asreml_ok) {
+  library(asreml)
+  asreml.options(trace = FALSE)
+}
+```
+
+---
+
+## Overview
+
+This vignette demonstrates the complete univariate **wgAim** QTL mapping pipeline for
+a biparental mapping population. The pipeline has three stages:
+
+1. **Pre-analysis** — convert a raw `cross` object into the analysis-ready
+   `wgCross` format using `primeCross()`.
+2. **Analysis** — fit a whole-genome composite model and iteratively select
+   QTL using `qtlAim()`.
+3. **Post-analysis** — interrogate, summarise, and visualise the detected
+   QTL using the `print`, `summary`, and `plot` methods, and refine QTL
+   positions with `fineMap()`.
+
+Throughout the vignette we use the `genoRxK` and `phenoRxK` datasets
+bundled with the package. These contain marker and phenotypic data from a
+254-line Doubled Haploid (DH) wheat population derived from a cross between
+varieties **RAC875** and **Kukri**, evaluated at Roseworthy, South Australia
+in 2007. The linkage map spans 21 chromosomes with 500 markers. Two traits
+are available: grain yield (`yld`, kg/ha) and thousand grain weight (`tgw`).
+
+::: {.note}
+**Requires:** ASReml-R V4. The vignette is pre-rendered so no licence is
+needed to read it. Run the code chunks only if you have ASReml-R installed.
+:::
+
+---
+
+## Mathematical Framework
+
+### The base linear mixed model
+
+Let $\boldsymbol{y}$ be the $n \times 1$ vector of phenotypic observations
+for a single trait measured on $n$ lines in a field trial. The starting point
+for any `qtlAim()` analysis is a converged **base linear mixed model** (LMM) of the
+form
+
+$$
+\boldsymbol{y} = \boldsymbol{X}\boldsymbol{\tau}
+               + \boldsymbol{Z}_u\boldsymbol{u}
+               + \boldsymbol{Z}_g\boldsymbol{g}
+               + \boldsymbol{e},
+$$
+
+where:
+
+- $\boldsymbol{X}$ is the $n \times p$ design matrix for the **fixed effects**
+  $\boldsymbol{\tau}$, which capture known, systematic sources of variation
+  such as replicate, range or row trend effects.
+- $\boldsymbol{Z}_u$ is the design matrix for **peripheral random effects**
+  $\boldsymbol{u}$, representing nuisance sources of variation in the
+  experimental layout — for example, incomplete blocks, rows, ranges, or
+  other spatial or management groupings. Specifically,
+  $\boldsymbol{u} \sim \mathcal{N}(\boldsymbol{0},\, \sigma^2_u\,\boldsymbol{I})$.
+- $\boldsymbol{Z}_g$ is the design matrix linking observations to **genetic
+  line effects** $\boldsymbol{g}$, with
+  $\boldsymbol{g} \sim \mathcal{N}(\boldsymbol{0},\, \sigma^2_g\,\boldsymbol{I})$.
+  This term accounts for line-to-line genetic variation prior to any QTL
+  modelling.
+- $\boldsymbol{e} \sim \mathcal{N}(\boldsymbol{0},\, \sigma^2\,\boldsymbol{R})$
+  is the vector of residual errors, where $\boldsymbol{R}$ is a structured
+  correlation matrix that captures any remaining spatial or within-trial
+  correlation among observations (for example, an AR1$\times$AR1 surface over
+  rows and columns).
+
+The base model is fitted and checked for convergence before being passed to
+`qtlAim()`. It defines the environmental and design structure that must be
+accounted for before the genetic signal can be reliably extracted.
+
+### Introducing additive genetic effects
+
+When QTL mapping is the objective, the genetic term $\boldsymbol{g}$ is
+decomposed into two components: an **additive genetic effect** $\boldsymbol{a}$
+that captures the cumulative contribution of loci spread across the genome, and
+a **residual genetic effect** $\boldsymbol{p}$ that absorbs any remaining
+line-level genetic signal not accounted for by the marker/interval data. The
+augmented model becomes
+
+$$
+\boldsymbol{y} = \boldsymbol{X}\boldsymbol{\tau}
+               + \boldsymbol{Z}_u\boldsymbol{u}
+               + \boldsymbol{Z}_g\boldsymbol{a}
+               + \boldsymbol{Z}_g\boldsymbol{p}
+               + \boldsymbol{e},
+$$
+
+where $\boldsymbol{a}$ is modelled via the **whole-genome composite term**
+described below, and $\boldsymbol{p} \sim \mathcal{N}(\boldsymbol{0},\,
+\sigma^2_p\,\boldsymbol{I})$ is the residual polygenic background that
+ensures the genetic effects not captured by detected QTL are not forced
+into the residual. Retaining $\boldsymbol{p}$ is important: it prevents
+inflation of the QTL effects and provides a more honest partition of genetic
+variance.
+
+### The whole-genome composite model
+
+`qtlAim()` represents the additive genetic term $\boldsymbol{a}$ as a
+**composite genome-wide random effect** that simultaneously models the
+contribution of all $p$ marker intervals. Let $\boldsymbol{M}$ be the
+$n \times p$ matrix of scaled marker or interval genotype scores
+(coded $-1$ / $+1$ for the two parental alleles). The two equivalent
+computational paths used are:
+
+- **vm path** ($p > n$): The aggregate marker signal is absorbed into a
+  genomic relationship matrix
+  $\boldsymbol{K} = \tfrac{1}{p}\boldsymbol{M}\boldsymbol{M}^{\top}$,
+  and
+  $\boldsymbol{a} \sim \mathcal{N}(\boldsymbol{0},\, \sigma^2_a\,\boldsymbol{K})$.
+  This is the standard Gaussian process / GBLUP formulation, efficient when
+  there are more markers than lines.
+- **mbf path** ($n \geq p$): Each marker effect is treated as an independent
+  random regression coefficient,
+  $\boldsymbol{a} = \boldsymbol{M}\boldsymbol{q}$ with
+  $\boldsymbol{q} \sim \mathcal{N}(\boldsymbol{0},\, \sigma^2_q\,\boldsymbol{I}_p)$,
+  equivalent to ridge regression on the marker scores. This path is preferred
+  when lines outnumber markers.
+
+Both paths yield identical QTL selection results; the engine selects the
+appropriate path automatically based on the dimensions of $\boldsymbol{M}$,
+or the user can force the mbf path via `force = TRUE`.
+
+### The likelihood ratio test and forward selection and 
+
+Putative QTL are detected by **forward selection**. To confirm the significance
+of a putative QTL somewhere on the genome, a **likelihood ratio test** (LRT) is used to compare
+the additive LMM against the baseline LMM with both models potetially containing selected QTL
+from earlier iterations.
+
+$$
+\Lambda = -2\!\left(\ell_{\text{base}} - \ell_{\text{full}}\right)
+        \;\stackrel{\text{approx.}}{\sim}\;
+        \chi^2_{1},
+$$
+
+where $\ell$ denotes the residual log-likelihood. If $\Lambda$ exceeds the
+$\chi^2_1$ threshold at the family-wise significance level `TypeI` (default
+0.05) a search putative QTL is underatken. No Bonferroni or any other multiple
+comparison correction is needed for this test as the `TypeI` value acts like a
+family-wise error rate (see Verbyla et al. 2007 for more details.)
+
+Once the null hypothesis of no QTL is rejected a genome-wide **outlier statistic**
+for interval $k$ is calculated using
+
+$$
+o_k = \frac{\tilde{q}_k^2}{\tilde{v}_k},
+$$
+
+for every candidate interval, where $\tilde{q}_k$ is the
+posterior mean (BLUP) of the interval effect from the composite random term
+and $\tilde{v}_k$ is its posterior variance. The interval with the largest
+$o_k$ is the candidate for promotion to a fixed or random QTL.
+
+The confirmed QTL is retained as a fixed or random effect and the composite random term
+is rebuilt on the remaining intervals, ensuring subsequent iterations
+condition on all previously detected effects. This continues until the null hypothesis is
+retained using the LRT threshold, yielding a final model with $s$ fixed or random
+QTL effects alongside the remaining additive effects and residual genetic effects.
+The final model becomes
+
+$$
+\boldsymbol{y} = \boldsymbol{X}\boldsymbol{\tau}
+               + \sum_{k=1}^{s} \hat{\beta}_k\,\boldsymbol{x}_k
+               + \boldsymbol{Z}_u\boldsymbol{u}
+	       + \boldsymbol{Z}_g\boldsymbol{a}_{-s}
+               + \boldsymbol{Z}_g\boldsymbol{p}
+               + \boldsymbol{e},
+$$
+
+where $\hat{\beta}_k$ is the estimated allele substitution effect for the
+$k$-th QTL and $\boldsymbol{x}_k$ is the corresponding column of interval
+genotype scores and $\boldsymbol{a}_{-s} = \boldsymbol{M}_{-s}\boldsymbol{q}_{-s}$
+where the $\boldsymbol{M}_{-s}$ denotes $\boldsymbol{M}$ with an omission of
+markers/intervals in the windows of the QTL selected.   
+
+---
+
+## Data Preparation — `primeCross()`
+
+`primeCross()` converts a `cross` object from the **qtl** package into a
+`wgCross` object ready for `qtlAim()`. Its key task is to construct the
+**interval genotype scores** used in interval mapping — Haldane-weighted
+midpoint summaries of the flanking marker genotypes that place a virtual
+observation at the centre of each inter-marker interval.
+
+```{r load_data}
+#| eval: !expr asreml_ok
+data(genoRxK,  package = "wgAim")
+data(phenoRxK, package = "wgAim")
+```
+
+```{r primeCross}
+#| eval: !expr asreml_ok
+rxk <- primeCross(genoRxK, type = "interval", id = "Genotype")
+```
+
+The resulting `wgCross` object stores one list element per chromosome.
+Each element contains `$map` (cM positions), `$data` (original marker
+genotypes), and `$interval.data` (the derived interval scores). A brief
+summary of the map:
+
+```{r map_summary}
+#| eval: !expr asreml_ok
+n_chr <- length(rxk$geno)
+n_int <- sum(sapply(rxk$geno, function(ch) ncol(ch$interval.data)))
+n_mk  <- sum(sapply(rxk$geno, function(ch) ncol(ch$data)))
+cat(sprintf("Chromosomes : %d\n", n_chr))
+cat(sprintf("Markers     : %d\n", n_mk))
+cat(sprintf("Intervals   : %d\n", n_int))
+```
+
+The full linkage map can be visualised with `linkMap()`:
+
+```{r linkmap_base}
+#| eval: !expr asreml_ok
+#| fig-height: 10
+#| fig-width: 16
+#| fig-cap: "RAC875 × Kukri linkage map displayed in three rows. Marker names are shown on each chromosome; tick marks indicate marker positions."
+linkMap(rxk, nrow = 3, marker.names = "all") +
+  theme(plot.title = element_blank())
+```
+
+---
+
+## QTL Mapping — `qtlAim()`
+
+### Base model
+
+The starting point is a converged ASReml-R model that captures the
+experimental design without any genomic term. For this trial — a
+randomised complete block design with spatial trend — we include a fixed
+range effect and random row and genotype terms:
+
+```{r base_model}
+#| eval: !expr asreml_ok
+#| results: hide
+pheno <- phenoRxK
+pheno$Genotype <- factor(pheno$Genotype)
+pheno$Row      <- factor(pheno$Row)
+pheno$Range    <- factor(pheno$Range)
+
+base_yld <- asreml(
+  fixed     = yld ~ Range,
+  random    = ~ Genotype + Row,
+  data      = pheno,
+  na.action = na.method(x = "include")
+)
+base_yld <- update(base_yld)
+```
+
+### Running `qtlAim()`
+
+`qtlAim()` takes the fitted base model and the `wgCross` object. The
+`merge.by` argument names the column shared between the phenotypic data
+and `rxk$pheno` that identifies lines. An exclusion window of 50 cM
+prevents closely linked false positives from being selected in consecutive
+iterations:
+
+```{r qtlAim}
+#| eval: !expr asreml_ok
+#| results: hide
+qtl_yld <- qtlAim(
+  baseModel        = base_yld,
+  genObj           = rxk,
+  merge.by         = "Genotype",
+  exclusion.window = 50,
+  TypeI            = 0.05,
+  trace            = FALSE
+)
+```
+
+On completion `qtlAim()` returns an object of class `"qtlAim"` and prints a
+brief summary to the console. The engine path (vm or mbf) is chosen
+automatically based on the ratio of markers to lines, and the number of
+detected QTL reflects how many intervals cleared the LRT threshold:
+
+```{r qtlAim_class}
+#| eval: !expr asreml_ok
+cat("Class  :", paste(class(qtl_yld), collapse = ", "), "\n")
+cat("Engine :", qtl_yld$QTL$path, "\n")
+cat("QTL detected:", length(qtl_yld$QTL$qtl), "\n")
+```
+
+---
+
+## Results
+
+### `summary()` — final QTL table
+
+`summary()` collates the final model into a single table with one row per
+detected QTL, reporting flanking markers, position, allele effect ± SE,
+and cumulative percentage variance explained:
+
+```{r summary_qtl}
+#| eval: !expr asreml_ok
+summ_yld <- summary(qtl_yld, genObj = rxk)
+print(summ_yld)
+```
+
+---
+
+## Visualisation — `plot()`
+
+Five complementary plot types are available via the `type` argument of
+`plot.qtlAim()`.
+
+### Genome-wide outlier statistics — `type = "outlier"`
+
+The outlier plot shows the genome-wide profile of the interval outlier
+statistic $\tilde{q}_k^2 / \tilde{v}_k$ at each iteration, faceted by
+iteration number. The selected QTL position is highlighted and the
+remaining composite background is shaded. This is the most informative
+display for understanding how the forward selection proceeded:
+
+```{r plot_outlier}
+#| eval: !expr asreml_ok
+#| fig-height: 10.5
+#| fig-cap: "Genome-wide outlier statistics at each forward-selection iteration. The vertical red line marks the selected QTL; grey background is the composite random term."
+plot(qtl_yld, genObj = rxk, type = "outlier", sig.col = "firebrick")
+```
+
+### Scaled genome-wide BLUPs — `type = "blups"`
+
+The BLUPs plot displays the scaled posterior means of all interval effects
+from the composite random term at each iteration. Intervals close to a
+detected QTL naturally shrink as the QTL absorbs the nearby signal:
+
+```{r plot_blups}
+#| eval: !expr asreml_ok
+#| fig-height: 10.5
+#| fig-cap: "Scaled composite BLUPs across the genome at each iteration."
+plot(qtl_yld, genObj = rxk, type = "blups", sig.col = "firebrick")
+```
+
+### Allele effects — `type = "effects"`
+
+The effects lollipop summarises the final detected QTL. Each QTL appears
+as a lollipop whose head sits at the estimated allele substitution effect
+± SE. Colour encodes which allele is favoured: **firebrick** when the A
+(RAC875) allele increases yield, **steelblue** when the B (Kukri) allele
+does. The right panel shows the percentage of genetic variance explained:
+
+```{r plot_effects}
+#| eval: !expr asreml_ok
+#| fig-height: 5
+#| fig-cap: "Allele effects and percentage variance explained for each detected QTL."
+plot(qtl_yld, genObj = rxk, type = "effects")
+```
+
+### Allele contrast — `type = "contrast"`
+
+The contrast plot displays the total genetic value for each line against its
+allele class at each detected QTL. The total genetic value combines three
+components: the composite genome-wide BLUP, the residual line-level genetic
+effect, and the summed fixed QTL contributions $\sum_k \hat{\beta}_k x_{ik}$.
+
+This plot requires `phenoData` — the augmented data frame that `qtlAim()`
+automatically assigns to your calling environment at the end of the analysis.
+`phenoData` contains the original phenotypic columns plus `Gomit` and the
+`X.<chr>.<idx>` genotype columns for each detected QTL. The raw `pheno` frame
+would not work here as it does not contain those columns.
+
+```{r plot_contrast}
+#| eval: !expr asreml_ok
+#| fig-height: 8
+#| fig-cap: "Total genetic value by allele class at each detected QTL, faceted in two columns. Firebrick = RAC875 (A, +1) allele favoured; steelblue = Kukri (B, −1) allele favoured. Group means ± SE are overlaid."
+plot(qtl_yld, genObj = rxk, type = "contrast", data = phenoData, ncol = 2)
+```
+
+### Iteration heatmap — `type = "heatmap"`
+
+The heatmap gives a compact genome × iteration view, filling each cell
+with the outlier statistic. This makes it easy to see which chromosomal
+regions carried persistent signal across multiple iterations:
+
+```{r plot_heatmap}
+#| eval: !expr asreml_ok
+#| fig-height: 5
+#| fig-cap: "Iteration × genome heatmap of the outlier statistic. Darker cells indicate stronger signal."
+plot(qtl_yld, genObj = rxk, type = "heatmap", sig.col = "firebrick")
+```
+
+### Linkage map overlay — `linkMap()`
+
+`linkMap()` overlays the detected QTL positions onto the genetic map, with
+flanking markers bracketing each QTL position:
+
+```{r linkmap_qtl}
+#| eval: !expr asreml_ok
+#| fig-height: 7.2
+#| fig-width: 16
+#| fig-cap: "Linkage map with detected QTL positions and marker names. Brackets show flanking markers."
+linkMap(qtl_yld, genObj = rxk, marker.names = "all")
+```
+
+---
+
+## Iteration Diagnostics — `aimTrace()`
+
+`aimTrace()` traces how the LRT statistic and QTL effect estimates
+evolved across iterations, providing a useful diagnostic for assessing
+the stability of the detected QTL.
+
+### LRT trace — `plot = "lrt"`
+
+```{r aimtrace_lrt}
+#| eval: !expr asreml_ok
+#| fig-height: 4
+#| fig-cap: "LRT statistic at each forward-selection iteration. The dashed red line is the chi-squared threshold at TypeI = 0.05."
+aimTrace(qtl_yld, plot = "lrt", print.out = FALSE)
+```
+
+### Effect stability — `plot = "stability"`
+
+```{r aimtrace_stability}
+#| eval: !expr asreml_ok
+#| fig-height: 6.5
+#| fig-cap: "QTL allele effect estimates ± 1 SE across the iterations in which each QTL was present in the model."
+aimTrace(qtl_yld, plot = "stability", print.out = FALSE)
+```
+
+---
+
+## Fine Mapping — `fineMap()`
+
+`fineMap()` performs a high-resolution single-QTL scan in a window around
+each detected QTL, holding all other detected effects fixed in the model.
+For `qtlAim` objects it constructs a dense inferred marker grid across the
+window using Haldane interpolation, then fits each candidate interval in
+turn and reports the resulting LOD score profile.
+
+We fine-map the four QTL with the largest percentage variance explained,
+identified from the summary table. A window of 40 cM and a grid step of
+2 cM gives a resolution of approximately 1 cM across each region of
+interest:
+
+```{r finemapping}
+#| eval: !expr asreml_ok
+#| results: hide
+fm <- fineMap(qtl_yld, genObj = rxk,
+              qtl    = c("Chr.3B.30", "Chr.3D.4", "Chr.3B.10", "Chr.4D.2"),
+              window = 40,
+              step   = 2,
+              exclusion.window = 50)
+```
+
+The `plot()` method draws the LOD profile across the window for each
+QTL. The filled triangle marks the peak LOD position; the open triangle
+shows the original coarser interval position, illustrating how fine
+mapping can shift or sharpen the QTL location:
+
+```{r finemapping_plot}
+#| eval: !expr asreml_ok
+#| fig-height: 8
+#| fig-width: 14
+#| fig-cap: "Fine-mapping LOD profiles for the four largest QTL arranged in a 2 × 2 grid. Filled triangle: peak fine-map position; open triangle: original qtlAim position."
+plot(fm, ncol = 2)
+```
+
+---
+
+## Summary
+
+The complete pipeline illustrated in this vignette is:
+
+```r
+# 1. Prepare genotype data
+rxk      <- primeCross(genoRxK, type = "interval", id = "Genotype")
+
+# 2. Fit base model (no genomic term)
+base_yld <- asreml(yld ~ Range, random = ~ Genotype + Row, data = pheno, ...)
+
+# 3. QTL mapping
+qtl_yld  <- qtlAim(base_yld, genObj = rxk, merge.by = "Genotype", ...)
+
+# 4. Results
+summary(qtl_yld, genObj = rxk)          # final QTL table
+plot(qtl_yld,    genObj = rxk, type = "outlier")   # genome profiles
+plot(qtl_yld,    genObj = rxk, type = "blups")     # scaled BLUPs
+plot(qtl_yld,    genObj = rxk, type = "effects")   # allele effects
+plot(qtl_yld,    genObj = rxk, type = "contrast", data = phenoData, ncol = 2)
+plot(qtl_yld,    genObj = rxk, type = "heatmap")
+aimTrace(qtl_yld, plot = "lrt")
+aimTrace(qtl_yld, plot = "stability")
+linkMap(qtl_yld,  genObj = rxk)
+
+# 5. Fine mapping
+fm <- fineMap(qtl_yld, genObj = rxk,
+              qtl = c("Chr.3B.30", "Chr.3D.4", "Chr.3B.10", "Chr.4D.2"),
+              window = 40, step = 2)
+plot(fm, ncol = 2)
+```
+
+---
+
+## References
+
+Verbyla, A.P., Cullis, B.R. & Thompson, R. (2007). The analysis of QTL by
+simultaneous use of the full linkage map. *Theoretical and Applied Genetics*,
+**116**, 95–111. <https://doi.org/10.1007/s00122-007-0676-4>
+
+Verbyla, A.P., Taylor, J.D. & Verbyla, K.L. (2012). RWGAIM: An efficient
+high-dimensional random whole genome average (QTL) interval mapping approach.
+*Genetics Research*, **94**, 291–306.
+<https://doi.org/10.1017/S0016672312000493>
+
+Taylor, J. & Verbyla, A.P. (2011). R Package wgaim: QTL Analysis in
+Bi-Parental Populations Using Linear Mixed Models. *Journal of Statistical
+Software*, **40**(7), 1–18. <https://doi.org/10.18637/jss.v040.i07>
+
+Haldane, J.B.S. (1919). The combination of linkage values and the
+calculation of distances between the loci of linked factors. *Journal of
+Genetics*, **8**(29), 299–309.
