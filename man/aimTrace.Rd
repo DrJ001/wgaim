@@ -25,6 +25,7 @@ aimTrace(object, ...)
   plot = FALSE,
   print.out = TRUE,
   sig.col = "firebrick",
+  ncol = NULL,
   ...
 )
 }
@@ -62,6 +63,10 @@ report where only the graphic is needed.}
 plots. Default \code{"firebrick"}.}
 
 \item{\dots}{Further arguments (e.g.\ \code{digits}) passed to methods.}
+
+\item{ncol}{Integer. Number of columns in the \code{facet_wrap} layout of
+the \code{"stability"} plot. Defaults to \code{NULL}, which uses 3
+columns (or fewer if there are fewer QTL).}
 }
 \value{
 \code{NULL} invisibly when \code{plot = FALSE}; a \code{ggplot}

@@ -148,12 +148,28 @@ $$
                + \boldsymbol{e}.
 $$
 
-The composite additive term is modelled as
-$\boldsymbol{a} \sim \mathcal{N}(\boldsymbol{0},\, \boldsymbol{G}_a \otimes
-\boldsymbol{K})$, where $\boldsymbol{K} = \tfrac{1}{p}
-\boldsymbol{M}\boldsymbol{M}^\top$ is the genomic relationship matrix from
-the scaled $n \times p$ marker matrix $\boldsymbol{M}$, and $\boldsymbol{G}_a$
-shares the same factor analytic structure as the base model.
+The composite additive term uses one of two equivalent computational paths
+depending on the ratio of marker intervals $p$ to lines $n$:
+
+- **vm path** ($p > n$): The aggregate marker signal is absorbed into a
+  genomic relationship matrix
+  $\boldsymbol{K} = \tfrac{1}{p}\boldsymbol{M}\boldsymbol{M}^{\top}$,
+  and
+  $\boldsymbol{a} \sim \mathcal{N}(\boldsymbol{0},\, \boldsymbol{G}_a \otimes \boldsymbol{K})$.
+  This is the multivariate extension of the standard GBLUP formulation,
+  efficient when there are more intervals than lines.
+- **mbf path** ($n \geq p$): Each marker effect is treated as an independent
+  random regression coefficient,
+  $\boldsymbol{a} = (\boldsymbol{I}_T \otimes \boldsymbol{M})\boldsymbol{q}$
+  with
+  $\boldsymbol{q} \sim \mathcal{N}(\boldsymbol{0},\, \boldsymbol{G}_a \otimes \sigma^2_q\,\boldsymbol{I}_p)$.
+  This path is preferred when lines outnumber intervals.
+
+Both paths yield identical QTL selection results. The engine selects the
+appropriate path automatically; the `force = TRUE` argument overrides to
+the mbf path. In this vignette, with 594 intervals and 120 lines ($p > n$),
+the vm path is used throughout, and $\boldsymbol{G}_a$ carries the same
+factor analytic structure as the base model.
 
 ### Forward selection and the likelihood ratio test
 
@@ -208,17 +224,20 @@ The final model is
 
 $$
 \boldsymbol{y} = \boldsymbol{X}\boldsymbol{\tau}
-               + \boldsymbol{Z}_g\!\sum_{k \in \mathcal{M}} \hat{\beta}_k\,\boldsymbol{x}_k
+               + \boldsymbol{Z}_g\!\sum_{j \in \mathcal{M}} \hat{\beta}_j\,\boldsymbol{x}_j
                + \boldsymbol{Z}_g\!\sum_{k \in \mathcal{I}}
-                 \hat{\boldsymbol{\beta}}_k^\top\,\boldsymbol{x}_k
+                 \hat{\boldsymbol{\gamma}}_k^\top\,\boldsymbol{x}_k
                + \boldsymbol{Z}_u\boldsymbol{u}
+	       + \boldsymbol{Z}_g\boldsymbol{a}_{-s}
                + \boldsymbol{Z}_g\boldsymbol{p}
                + \boldsymbol{e},
 $$
 
-where $\mathcal{M}$ denotes main-effect QTL with scalar effects
-$\hat{\beta}_k$ and $\mathcal{I}$ denotes G×E QTL with environment-specific
-effect vectors $\hat{\boldsymbol{\beta}}_k$.
+where  $\boldsymbol{a}_{-s} = \boldsymbol{M}_{-s}\boldsymbol{q}_{-s}$
+where the $\boldsymbol{M}_{-s}$ denotes $\boldsymbol{M}$ with an omission of
+markers/intervals in the windows of the QTL selected; $\mathcal{M}$ denotes
+main-effect QTL with scalar effects $\hat{\beta}_j and $\mathcal{I}$ denotes
+G×E QTL with environment-specific effect vectors $\hat{\boldsymbol{\gamma}}_k$.
 
 ---
 
@@ -383,6 +402,7 @@ qtl_mv <- qtlAim(
 
 ```{r qtlAim_class}
 #| eval: !expr asreml_ok
+#| results: markup
 cat("Class        :", paste(class(qtl_mv), collapse = ", "), "\n")
 cat("Engine       :", qtl_mv$QTL$path, "\n")
 cat("QTL detected :", length(qtl_mv$QTL$qtl), "\n")
@@ -497,7 +517,7 @@ the model:
 #| eval: !expr asreml_ok
 #| fig-height: 6.5
 #| fig-cap: "Per-trial allele effect estimates ± 1 SE across iterations, coloured by trial. Stable QTL show consistent per-trial effects; G×E QTL show trial-dependent trajectories."
-aimTrace(qtl_mv, plot = "stability", print.out = FALSE)
+aimTrace(qtl_mv, plot = "stability", print.out = FALSE, ncol = 2)
 ```
 
 ---
@@ -533,7 +553,7 @@ plot(qtl_mv, genObj = genObj, type = "blups")    # multi-trial BLUPs
 plot(qtl_mv, genObj = genObj, type = "effects")  # per-trial effect lollipop
 plot(qtl_mv, genObj = genObj, type = "contrast", data = phenoData, ncol = 2)
 aimTrace(qtl_mv, plot = "lrt",       print.out = FALSE)
-aimTrace(qtl_mv, plot = "stability", print.out = FALSE)
+aimTrace(qtl_mv, plot = "stability", print.out = FALSE, ncol = 2)
 ```
 
 ---

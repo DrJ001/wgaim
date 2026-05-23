@@ -3,7 +3,7 @@ title: "Univariate QTL Mapping with wgAim"
 author: "Julian Taylor & Ari Verbyla"
 date: today
 vignette: >
-  %\VignetteIndexEntry{QTL Mapping with wgAim}
+  %\VignetteIndexEntry{Univariate QTL Mapping with wgAim}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
 format:
@@ -167,7 +167,7 @@ Both paths yield identical QTL selection results; the engine selects the
 appropriate path automatically based on the dimensions of $\boldsymbol{M}$,
 or the user can force the mbf path via `force = TRUE`.
 
-### The likelihood ratio test and forward selection and 
+### The likelihood ratio test and forward selection and
 
 Putative QTL are detected by **forward selection**. To confirm the significance
 of a putative QTL somewhere on the genome, a **likelihood ratio test** (LRT) is used to compare
@@ -218,7 +218,7 @@ where $\hat{\beta}_k$ is the estimated allele substitution effect for the
 $k$-th QTL and $\boldsymbol{x}_k$ is the corresponding column of interval
 genotype scores and $\boldsymbol{a}_{-s} = \boldsymbol{M}_{-s}\boldsymbol{q}_{-s}$
 where the $\boldsymbol{M}_{-s}$ denotes $\boldsymbol{M}$ with an omission of
-markers/intervals in the windows of the QTL selected.   
+markers/intervals in the windows of the QTL selected.
 
 ---
 
@@ -323,6 +323,7 @@ detected QTL reflects how many intervals cleared the LRT threshold:
 
 ```{r qtlAim_class}
 #| eval: !expr asreml_ok
+#| results: markup
 cat("Class  :", paste(class(qtl_yld), collapse = ", "), "\n")
 cat("Engine :", qtl_yld$QTL$path, "\n")
 cat("QTL detected:", length(qtl_yld$QTL$qtl), "\n")
@@ -463,7 +464,7 @@ aimTrace(qtl_yld, plot = "lrt", print.out = FALSE)
 #| eval: !expr asreml_ok
 #| fig-height: 6.5
 #| fig-cap: "QTL allele effect estimates ± 1 SE across the iterations in which each QTL was present in the model."
-aimTrace(qtl_yld, plot = "stability", print.out = FALSE)
+aimTrace(qtl_yld, plot = "stability", print.out = FALSE, ncol = 2)
 ```
 
 ---
@@ -528,7 +529,7 @@ plot(qtl_yld,    genObj = rxk, type = "effects")   # allele effects
 plot(qtl_yld,    genObj = rxk, type = "contrast", data = phenoData, ncol = 2)
 plot(qtl_yld,    genObj = rxk, type = "heatmap")
 aimTrace(qtl_yld, plot = "lrt")
-aimTrace(qtl_yld, plot = "stability")
+aimTrace(qtl_yld, plot = "stability", ncol = 2)
 linkMap(qtl_yld,  genObj = rxk)
 
 # 5. Fine mapping

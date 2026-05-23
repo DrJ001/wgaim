@@ -50,6 +50,9 @@
 #'   }
 #' @param sig.col Colour for highlighted points and ribbons in diagnostic
 #'   plots. Default \code{"firebrick"}.
+#' @param ncol Integer. Number of columns in the \code{facet_wrap} layout of
+#'   the \code{"stability"} plot. Defaults to \code{NULL}, which uses 3
+#'   columns (or fewer if there are fewer QTL).
 #' @param \dots Further arguments (e.g.\ \code{digits}) passed to methods.
 #'
 #' @return \code{NULL} invisibly when \code{plot = FALSE}; a \code{ggplot}
@@ -78,6 +81,7 @@ aimTrace.qtlAim <- function(object,
                              plot      = FALSE,
                              print.out = TRUE,
                              sig.col   = "firebrick",
+                             ncol      = NULL,
                              ...) {
     dots <- list(...)
     dig  <- if (!is.na(pmatch("digits", names(dots)))) dots$digits else options()$digits
@@ -151,9 +155,9 @@ aimTrace.qtlAim <- function(object,
     if (identical(plot, FALSE)) return(invisible(NULL))
     plot <- match.arg(as.character(plot), c("lrt", "stability", "both"))
     if (plot == "lrt")       return(.plot_lrt(object, sig.col))
-    if (plot == "stability") return(.plot_stability(object, sig.col))
+    if (plot == "stability") return(.plot_stability(object, sig.col, ncol = ncol))
     invisible(list(lrt       = .plot_lrt(object, sig.col),
-                   stability = .plot_stability(object, sig.col)))
+                   stability = .plot_stability(object, sig.col, ncol = ncol)))
 }
 
 # =============================================================================
@@ -344,11 +348,12 @@ aimTrace.qtlAim <- function(object,
 #   approximate (ignores main/interaction coefficient covariance) so error bars
 #   are labelled accordingly in the y-axis title.
 # =============================================================================
-.plot_stability <- function(object, sig.col = "firebrick") {
+.plot_stability <- function(object, sig.col = "firebrick", ncol = NULL) {
 
     sdf   <- .build_stability_df(object)
     n_qtl <- length(object$QTL$qtl)
     is.mv <- !is.null(object$QTL$Trait)
+    n_cols <- if (!is.null(ncol)) as.integer(ncol) else min(n_qtl, 3L)
 
     # Build facet labels (with optional MAIN/INT tag for multivariate)
     base_labels <- sub("^Chr\\.", "", object$QTL$qtl)
@@ -376,7 +381,7 @@ aimTrace.qtlAim <- function(object,
                                 y      = .data$effect,
                                 colour = .data$trial,
                                 group  = .data$trial)) +
-            ggplot2::facet_wrap(~ qtl_label_fac, scales = "free_y", ncol = 3) +
+            ggplot2::facet_wrap(~ qtl_label_fac, scales = "free_y", ncol = n_cols) +
 
             ggplot2::geom_hline(yintercept = 0,
                                 linetype = "dashed", colour = "grey60",
@@ -412,7 +417,7 @@ aimTrace.qtlAim <- function(object,
     } else {
         gp <- ggplot2::ggplot(sdf,
                    ggplot2::aes(x = .data$iter, y = .data$effect)) +
-            ggplot2::facet_wrap(~ qtl_label_fac, scales = "free_y", ncol = 3) +
+            ggplot2::facet_wrap(~ qtl_label_fac, scales = "free_y", ncol = n_cols) +
 
             ggplot2::geom_hline(yintercept = 0,
                                 linetype = "dashed", colour = "grey60",
