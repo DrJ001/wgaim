@@ -46,7 +46,52 @@ data preparation, **analysis**, and **post-analysis** interpretation.
 
 ---
 
-## Part 1 — Pre-analysis: Data Preparation
+## Requirements
+
+All three analysis functions require a valid **ASReml-R V4** licence,
+available from [vsni.co.uk](https://vsni.co.uk/software/asreml-r/).
+
+---
+
+## Installation
+
+Once the package reaches a stable release it will be submitted to CRAN.
+In the meantime, the development version can be installed directly from
+GitHub:
+
+```r
+# install.packages("devtools")
+devtools::install_github("DrJ001/wgAim", ref = "dev")
+```
+
+---
+
+## Legacy package
+
+**wgAim** is the successor to
+[wgaim](https://github.com/DrJ001/wgaim-legacy). The original `wgaim`
+package — including its CRAN release and full QTL analysis
+functionality — is preserved at the link above and remains fully
+functional. Users relying on `wgaim` in existing workflows are
+encouraged to stay on that version until `wgAim` reaches a stable
+release.
+
+---
+
+## Vignettes
+
+Full worked univariate and multivariate examples of each pipeline, from data preparation through to
+interpretation and display.
+
+| Vignette | Description |
+|---|---|
+| [Univariate QTL Mapping with wgAim](https://drj001.github.io/wgAim/articles/qtlAim_pipeline.html) | A complete walkthrough of the biparental QTL mapping pipeline: preparing a `wgCross` object with `primeCross()`, fitting a whole-genome composite model with `qtlAim()`, and interrogating the results with `summary()`, `plot()`, `aimTrace()`, `linkMap()`, and `fineMap()`. |
+| *GWAS with wgAim* (in preparation) | Panel preparation with `checkPanel()`, `filterPanel()`, and `primePanel()`; genome-wide association analysis with `gwasAim()`; and post-analysis display and fine mapping. |
+| *Genomic prediction and selection with wgAim* (in preparation) | Genomic prediction with `gpAim()` and construction of weighted, Smith-Hazel, and desired-gains selection indices with `selIndex()`. |
+
+---
+
+## Part 1 — Pre-analysis: Data Preparation functions
 
 Before any analysis can be run, raw genotype data must be prepared into
 the structured objects that the analysis functions expect. **wgAim**
@@ -168,7 +213,7 @@ matrices in `$imputed.data`.
 
 ---
 
-## Part 2 — Analysis
+## Part 2 — Analysis functions
 
 Each analysis function takes a fitted **base ASReml-R model** and a prepared
 genotype object, then progressively builds a whole-genome model using forward selection.
@@ -296,7 +341,7 @@ environment) for the selection of lines.
 
 ---
 
-## Part 3 — Post-analysis: Interpretation and Display
+## Part 3 — Post-analysis: Interpretation and Display functions
 
 Once an analysis is complete, a consistent set of display and
 interrogation functions is available for all three methods.
@@ -385,51 +430,6 @@ linkMap(gwas.fit, genObj = wgPanel)      # map with GWAS marker positions
   showing flanking markers, inferred positions, effect sizes, and
   LOD scores. Prints cleanly to the console and is straightforward
   to export.
-
----
-
-## Vignettes
-
-Full worked examples of each pipeline, from data preparation through to
-interpretation and display.
-
-| Vignette | Description |
-|---|---|
-| [Univariate QTL Mapping with wgAim](https://drj001.github.io/wgAim/articles/qtlAim_pipeline.html) | A complete walkthrough of the biparental QTL mapping pipeline: preparing a `wgCross` object with `primeCross()`, fitting a whole-genome composite model with `qtlAim()`, and interrogating the results with `summary()`, `plot()`, `aimTrace()`, `linkMap()`, and `fineMap()`. |
-| *GWAS with wgAim* (in preparation) | Panel preparation with `checkPanel()`, `filterPanel()`, and `primePanel()`; genome-wide association analysis with `gwasAim()`; and post-analysis display and fine mapping. |
-| *Genomic prediction and selection with wgAim* (in preparation) | Genomic prediction with `gpAim()` and construction of weighted, Smith-Hazel, and desired-gains selection indices with `selIndex()`. |
-
----
-
-## Requirements
-
-All three analysis functions require a valid **ASReml-R V4** licence,
-available from [vsni.co.uk](https://vsni.co.uk/software/asreml-r/).
-
----
-
-## Installation
-
-Once the package reaches a stable release it will be submitted to CRAN.
-In the meantime, the development version can be installed directly from
-GitHub:
-
-```r
-# install.packages("devtools")
-devtools::install_github("DrJ001/wgAim", ref = "dev")
-```
-
----
-
-## Legacy package
-
-**wgAim** is the successor to
-[wgaim](https://github.com/DrJ001/wgaim-legacy). The original `wgaim`
-package — including its CRAN release and full QTL analysis
-functionality — is preserved at the link above and remains fully
-functional. Users relying on `wgaim` in existing workflows are
-encouraged to stay on that version until `wgAim` reaches a stable
-release.
 
 ---
 
