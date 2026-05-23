@@ -10,6 +10,11 @@ home:
     A unified toolkit for QTL detection, GWAS, and genomic prediction in
     plant breeding populations, built on ASReml-R.
 
+articles:
+  - title: "QTL Mapping"
+    contents:
+      - qtlAim_pipeline
+
 navbar:
   structure:
     left: [intro, reference, articles, news]
