@@ -167,7 +167,7 @@ Both paths yield identical QTL selection results; the engine selects the
 appropriate path automatically based on the dimensions of $\boldsymbol{M}$,
 or the user can force the mbf path via `force = TRUE`.
 
-### The likelihood ratio test and forward selection and
+### The likelihood ratio test and forward selection
 
 Putative QTL are detected by **forward selection**. To confirm the significance
 of a putative QTL somewhere on the genome, a **likelihood ratio test** (LRT) is used to compare
@@ -186,15 +186,14 @@ $\chi^2_1$ threshold at the family-wise significance level `TypeI` (default
 comparison correction is needed for this test as the `TypeI` value acts like a
 family-wise error rate (see Verbyla et al. 2007 for more details.)
 
-Once the null hypothesis of no QTL is rejected a genome-wide **outlier statistic**
-for interval $k$ is calculated using
+Once the null hypothesis of no QTL is rejected genome-wide **outlier statistics**
+are calculated for every every interval where, for interval $k$, are
 
 $$
 o_k = \frac{\tilde{q}_k^2}{\tilde{v}_k},
 $$
 
-for every candidate interval, where $\tilde{q}_k$ is the
-posterior mean (BLUP) of the interval effect from the composite random term
+where $\tilde{q}_k$ is the posterior mean (BLUP) of the interval effect from the composite random term
 and $\tilde{v}_k$ is its posterior variance. The interval with the largest
 $o_k$ is the candidate for promotion to a fixed or random QTL.
 
