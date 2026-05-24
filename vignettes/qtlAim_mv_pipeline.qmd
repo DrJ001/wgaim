@@ -236,7 +236,7 @@ $$
 where  $\boldsymbol{a}_{-s} = \boldsymbol{M}_{-s}\boldsymbol{q}_{-s}$
 where the $\boldsymbol{M}_{-s}$ denotes $\boldsymbol{M}$ with an omission of
 markers/intervals in the windows of the QTL selected; $\mathcal{M}$ denotes
-main-effect QTL with scalar effects $\hat{\beta}_j and $\mathcal{I}$ denotes
+main-effect QTL with scalar effects $\hat{\beta}_j$ and $\mathcal{I}$ denotes
 G×E QTL with environment-specific effect vectors $\hat{\boldsymbol{\gamma}}_k$.
 
 ---
@@ -484,7 +484,7 @@ show the separation reversing between panels:
 #| eval: !expr asreml_ok
 #| fig-height: 10
 #| fig-cap: "Total genetic value by allele class at each detected QTL, faceted by trial (columns) and QTL (rows). Group means ± SE are overlaid."
-plot(qtl_mv, genObj = genObj, type = "contrast", data = phenoData, ncol = 2)
+plot(qtl_mv, genObj = genObj, type = "contrast", data = phenoData, ncol = 3)
 ```
 
 ---
@@ -517,7 +517,7 @@ the model:
 #| eval: !expr asreml_ok
 #| fig-height: 9.8
 #| fig-cap: "Per-trial allele effect estimates ± approx. 1 SE across iterations. Rows = trials; columns = detected QTL with [MAIN] or [INT] suffix indicating the post-selection classification. Stable QTL show consistent effects across iterations; G×E QTL show trial-dependent trajectories."
-aimTrace(qtl_mv, plot = "stability", print.out = FALSE, ncol = 2)
+aimTrace(qtl_mv, plot = "stability", print.out = FALSE)
 ```
 
 ---
@@ -551,9 +551,9 @@ summary(qtl_mv, genObj = genObj)          # final QTL table (MAIN/INT)
 plot(qtl_mv, genObj = genObj, type = "outlier")  # quadratic-form outlier stats
 plot(qtl_mv, genObj = genObj, type = "blups")    # multi-trial BLUPs
 plot(qtl_mv, genObj = genObj, type = "effects")  # per-trial effect lollipop
-plot(qtl_mv, genObj = genObj, type = "contrast", data = phenoData, ncol = 2)
+plot(qtl_mv, genObj = genObj, type = "contrast", data = phenoData, ncol = 3)
 aimTrace(qtl_mv, plot = "lrt",       print.out = FALSE)
-aimTrace(qtl_mv, plot = "stability", print.out = FALSE, ncol = 2)
+aimTrace(qtl_mv, plot = "stability", print.out = FALSE)
 ```
 
 ---
