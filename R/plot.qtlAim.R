@@ -355,23 +355,19 @@ plot.qtlAim <- function(x, genObj,
     if (is.null(qtl.keys) || length(qtl.keys) == 0L) return(gp)
 
     iter.with.sig <- iter[iter <= length(qtl.keys)]
-    diag_data     <- object$QTL$diag[[stat_slot]]
+    iter.levels   <- levels(gp$data$iteration)
 
     sig.rows <- lapply(iter.with.sig, function(it) {
-        key  <- qtl.keys[it]
+        key   <- qtl.keys[it]
         parts <- strsplit(key, "\\.")[[1L]]
         qchr  <- parts[2L]
         if (!qchr %in% chr) return(NULL)
-        val  <- diag_data[[it]][key]
-        if (is.null(val) || is.na(val) || val == 0) return(NULL)
         dist <- cp$pos_lookup[key]
         if (is.na(dist)) return(NULL)
         label <- sub("Chr\\.", "", key)   # "CHRNAME.IDX" for display
         data.frame(
             dist      = dist,
-            values    = as.numeric(val),
-            iteration = factor(paste0("Iteration: ", it),
-                               levels = levels(gp$data$iteration)),
+            iteration = factor(paste0("Iteration: ", it), levels = iter.levels),
             label     = label,
             stringsAsFactors = FALSE
         )
@@ -380,26 +376,23 @@ plot.qtlAim <- function(x, genObj,
     if (is.null(sig.df) || nrow(sig.df) == 0L) return(gp)
 
     gp +
-        ggplot2::geom_point(data = sig.df,
-                            ggplot2::aes(x = .data$dist, y = .data$values),
-                            colour = sig.col, size = 2.5,
-                            shape = 18, inherit.aes = FALSE) +
-        ggrepel::geom_text_repel(
+        ggplot2::geom_vline(
             data        = sig.df,
-            ggplot2::aes(x = .data$dist, y = .data$values,
-                         label = .data$label),
+            ggplot2::aes(xintercept = .data$dist),
+            colour      = sig.col,
+            linewidth   = 0.4,
+            linetype    = "dashed",
+            alpha       = 0.55,
+            inherit.aes = FALSE) +
+        ggplot2::geom_text(
+            data        = sig.df,
+            ggplot2::aes(x = .data$dist, label = .data$label),
+            y           = Inf,
             colour      = sig.col,
             size        = 2.8,
-            nudge_y     = diff(range(sig.df$values, na.rm = TRUE)) * 0.08 + 0.5,
-            direction   = "x",
-            segment.size    = 0.3,
-            segment.colour  = sig.col,
-            segment.alpha   = 0.6,
-            box.padding     = 0.2,
-            point.padding   = 0.3,
-            force           = 1,
-            max.overlaps    = Inf,
-            inherit.aes     = FALSE)
+            vjust       = 1.2,
+            hjust       = 0.5,
+            inherit.aes = FALSE)
 }
 
 # =============================================================================
