@@ -51,8 +51,10 @@
 #' @param sig.col Colour for highlighted points and ribbons in diagnostic
 #'   plots. Default \code{"firebrick"}.
 #' @param ncol Integer. Number of columns in the \code{facet_wrap} layout of
-#'   the \code{"stability"} plot. Defaults to \code{NULL}, which uses 3
-#'   columns (or fewer if there are fewer QTL).
+#'   the \code{"stability"} plot for univariate analyses. Defaults to
+#'   \code{NULL}, which uses 3 columns (or fewer if there are fewer QTL).
+#'   Ignored for multivariate analyses, which use
+#'   \code{facet_grid(trial ~ qtl)} regardless.
 #' @param \dots Further arguments (e.g.\ \code{digits}) passed to methods.
 #'
 #' @return \code{NULL} invisibly when \code{plot = FALSE}; a \code{ggplot}
@@ -250,6 +252,8 @@ aimTrace.qtlAim <- function(object,
 #     - Per-trial effects for Trial_t (t > 1):
 #         beta_t = main + (Trial_t interaction coefficient)
 #         SE_t   = sqrt(se_main^2 + se_int_t^2)  [approx; ignores covariance]
+#   ASReml names factor:covariate coefficients as "FactorCol_Level:X.chr.idx",
+#   so the interaction lookup uses paste0(Trait, "_", level, ":", xk).
 #   Returns one row per (QTL, iteration, trial).
 # =============================================================================
 .build_stability_df <- function(object) {
@@ -308,8 +312,12 @@ aimTrace.qtlAim <- function(object,
                         eff <- main.eff
                         se  <- sqrt(main.var)
                     } else {
-                        # Trial t: effect = main + interaction deviation
-                        int.nm  <- paste0(tname, ":", xk)
+                        # Trial t: effect = main + interaction deviation.
+                        # ASReml names factor:covariate coefficients as
+                        # "FactorCol_Level:X.chr.idx" (column name + underscore
+                        # + level value), so we must prepend the Trait column
+                        # name to match what is stored in coef.list.
+                        int.nm  <- paste0(object$QTL$Trait, "_", tname, ":", xk)
                         int.idx <- which(names(cof) == int.nm)
                         if (length(int.idx) == 0L) {
                             eff <- main.eff
@@ -340,13 +348,14 @@ aimTrace.qtlAim <- function(object,
 #
 # QTL effect stability plot.
 #
-# Univariate: one facet per QTL (3 columns), one line, lollipop + error bars.
+# Univariate: one facet per QTL (ncol columns), one line + error bars.
 #
-# Multivariate: same facet layout but one line per trial level, coloured with
-#   hcl.colors("Dark 2") palette to match the blups plot.  Facet labels carry
-#   a [MAIN] or [INT] suffix (when is.interaction is available).  The SE is
-#   approximate (ignores main/interaction coefficient covariance) so error bars
-#   are labelled accordingly in the y-axis title.
+# Multivariate: facet_grid(trial ~ qtl_label_fac).  Each cell shows a single
+#   line + translucent ribbon (±approx. 1 SE) for one trial × QTL combination.
+#   Trial rows are labelled on the right strip; QTL columns carry a [MAIN] or
+#   [INT] suffix.  Colour/legend are dropped — the grid position encodes trial
+#   identity.  y-scales are free within each QTL column (same scale across
+#   trials for a given QTL makes trial-to-trial comparison easy).
 # =============================================================================
 .plot_stability <- function(object, sig.col = "firebrick", ncol = NULL) {
 
@@ -372,47 +381,39 @@ aimTrace.qtlAim <- function(object,
 
     if (is.mv) {
         trial.levels <- object$QTL$trait.levels
-        trial.cols   <- grDevices::hcl.colors(length(trial.levels), "Dark 2")
-        names(trial.cols) <- trial.levels
-        sdf$trial <- factor(sdf$trial, levels = trial.levels)
+        sdf$trial    <- factor(sdf$trial, levels = trial.levels)
 
         gp <- ggplot2::ggplot(sdf,
-                   ggplot2::aes(x      = .data$iter,
-                                y      = .data$effect,
-                                colour = .data$trial,
-                                group  = .data$trial)) +
-            ggplot2::facet_wrap(~ qtl_label_fac, scales = "free_y", ncol = n_cols) +
+                   ggplot2::aes(x = .data$iter, y = .data$effect)) +
+            ggplot2::facet_grid(trial ~ qtl_label_fac, scales = "free_y") +
 
             ggplot2::geom_hline(yintercept = 0,
                                 linetype = "dashed", colour = "grey60",
                                 linewidth = 0.5) +
 
-            ggplot2::geom_errorbar(
-                ggplot2::aes(ymin = .data$lo, ymax = .data$hi,
-                             colour = .data$trial),
-                width = 0.15, linewidth = 0.5) +
+            ggplot2::geom_ribbon(
+                ggplot2::aes(ymin = .data$lo, ymax = .data$hi),
+                fill = sig.col, alpha = 0.15, colour = NA) +
 
-            ggplot2::geom_line(linewidth = 0.5, linetype = "dashed") +
+            ggplot2::geom_line(colour = sig.col, linewidth = 0.6,
+                               linetype = "dashed") +
 
-            ggplot2::geom_point(
-                ggplot2::aes(fill = .data$trial),
-                shape = 21, size = 2.5, stroke = 0.5,
-                colour = "white", show.legend = TRUE) +
+            ggplot2::geom_point(fill = sig.col, colour = "white",
+                                shape = 21, size = 2, stroke = 0.5) +
 
-            ggplot2::scale_colour_manual(values = trial.cols,
-                                         name   = object$QTL$Trait) +
-            ggplot2::scale_fill_manual(values   = trial.cols,
-                                       name     = object$QTL$Trait) +
             ggplot2::scale_x_continuous(breaks = all_iters) +
             ggplot2::scale_y_continuous(
-                expand = ggplot2::expansion(mult = c(0.18, 0.18))) +
+                expand = ggplot2::expansion(mult = c(0.20, 0.20))) +
             ggplot2::xlab("Iteration") +
-            ggplot2::ylab("Per-trial Effect \u00b1 approx. 1 SE") +
+            ggplot2::ylab("Effect \u00b1 approx. 1 SE") +
             theme_scatter() +
             ggplot2::theme(
-                panel.spacing = ggplot2::unit(0.8, "lines"),
-                strip.text    = ggplot2::element_text(size = 8, face = "bold"),
-                legend.position = "right")
+                panel.spacing   = ggplot2::unit(0.4, "lines"),
+                strip.text.x    = ggplot2::element_text(size = 7, face = "bold"),
+                strip.text.y    = ggplot2::element_text(size = 7),
+                axis.text       = ggplot2::element_text(size = 6),
+                axis.title      = ggplot2::element_text(size = 8),
+                legend.position = "none")
 
     } else {
         gp <- ggplot2::ggplot(sdf,

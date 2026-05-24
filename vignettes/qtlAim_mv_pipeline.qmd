@@ -515,8 +515,8 @@ the model:
 
 ```{r aimtrace_stability}
 #| eval: !expr asreml_ok
-#| fig-height: 6.5
-#| fig-cap: "Per-trial allele effect estimates ± 1 SE across iterations, coloured by trial. Stable QTL show consistent per-trial effects; G×E QTL show trial-dependent trajectories."
+#| fig-height: 9.8
+#| fig-cap: "Per-trial allele effect estimates ± approx. 1 SE across iterations. Rows = trials; columns = detected QTL with [MAIN] or [INT] suffix indicating the post-selection classification. Stable QTL show consistent effects across iterations; G×E QTL show trial-dependent trajectories."
 aimTrace(qtl_mv, plot = "stability", print.out = FALSE, ncol = 2)
 ```
 

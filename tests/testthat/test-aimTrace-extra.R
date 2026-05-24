@@ -33,12 +33,14 @@ skip_if_not_installed("ggrepel")
     qtl_keys  <- paste("Chr", chr_idx, int_idx, sep = ".")
     x_keys    <- paste("X",   chr_idx, int_idx, sep = ".")
 
-    # Build coef.list: for each iteration k, include effects up to k QTL
-    # For MV: main effect + Trial2 interaction for each QTL
+    # Build coef.list: for each iteration k, include effects up to k QTL.
+    # For MV: main effect (= reference trial) + one interaction deviation per
+    # non-reference trial.  ASReml names factor:covariate coefficients as
+    # "FactorCol_Level:X.chr.idx", so we use "Trial_S2:X.chr.idx" etc.
     coef.list  <- lapply(seq_len(n_qtl), function(k) {
         mains <- setNames(rnorm(k, 0.4, 0.05), x_keys[seq_len(k)])
         ints  <- setNames(rnorm(k, 0.1, 0.02),
-                          paste0(trials[2], ":", x_keys[seq_len(k)]))
+                          paste0("Trial_", trials[2], ":", x_keys[seq_len(k)]))
         c(mains, ints)
     })
     vcoef.list <- lapply(coef.list, function(ef)
