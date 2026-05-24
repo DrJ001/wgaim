@@ -298,7 +298,7 @@ test_that(".lrtTest: baseLogL slot equals base model loglik", {
     vcoef.list = vcoef.list,
     ldiag      = ldiag,
     state      = state,
-    iter       = n_qtl + 1L,
+    iter       = n_qtl,
     breakout   = -1L,
     cov.env    = NULL,
     genetic.term = "id",

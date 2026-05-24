@@ -302,7 +302,7 @@ gpAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     gd       <- .buildGenoData(genObj, gen.type, glines, plines)
     genoData <- gd$genoData
 
-    fl           <- .fixLines(baseModel, phenoData, genoData, merge.by, plines, fix.lines, ...)
+    fl           <- .fixLines(baseModel, phenoData, genoData, merge.by, plines, fix.lines, Trait = Trait, ...)
     baseModel    <- fl$baseModel
     phenoData    <- fl$phenoData
     merge.by     <- fl$merge.by

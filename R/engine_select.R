@@ -120,7 +120,7 @@
 
         if (ntrait == 1L) {
             pv      <- predict(asm, classify = vmterm.only,
-                               only = vmterm.only, vcov = TRUE, data = phenoData)
+                               only = vmterm.only, vcov = TRUE, data = phenoData, maxit = 1)
             atilde  <- pv$pvals[, "predicted.value"]
             qtilde  <- as.vector(cov.env$trans %*% atilde)
             vatilde <- avar * cov.env$relm - as.matrix(pv$vcov)
@@ -132,7 +132,7 @@
             # only: use the internal G.param name (vmterm.only), not the formula string.
             classify.term <- paste(Trait, merge.by, sep = ":")
             pv   <- predict(asm, classify = classify.term,
-                            only = vmterm.only, vcov = TRUE, data = phenoData)
+                            only = vmterm.only, vcov = TRUE, data = phenoData, maxit = 1)
             # Sort Trait-major: all lines for Trait 1 first, then Trait 2, ...
             # This matches kronecker(Ga, relm) which is block-structured as
             # Ga[i,j] * relm in Trait-major order.

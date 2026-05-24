@@ -38,8 +38,8 @@
         qtl.list$diag$rel.scale   <- ifelse(!is.null(cov.env), cov.env$scale, 1)
         qtl.list$breakout <- breakout != -1
         qtl.list$qtl      <- qtl
-        qtl.list$effects  <- coef.list[[iter - 1L]]
-        qtl.list$veffects <- vcoef.list[[iter - 1L]]
+        qtl.list$effects  <- coef.list[[iter]]
+        qtl.list$veffects <- vcoef.list[[iter]]
 
         # ------------------------------------------------------------------
         # Multivariate post-loop: waldTest pruning of Trait:QTL interactions

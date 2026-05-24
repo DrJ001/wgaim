@@ -258,7 +258,7 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
                 TypeI, n.markers))
 
     # Phase 2b: Handle lines present in phenotypic but absent from panel
-    fl           <- .fixLines(baseModel, phenoData, genoData, merge.by, plines, fix.lines, ...)
+    fl           <- .fixLines(baseModel, phenoData, genoData, merge.by, plines, fix.lines, Trait = Trait, ...)
     baseModel    <- fl$baseModel
     phenoData    <- fl$phenoData
     merge.by     <- fl$merge.by
@@ -268,120 +268,108 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     # -------------------------------------------------------------------------
     # Phase 3: Build and fit initial genome-wide marker model (vm or mbf path)
     # -------------------------------------------------------------------------
-    gm        <- .buildGenomeModel(baseModel, genoData, phenoData, merge.by,
-                                   genObj, force, rterms, caller.env,
-                                   Trait = Trait, str = str, ...)
-    qtlModel  <- gm$qtlModel
-    genObj    <- gm$intervalObj   # may have env attribute set (vm path)
-    cov.env   <- gm$cov.env
-    vm        <- gm$vm
-    vmterms   <- gm$vmterms
-    n.fa      <- gm$n.fa    # effective number of fa factors (0 if not fa structure)
+    gm            <- .buildGenomeModel(baseModel, genoData, phenoData, merge.by,
+                                       genObj, force, rterms, caller.env,
+                                       Trait = Trait, str = str, ...)
+    qtlModel      <- gm$qtlModel
+    genObj        <- gm$intervalObj
+    cov.env       <- gm$cov.env
+    vm            <- gm$vm
+    vmterms       <- gm$vmterms
+    n.fa          <- gm$n.fa
+    vm.struct     <- gm$vm.struct
+    upgrade.to.fa <- gm$upgrade.to.fa
+    gterm         <- gm$gterm
+    resid.term    <- gm$resid.term
 
     # -------------------------------------------------------------------------
-    # Phase 4: Iterative forward-selection loop
+    # Phase 4: Initial LRT + optional upgrade + iterative forward-selection loop
     # -------------------------------------------------------------------------
     ldiag <- coef.list <- vcoef.list <- list()
     qtl   <- c()
-    iter  <- 1
+    iter  <- 1L
 
-    repeat {
-        # Compute outlier statistics and select best marker
-        selq               <- .qtlSelect(qtlModel, phenoData, genObj, "marker",
-                                         selection, exclusion.window, state, verboseLev,
-                                         merge.by = merge.by, Trait = Trait, ntrait = ntrait)
-        state              <- selq$state
-        ldiag$oint[[iter]] <- selq$oint
-        ldiag$ochr[[iter]] <- selq$ochr
-        ldiag$blups[[iter]] <- selq$blups
+    # Initial LRT on the diag(Trait):vm model.
+    cat("\nLikelihood Ratio Test of Additive Variance (initial):\n")
+    cat("======================================================\n")
+    lrt.mods        <- .buildLRTModels(qtlModel, baseModel, ntrait, Trait,
+                                        merge.by, n.fa, vmterms, phenoData, ...)
+    lrt             <- .lrtTest(lrt.mods$qtlForLRT, lrt.mods$baseForLRT,
+                                 TypeI, ntrait = ntrait)
+    ldiag$lik[[1L]] <- c(lrt$baseLogL, lrt.mods$qtlForLRT$loglik,
+                         lrt$stat, lrt$pvalue)
+    message(sprintf("LRT: statistic = %.4f, p-value = %.4f", lrt$stat, lrt$pvalue))
 
-        # Likelihood ratio test: tests significance of the additive variance
-        # parameter of the genome-wide composite term (not individual markers).
-        # For ntrait > 1: downgrade to diag(Trait):vm/mbf for exact
-        # pchisq.mixture(stat, ntrait) type I error control.
-        #
-        # For fa(Trait,k) residual structures (n.fa > 0): ALSO downgrade the
-        # residual genetic term to diag(Trait): in both qtlForLRT and baseForLRT
-        # so both models share the same residual structure.  This cleanly
-        # isolates the vm diagonal variances without cross-contamination from
-        # the fa factor-loading parameters.  For corh/corgh (n.fa = 0) the
-        # residual is left as-is — the single vm downgrade is sufficient.
-        # Inlined so phenoData is in scope for ASReml formula resolution.
-        if (ntrait > 1L) {
-            lrt.diag.pfx <- paste0("diag(", Trait, "):")
-            mb.esc       <- gsub("([.|()\\^{}+$*?])", "\\\\\\1", merge.by)
-
-            # Build qtlForLRT: downgrade vm term (always) and residual (fa only)
-            lrt.all.rt   <- attr(terms(qtlModel$call$random), "term.labels")
-            lrt.vm.idx   <- grep("vm.*covObj|mbf.*ints", lrt.all.rt)
-            lrt.cur.term <- lrt.all.rt[lrt.vm.idx[1L]]
-            if (!startsWith(lrt.cur.term, lrt.diag.pfx)) {
-                lrt.all.rt[lrt.vm.idx] <- paste0(lrt.diag.pfx,
-                                                  sub("^[^:]+:", "", lrt.cur.term))
-            }
-            if (n.fa > 0L) {
-                lrt.resid.idx <- setdiff(
-                    grep(paste0(":", mb.esc, "$"), lrt.all.rt), lrt.vm.idx)
-                if (length(lrt.resid.idx) > 0L) {
-                    rt <- lrt.all.rt[lrt.resid.idx[1L]]
-                    if (!startsWith(rt, lrt.diag.pfx))
-                        lrt.all.rt[lrt.resid.idx[1L]] <- paste0(
-                            lrt.diag.pfx, sub("^[^:]+:", "", rt))
-                }
-            }
-            lrt.diag.ran <- as.formula(paste("~", paste(lrt.all.rt, collapse = " + ")))
-            qtlForLRT    <- update(qtlModel, random. = lrt.diag.ran, ...)
-
-            # Build baseForLRT: for fa, refit base model with diag residual.
-            # vmterms[2L] is the residual genetic term (e.g. "fa(Trial,2):id");
-            # use it directly rather than calling terms() on baseModel$call$random,
-            # which may not be a parseable formula object after repeated update() calls.
-            if (n.fa > 0L) {
-                lrt.diag.resid <- paste0(lrt.diag.pfx,
-                                         sub("^[^:]+:", "", vmterms[2L]))
-                base.diag.ran  <- as.formula(paste("~", lrt.diag.resid))
-                baseForLRT     <- update(baseModel, random. = base.diag.ran, ...)
-            } else {
-                baseForLRT <- baseModel
-            }
-        } else {
-            qtlForLRT  <- qtlModel
-            baseForLRT <- baseModel
+    if (!lrt$pass) {
+        message("No significant additive variance detected. No markers found.")
+    } else {
+        if (!is.null(vm.struct)) {
+            up       <- .upgradeVmStructure(qtlModel, vm.struct, n.fa,
+                                             upgrade.to.fa, Trait, rterms,
+                                             resid.term, gterm, vm, vmterms,
+                                             phenoData, ...)
+            qtlModel <- up$qtlModel
+            vmterms  <- up$vmterms
         }
-        lrt               <- .lrtTest(qtlForLRT, baseForLRT, TypeI, ntrait = ntrait)
-        ldiag$lik[[iter]] <- c(lrt$baseLogL, qtlForLRT$loglik, lrt$stat, lrt$pvalue)
-        if (!lrt$pass | breakout == iter) break
 
-        # Record significant marker and report
-        qtl[iter] <- selq$qtl
-        cqtl <- strsplit(qtl[iter], "\\.")
-        message("Found significant marker on chromosome ", sapply(cqtl, "[", 2),
-                " marker ", sapply(cqtl, "[", 3))
+        repeat {
+            # Compute outlier statistics and select best marker
+            selq                <- .qtlSelect(qtlModel, phenoData, genObj, "marker",
+                                              selection, exclusion.window, state, verboseLev,
+                                              merge.by = merge.by, Trait = Trait, ntrait = ntrait)
+            state               <- selq$state
+            ldiag$oint[[iter]]  <- selq$oint
+            ldiag$ochr[[iter]]  <- selq$ochr
+            ldiag$blups[[iter]] <- selq$blups
 
-        # Merge marker genotype column into phenoData
-        me        <- .mergeEffect(phenoData, genoData, qtl[iter], merge.by)
-        phenoData <- me$phenoData
-        qtl.x     <- me$qtl.x
+            # Record significant marker and report
+            qtl[iter] <- selq$qtl
+            cqtl <- strsplit(qtl[iter], "\\.")
+            message("Found significant marker on chromosome ", sapply(cqtl, "[", 2),
+                    " marker ", sapply(cqtl, "[", 3))
 
-        # Rebuild covariance object with selected marker excluded
-        rc        <- .rebuildCovObj(genoData, state, merge.by, genObj,
-                                    force, vm, vmterms, qtlModel, caller.env)
-        cov.env   <- rc$cov.env
-        genObj    <- rc$intervalObj
-        qtlModel  <- rc$qtlModel
+            # Merge marker genotype column into phenoData
+            me        <- .mergeEffect(phenoData, genoData, qtl[iter], merge.by)
+            phenoData <- me$phenoData
+            qtl.x     <- me$qtl.x
 
-        qtlModel$call$data <- baseModel$call$data <- quote(phenoData)
+            # Rebuild covariance object with selected marker excluded
+            rc        <- .rebuildCovObj(genoData, state, merge.by, genObj,
+                                        force, vm, vmterms, qtlModel, caller.env)
+            cov.env   <- rc$cov.env
+            genObj    <- rc$intervalObj
+            qtlModel  <- rc$qtlModel
 
-        # Add selected marker effect (fixed or random) to both models
-        ae                 <- .addEffect(baseModel, qtlModel, phenoData, merge.by,
-                                         qtl.x, method, iter, Trait = Trait, ...)
-        baseModel          <- ae$baseModel
-        qtlModel           <- ae$qtlModel
-        coef.list[[iter]]  <- ae$coefs
-        vcoef.list[[iter]] <- ae$vcoefs
+            qtlModel$call$data <- baseModel$call$data <- quote(phenoData)
 
-        iter <- iter + 1
-    }
+            # Add selected marker effect to both models
+            ae                 <- .addEffect(baseModel, qtlModel, phenoData, merge.by,
+                                             qtl.x, method, iter, Trait = Trait, ...)
+            baseModel          <- ae$baseModel
+            qtlModel           <- ae$qtlModel
+            coef.list[[iter]]  <- ae$coefs
+            vcoef.list[[iter]] <- ae$vcoefs
+
+            # LRT at bottom: is there still significant genome-wide variance
+            # after accounting for all detected markers?
+            cat(sprintf("\nLikelihood Ratio Test of Additive Variance - Iteration ( %d ):\n", iter))
+            cat("=================================================================\n")
+            lrt.mods               <- .buildLRTModels(qtlModel, baseModel, ntrait, Trait,
+                                                       merge.by, n.fa, vmterms, phenoData, ...)
+            lrt                    <- .lrtTest(lrt.mods$qtlForLRT, lrt.mods$baseForLRT,
+                                               TypeI, ntrait = ntrait)
+            ldiag$lik[[iter + 1L]] <- c(lrt$baseLogL, lrt.mods$qtlForLRT$loglik,
+                                        lrt$stat, lrt$pvalue)
+            lrt.stop <- !lrt$pass | breakout == iter
+            message(sprintf("LRT: statistic = %.4f, p-value = %.4f%s",
+                            lrt$stat, lrt$pvalue,
+                            if (!lrt$pass)      "  -- No further markers."
+                            else if (lrt.stop)  "  -- Breakout."
+                            else                ""))
+            if (lrt.stop) break
+            iter <- iter + 1L
+        }
+    }   # end else (lrt$pass)
 
     # -------------------------------------------------------------------------
     # Phase 5: Package results and clean up

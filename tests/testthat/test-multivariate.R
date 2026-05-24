@@ -423,16 +423,13 @@ test_that(".buildGenomeModel: corgh residual triggers corgh upgrade of additive 
                           genObj, FALSE, character(0), caller_e,
                           Trait = "Site")
     )
-    # Two update() calls expected: initial diag fit + upgrade to corgh
-    expect_length(captured, 2L)
-    # First call: diag prefix on additive term
+    # ONE update() call expected: initial diag fit only.
+    # The corgh upgrade is now deferred to .upgradeVmStructure(), called
+    # by qtlAim/gwasAim only after the initial LRT confirms signal.
+    expect_length(captured, 1L)
+    # The single call must use the diag prefix on the additive term
     rhs1 <- deparse(captured[[1L]][[2]])
     expect_true(grepl("diag\\(Site\\):vm\\(id", rhs1))
-    # Second call (upgrade): corgh prefix on additive term
-    rhs2 <- deparse(captured[[2L]][[2]])
-    expect_true(grepl("corgh\\(Site\\):vm\\(id", rhs2))
-    # Residual term stays as corgh(Site):id throughout
-    expect_true(grepl("corgh\\(Site\\):id", rhs2))
 })
 
 test_that(".buildGenomeModel: diag residual does NOT trigger upgrade (stays diag)", {
@@ -485,14 +482,10 @@ test_that(".buildGenomeModel: us(Trial) residual triggers corgh upgrade (same as
                           genObj, FALSE, character(0), caller_e,
                           Trait = "Site")
     )
-    # Two update() calls: initial diag + upgrade to corgh
-    expect_length(captured, 2L)
+    # ONE update() call: initial diag fit only (upgrade deferred).
+    expect_length(captured, 1L)
     rhs1 <- deparse(captured[[1L]][[2]])
     expect_true(grepl("diag\\(Site\\):vm\\(id", rhs1))
-    rhs2 <- deparse(captured[[2L]][[2]])
-    expect_true(grepl("corgh\\(Site\\):vm\\(id", rhs2))
-    # Residual term stays as us(Site):id throughout
-    expect_true(grepl("us\\(Site\\):id", rhs2))
 })
 
 test_that(".buildGenomeModel: vmterms[2] for us residual is us(Trait):merge.by", {
@@ -635,7 +628,7 @@ test_that(".qtlSelect Ga from corgh: ntrait=3 builds correct 3x3 symmetric matri
         vcoef.list = vcoef.list,
         ldiag      = ldiag,
         state      = state,
-        iter       = 3L,
+        iter       = 2L,
         breakout   = -1L,
         cov.env    = NULL,
         genetic.term = "id",
@@ -718,7 +711,7 @@ test_that(".packResults Trait=NULL: no Trait slot, qtlModel.pruned unchanged", {
             list(baseLogL = -48, stat = 0.3, pvalue = 0.35, pass = FALSE)
         )),
         state      = c(Chr.C1.1 = 0L, Chr.C1.2 = 0L, Chr.C2.1 = 1L),
-        iter       = 2L,
+        iter       = 1L,
         breakout   = -1L,
         cov.env    = NULL,
         genetic.term = "id",

@@ -166,67 +166,86 @@
     qtlModel$call$data <- quote(phenoData)
     qtlModel <- update(qtlModel, random. = ran.form, ...)
 
-    # -------------------------------------------------------------------------
-    # Upgrade the additive genomic term's variance structure if required.
-    # The residual genetic term (resid.term / vmterms[2]) is NEVER changed --
-    # it is the user's input structure and stays as-is throughout.
-    #
-    #   corh/corgh/us in residual (or str) -> upgrade additive to that structure:vm/mbf
-    #                                          (us in residual maps to corgh for vm/mbf)
-    #   fa(Trait,k)   in residual (or str="faK") -> upgrade additive to fa(Trait,k):vm/mbf
-    #                                               (step through fa(1)...fa(k))
-    #   diag / bare   in residual (or str="diag") -> no upgrade
-    #
-    # Note: we carry the current additive term name in gterm (set above) and
-    # build ran.form directly from it; we do NOT re-read from
-    # qtlModel$call$random, which avoids any dependency on how ASReml stores
-    # the formula internally after update().
-    # -------------------------------------------------------------------------
-    if (!is.null(vm.struct)) {
-        # other.rterms: all current random terms except the additive genomic term
-        # and the residual genetic term (those are in vmterms).  At this point
-        # only rterms (the non-genetic other terms) qualify.
-        other.rterms <- rterms   # rterms are the non-genetic terms from .fixLines()
-        gterm.cur    <- gterm    # carry the additive term name built above
+    # The additive genomic term is returned with diag(Trait): structure only.
+    # Upgrading to corh/corgh/fa is deferred to .upgradeVmStructure(), called
+    # by the analysis function after an initial LRT confirms there is signal.
+    list(qtlModel = qtlModel, intervalObj = intervalObj,
+         cov.env = cov.env, vm = vm, vmterms = vmterms, n.fa = n.fa,
+         vm.struct = vm.struct, upgrade.to.fa = upgrade.to.fa,
+         gterm = gterm, resid.term = resid.term)
+}
 
-        if (!upgrade.to.fa) {
-            # diag(Trait):vm/mbf --> vm.struct(Trait):vm/mbf
-            # vm.struct is "corh", "corgh", or "us" -- used verbatim.
-            gterm.new <- sub(paste0("^diag\\(", Trait, "\\):"),
-                             paste0(vm.struct, "(", Trait, "):"), gterm.cur)
-            ran.form  <- as.formula(paste(c("~", gterm.new, resid.term, other.rterms),
-                                          collapse = " + "))
-            message("\nQTL x ", Trait, " ", vm.struct, " Random Effects Model.")
-            cat("===============================================\n")
+# =============================================================================
+# .upgradeVmStructure
+#
+# Upgrades the additive genomic term's variance structure from the initial
+# diag(Trait): form to the requested corh/corgh/fa(k) structure.
+#
+# Called by qtlAim.asreml() and gwasAim.asreml() AFTER the initial LRT has
+# confirmed significant genome-wide additive variance, so that complex
+# unstructured models are only fitted when there is evidence of signal.
+#
+# For ntrait == 1 or vm.struct == NULL (diag or bare univariate): no-op.
+#
+# Arguments:
+#   qtlModel     : the diag(Trait):vm model returned by .buildGenomeModel()
+#   vm.struct    : character upgrade target ("corh","corgh","us","fa") or NULL
+#   n.fa         : integer, number of FA factors (0 if not FA)
+#   upgrade.to.fa: logical, TRUE when vm.struct == "fa"
+#   Trait        : character, name of the Trait factor column
+#   rterms       : character vector of other (non-genetic) random terms
+#   resid.term   : character, the residual genetic term (vmterms[2L])
+#   gterm        : character, the current additive term name (diag prefix)
+#   vm           : logical, TRUE = vm path; FALSE = mbf path
+#   vmterms      : character(2) — updated in place and returned
+#   phenoData    : phenotypic data frame (must be in scope for ASReml update())
+#   ...          : further args passed to update()
+#
+# Returns: list(qtlModel, vmterms)
+# =============================================================================
+#' @keywords internal
+.upgradeVmStructure <- function(qtlModel, vm.struct, n.fa, upgrade.to.fa,
+                                 Trait, rterms, resid.term, gterm,
+                                 vm, vmterms, phenoData, ...) {
+    if (is.null(vm.struct))
+        return(list(qtlModel = qtlModel, vmterms = vmterms))
+
+    other.rterms <- rterms
+    gterm.cur    <- gterm   # starts as diag(Trait):vm or diag(Trait):mbf
+
+    if (!upgrade.to.fa) {
+        # diag(Trait):vm/mbf --> vm.struct(Trait):vm/mbf
+        gterm.new <- sub(paste0("^diag\\(", Trait, "\\):"),
+                         paste0(vm.struct, "(", Trait, "):"), gterm.cur)
+        ran.form  <- as.formula(paste(c("~", gterm.new, resid.term, other.rterms),
+                                      collapse = " + "))
+        message("\nQTL x ", Trait, " ", vm.struct, " Random Effects Model.")
+        cat("===============================================\n")
+        qtlModel  <- update(qtlModel, random. = ran.form, ...)
+        gterm.cur <- gterm.new
+
+    } else {
+        # diag(Trait):vm/mbf --> fa(Trait,1):vm/mbf --> ... --> fa(Trait,n.fa):vm/mbf
+        for (k in seq_len(n.fa)) {
+            old.struct <- if (k == 1L)
+                paste0("^diag\\(", Trait, "\\):")
+            else
+                paste0("^fa\\(", Trait, ",\\s*", k - 1L, "\\):")
+            new.struct <- paste0("fa(", Trait, ",", k, "):")
+            gterm.new  <- sub(old.struct, new.struct, gterm.cur)
+            ran.form   <- as.formula(paste(c("~", gterm.new, resid.term, other.rterms),
+                                           collapse = " + "))
+            message("\nQTL x ", Trait, " Factor Analytic(", k,
+                    ") Random Effects Model.")
+            cat("===================================================\n")
             qtlModel  <- update(qtlModel, random. = ran.form, ...)
             gterm.cur <- gterm.new
-
-        } else {
-            # diag(Trait):vm/mbf --> fa(Trait,1):vm/mbf --> ... --> fa(Trait,n.fa):vm/mbf
-            for (k in seq_len(n.fa)) {
-                old.struct <- if (k == 1L)
-                    paste0("^diag\\(", Trait, "\\):")
-                else
-                    paste0("^fa\\(", Trait, ",\\s*", k - 1L, "\\):")
-                new.struct <- paste0("fa(", Trait, ",", k, "):")
-                gterm.new  <- sub(old.struct, new.struct, gterm.cur)
-                ran.form   <- as.formula(paste(c("~", gterm.new, resid.term, other.rterms),
-                                               collapse = " + "))
-                message("\nQTL x ", Trait, " Factor Analytic(", k,
-                        ") Random Effects Model.")
-                cat("===================================================\n")
-                qtlModel  <- update(qtlModel, random. = ran.form, ...)
-                gterm.cur <- gterm.new
-            }
         }
-
-        # Keep vmterms[1] in sync with the upgraded additive term.
-        # vmterms[2] (the residual genetic term) is never changed.
-        if (vm) vmterms[1L] <- gterm.cur
     }
 
-    list(qtlModel = qtlModel, intervalObj = intervalObj,
-         cov.env = cov.env, vm = vm, vmterms = vmterms, n.fa = n.fa)
+    # Keep vmterms[1] in sync with the upgraded additive term.
+    if (vm) vmterms[1L] <- gterm.cur
+    list(qtlModel = qtlModel, vmterms = vmterms)
 }
 
 #' @keywords internal

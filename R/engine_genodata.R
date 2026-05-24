@@ -21,7 +21,12 @@
 }
 
 #' @keywords internal
-.fixLines <- function(baseModel, phenoData, genoData, merge.by, plines, fix.lines, ...) {
+#' Trait : character name of the Trait factor (NULL = univariate).
+#'   NULL  -> adds bare "Gomit" to fixed effects (current behaviour).
+#'   non-NULL -> adds "Trait:Gomit" so that the omitted-line correction is
+#'               applied within each trial level, not just overall.
+.fixLines <- function(baseModel, phenoData, genoData, merge.by, plines,
+                      fix.lines, Trait = NULL, ...) {
     rterms <- .rhs_terms(baseModel$call$random)
     # Split off the genetic term (contains merge.by) from the other random terms.
     gen.idx <- grep(merge.by, rterms)
@@ -33,7 +38,13 @@
         phenoData$Gomit <- phenoData$Gsave <- plines
         levels(phenoData$Gsave)[!whg] <- NA
         levels(phenoData$Gomit)[whg] <- "GEN"
-        fix.form <- as.formula(". ~ Gomit + .")
+        # Multivariate: absorb omitted-line effects within each Trait level.
+        # Univariate: bare Gomit is sufficient.
+        gomit.term <- if (!is.null(Trait))
+            paste0(Trait, ":Gomit")
+        else
+            "Gomit"
+        fix.form <- as.formula(paste(". ~", gomit.term, "+ ."))
         # Substitute merge.by -> Gsave in the genetic term, preserving any
         # variance structure prefix (e.g. corgh(Trial):Variety -> corgh(Trial):Gsave).
         mb.esc       <- gsub("([.|()\\^{}+$*?])", "\\\\\\1", merge.by)
