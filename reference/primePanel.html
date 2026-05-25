@@ -204,6 +204,13 @@ disequilibrium information to produce well-calibrated dosage values.
 Their output can be supplied directly to <code>primePanel</code> as a matrix
 of dosage values in \([0, 2]\) with <code>encoding = "012"</code> and
 <code>impute = "none"</code>.</p>
+<p>When pre-imputation software is not available, <code>impute = "knn"</code> provides
+chromosome-wise <em>k</em>-nearest neighbour imputation within the package.
+Pairwise distances are computed via <code><a href="https://rdrr.io/r/base/crossprod.html" class="external-link">tcrossprod()</a></code> (BLAS), neighbours
+are pre-sorted once per chromosome, and each missing call is replaced by the
+mean of the <code>knn.k</code> nearest lines with a valid genotype at that marker.
+This respects the LD structure within each chromosome and is the recommended
+in-package option for missing rates up to ~10–15%.</p>
 <p>Column-mean imputation (<code>impute = "mean"</code>) inflates
 apparent precision and ignores the LD structure that makes imputation
 informative. For a panel of \(n\) lines and \(p\) markers it requires
