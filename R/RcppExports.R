@@ -17,6 +17,6 @@
 #' @return Numeric vector of length nmarkers.
 #' @keywords internal
 compute_vqtilde <- function(trans, Ginv, vatilde, ntrait) {
-    .Call(`_wgAim_compute_vqtilde`, trans, Ginv, vatilde, ntrait)
+    .Call('_wgAim_compute_vqtilde', PACKAGE = 'wgAim', trans, Ginv, vatilde, ntrait)
 }
 
