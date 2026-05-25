@@ -105,6 +105,14 @@
 #' of dosage values in \eqn{[0, 2]} with \code{encoding = "012"} and
 #' \code{impute = "none"}.
 #'
+#' When pre-imputation software is not available, \code{impute = "knn"} provides
+#' chromosome-wise \emph{k}-nearest neighbour imputation within the package.
+#' Pairwise distances are computed via \code{tcrossprod()} (BLAS), neighbours
+#' are pre-sorted once per chromosome, and each missing call is replaced by the
+#' mean of the \code{knn.k} nearest lines with a valid genotype at that marker.
+#' This respects the LD structure within each chromosome and is the recommended
+#' in-package option for missing rates up to ~10--15\%.
+#'
 #' Column-mean imputation (\code{impute = "mean"}) inflates
 #' apparent precision and ignores the LD structure that makes imputation
 #' informative. For a panel of \eqn{n} lines and \eqn{p} markers it requires
