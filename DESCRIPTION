@@ -11,7 +11,8 @@ Authors@R: c(person(given = "Julian",
                       role = "aut",
                       email = "averbyla@avdataanalytics.com.au"))
 Depends: R (>= 3.5.0), qtl
-Imports: ggplot2, ggrepel, MASS
+Imports: ggplot2, ggrepel, MASS, Rcpp (>= 1.0.0)
+LinkingTo: Rcpp, RcppArmadillo
 Suggests: quarto, testthat (>= 3.0.0), covr
 VignetteBuilder: quarto
 Config/Needs/website: pkgdown
