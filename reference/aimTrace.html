@@ -159,8 +159,10 @@ plots. Default <code>"firebrick"</code>.</p></dd>
 
 <dt id="arg-ncol">ncol<a class="anchor" aria-label="anchor" href="#arg-ncol"></a></dt>
 <dd><p>Integer. Number of columns in the <code>facet_wrap</code> layout of
-the <code>"stability"</code> plot. Defaults to <code>NULL</code>, which uses 3
-columns (or fewer if there are fewer QTL).</p></dd>
+the <code>"stability"</code> plot for univariate analyses. Defaults to
+<code>NULL</code>, which uses 3 columns (or fewer if there are fewer QTL).
+Ignored for multivariate analyses, which use
+<code>facet_grid(trial ~ qtl)</code> regardless.</p></dd>
 
 </dl></div>
     <div class="section level2">
