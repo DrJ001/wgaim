@@ -701,7 +701,7 @@
 <p>Combines per-environment GEBVs from a multivariate <code><a href="reference/gpAim.html">gpAim()</a></code> result into a single selection index. Three index types are available:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">si</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/selIndex.html">selIndex</a></span><span class="op">(</span><span class="va">gp.fit</span>, weights <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>E1 <span class="op">=</span> <span class="fl">1</span>, E2 <span class="op">=</span> <span class="fl">2</span><span class="op">)</span>,</span>
-<span>               type <span class="op">=</span> <span class="st">"smith-hazel"</span>, prop.select <span class="op">=</span> <span class="fl">0.10</span>, selection <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+<span>               type <span class="op">=</span> <span class="st">"smith-hazel"</span>, prop.select <span class="op">=</span> <span class="fl">0.10</span>, selected <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
 <table class="table">
 <thead><tr>
 <th><code>type</code></th>
@@ -722,7 +722,7 @@
 </tr>
 </tbody>
 </table>
-<p>Users can use the various method to help select the top <code>prop.select</code> of lines. A <code>selection</code> of lines can also be passed to the function. in both instamces the <code>$gain</code> output reports the expected genetic gain per trait (or environment) for the selection of lines.</p>
+<p>Users can use the various methods to select the top <code>prop.select</code> of lines by index value. A character vector of line identifiers can also be passed via <code>selected</code> to apply an externally determined selection; in both cases <code>$gain</code> reports the expected genetic gain per trait or environment.</p>
 <hr>
 </div>
 </div>
@@ -806,9 +806,19 @@
 <td>GEBV caterpillar plot with accuracy-based error bars</td>
 </tr>
 <tr>
-<td><code>"accuracy"</code></td>
+<td><code>"density"</code></td>
 <td><code>gpAim</code></td>
-<td>Distribution of prediction accuracies</td>
+<td>Density plot of prediction accuracies</td>
+</tr>
+<tr>
+<td><code>"blups"</code></td>
+<td><code>gpAim</code></td>
+<td>Per-line GEBV ranked plot (requires <code>genObj</code>)</td>
+</tr>
+<tr>
+<td><code>"heatmap"</code></td>
+<td><code>gpAim</code></td>
+<td>GEBV × environment heatmap for multivariate models</td>
 </tr>
 <tr>
 <td><code>"index"</code></td>
@@ -834,9 +844,10 @@
 </h3>
 <p><code><a href="reference/aimTrace.html">aimTrace()</a></code> traces the forward-selection iterations of a <code>qtlAim</code> or <code>gwasAim</code> fit, showing how QTL were progressively added and how their effects evolved.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/aimTrace.html">aimTrace</a></span><span class="op">(</span><span class="va">qtl.fit</span>, plot <span class="op">=</span> <span class="st">"lrt"</span><span class="op">)</span>       <span class="co"># LRT statistic at each iteration</span></span>
-<span><span class="fu"><a href="reference/aimTrace.html">aimTrace</a></span><span class="op">(</span><span class="va">qtl.fit</span>, plot <span class="op">=</span> <span class="st">"stability"</span><span class="op">)</span> <span class="co"># QTL effect ± 1 SE across iterations</span></span>
-<span><span class="fu"><a href="reference/aimTrace.html">aimTrace</a></span><span class="op">(</span><span class="va">qtl.fit</span>, plot <span class="op">=</span> <span class="st">"both"</span><span class="op">)</span>      <span class="co"># returns both plots as a list</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="reference/aimTrace.html">aimTrace</a></span><span class="op">(</span><span class="va">qtl.fit</span>, plot <span class="op">=</span> <span class="st">"lrt"</span><span class="op">)</span>                        <span class="co"># LRT statistic at each iteration</span></span>
+<span><span class="fu"><a href="reference/aimTrace.html">aimTrace</a></span><span class="op">(</span><span class="va">qtl.fit</span>, plot <span class="op">=</span> <span class="st">"stability"</span><span class="op">)</span>                  <span class="co"># QTL effect ± 1 SE across iterations</span></span>
+<span><span class="fu"><a href="reference/aimTrace.html">aimTrace</a></span><span class="op">(</span><span class="va">qtl.fit</span>, plot <span class="op">=</span> <span class="st">"both"</span><span class="op">)</span>                       <span class="co"># returns both plots as a list</span></span>
+<span><span class="fu"><a href="reference/aimTrace.html">aimTrace</a></span><span class="op">(</span><span class="va">qtl.fit</span>, plot <span class="op">=</span> <span class="st">"lrt"</span>, print.out <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>     <span class="co"># suppress console p-value table</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="fine-mapping--finemap">Fine mapping — <code>fineMap()</code>
