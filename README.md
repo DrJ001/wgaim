@@ -326,7 +326,7 @@ into a single selection index. Three index types are available:
 
 ```r
 si <- selIndex(gp.fit, weights = c(E1 = 1, E2 = 2),
-               type = "smith-hazel", prop.select = 0.10, selection = NULL)
+               type = "smith-hazel", prop.select = 0.10, selected = NULL)
 ```
 
 | `type` | Method |
@@ -335,10 +335,10 @@ si <- selIndex(gp.fit, weights = c(E1 = 1, E2 = 2),
 | `"smith-hazel"` | Classical Smith-Hazel index |
 | `"desired-gains"` | Pesek-Baker desired-gains index |
 
-Users can use the various method to help select the top `prop.select` of
-lines. A `selection` of lines can also be passed to the function. in both
-instamces the `$gain` output reports the expected genetic gain per trait (or
-environment) for the selection of lines.
+Users can use the various methods to select the top `prop.select` of
+lines by index value. A character vector of line identifiers can also be
+passed via `selected` to apply an externally determined selection; in both
+cases `$gain` reports the expected genetic gain per trait or environment.
 
 ---
 
@@ -375,7 +375,9 @@ argument selecting the display:
 | `"heatmap"` | `qtlAim`, `gwasAim` | Genome × iteration heatmap of outlier statistics |
 | `"chr"` | `qtlAim` | Chromosome-level bar chart (chromosome selection only) |
 | `"caterpillar"` | `gpAim` | GEBV caterpillar plot with accuracy-based error bars |
-| `"accuracy"` | `gpAim` | Distribution of prediction accuracies |
+| `"density"` | `gpAim` | Density plot of prediction accuracies |
+| `"blups"` | `gpAim` | Per-line GEBV ranked plot (requires `genObj`) |
+| `"heatmap"` | `gpAim` | GEBV × environment heatmap for multivariate models |
 | `"index"` | `selIndex` | Index value scatter with selection threshold |
 | `"heatmap"` | `selIndex` | GEBV × environment heatmap for selected lines |
 | `"weights"` | `selIndex` | Index weight bar chart |
@@ -387,9 +389,10 @@ argument selecting the display:
 effects evolved.
 
 ```r
-aimTrace(qtl.fit, plot = "lrt")       # LRT statistic at each iteration
-aimTrace(qtl.fit, plot = "stability") # QTL effect ± 1 SE across iterations
-aimTrace(qtl.fit, plot = "both")      # returns both plots as a list
+aimTrace(qtl.fit, plot = "lrt")                        # LRT statistic at each iteration
+aimTrace(qtl.fit, plot = "stability")                  # QTL effect ± 1 SE across iterations
+aimTrace(qtl.fit, plot = "both")                       # returns both plots as a list
+aimTrace(qtl.fit, plot = "lrt", print.out = FALSE)     # suppress console p-value table
 ```
 
 ### Fine mapping — `fineMap()`
