@@ -6,3 +6,6 @@ intro.bib.bak
 *.Rproj
 Rplots.pdf
 scratch/
+src/*.o
+src/*.dll
+src/*.so

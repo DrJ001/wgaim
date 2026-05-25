@@ -159,14 +159,13 @@ qchisq.mixture <- function(prob, ntrait = 2L, tol = .Machine$double.eps^0.5) {
 
 # -----------------------------------------------------------------------------
 # .compute_vqtilde
-# Compute the diagonal of  trans %*% vatilde %*% t(trans)  in a way that
-# scales to ntrait > 1 without building the full (nlines*ntrait) x (nlines*ntrait)
-# intermediate matrix explicitly.
+# Pure-R fallback for the Rcpp compute_vqtilde() in src/.
+# Retained for use in tests. Computes tr(Ginv %*% Ti %*% vatilde %*% t(Ti))
+# for each marker row i of trans, where Ti = kronecker(I_ntrait, trans[i,]).
 #
 # trans   : nmarkers x nlines transformation matrix (from .constructCM)
 # Ginv    : ntrait x ntrait precision matrix (inverse of Ga)
-# vatilde : (nlines*ntrait) x (nlines*ntrait) posterior variance of atilde
-#           arranged in trait-major order (i.e. kronecker(Ga, relm) - vcov)
+# vatilde : (nlines*ntrait) x (nlines*ntrait) posterior variance, trait-major
 # ntrait  : number of traits
 #
 # Returns : numeric vector of length nmarkers

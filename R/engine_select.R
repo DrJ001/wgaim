@@ -64,19 +64,9 @@
             psi <- pmax(vpars.raw[!is.loading] * sigma2, 0)
             Lam <- matrix(vpars.raw[is.loading], ncol = n.fa)
             Ga  <- Lam %*% t(Lam) + diag(as.numeric(psi))
-            # Robustness: when Psi parameters are driven to zero (boundary),
-            # Ga = Lambda Lambda' is rank n.fa < ntrait.  MASS::ginv() then
-            # yields a rank-deficient pseudoinverse with huge values in the
-            # null space — amplifying noise in every interval's q vector and
-            # inflating all outlier statistics uniformly.
-            # Fix: floor eigenvalues at 1% of the largest eigenvalue (a
-            # relative ridge).  This caps Ginv eigenvalues at ~100x the
-            # reciprocal of the dominant genetic variance, keeping the
-            # null-space amplification bounded and the outlier statistics
-            # interpretable.  The floor is negligible when Psi >> 0.
-            ev  <- eigen(Ga, symmetric = TRUE)
-            eps <- max(1e-6, 0.01 * max(abs(ev$values)))
-            Ga  <- ev$vectors %*% diag(pmax(ev$values, eps)) %*% t(ev$vectors)
+            # When specific variances hit the boundary (zero), Ga is rank-deficient.
+            # MASS::ginv() computes the Moore-Penrose pseudoinverse, which is the
+            # correct generalised inverse Ga^- without ad-hoc regularisation.
         } else {
             # Fallback: treat as unstructured
             Ga <- diag(vpars[1:ntrait])
@@ -101,22 +91,10 @@
         # vm path
         rterms.all <- attr(terms.formula(asm$call$random), "term.labels")
         vmterm.raw <- rterms.all[grep("vm.*covObj", rterms.all)]
-        # vmterm.raw is the full formula term, e.g.:
-        #   univariate  : "vm(merge.by, covObj)"
-        #   multivariate: "corgh(Trial):vm(merge.by, covObj)"
-        #
-        # ASReml strips the variance-structure prefix (diag/corgh/fa) when
-        # storing the term in $G.param. The internal name is always:
-        #   univariate  : "vm(merge.by, covObj)"
-        #   multivariate: "Trial:vm(merge.by, covObj)"   <-- prefix replaced by "Trait:"
-        #
-        # predict() requires the *internal* G.param name in its `only` argument,
-        # not the formula string.  Build it from names(asm$G.param).
+        # vmterm.only: G.param key used for predict(only=) in the UV case.
+        # MV predict(only=) requires the raw formula string (vmterm.raw) because
+        # ASReml matches on the formula term, not the G.param key.
         vmterm.only <- names(asm$G.param)[grep("vm.*covObj", names(asm$G.param))]
-        # For predict():
-        #   classify -- the factor cross to predict over: "merge.by" (univariate)
-        #               or "merge.by:Trait" (multivariate)
-        #   only     -- the internal G.param name (vmterm.only)
 
         if (ntrait == 1L) {
             pv      <- predict(asm, classify = vmterm.only,
@@ -127,12 +105,10 @@
             qhalf   <- cov.env$trans %*% vatilde
             vqtilde <- colSums(t(qhalf) * t(cov.env$trans))
         } else {
-            # classify: ASReml's internal G.param name is "Trait:merge.by" order.
-            # The classify argument to predict() must match that factor ordering.
-            # only: use the internal G.param name (vmterm.only), not the formula string.
+            # MV: use the raw formula term string for `only`, not the G.param key.
             classify.term <- paste(Trait, merge.by, sep = ":")
             pv   <- predict(asm, classify = classify.term,
-                            only = vmterm.only, vcov = TRUE, data = phenoData, maxit = 1)
+                            only = vmterm.raw, vcov = TRUE, data = phenoData, maxit = 1)
             # Sort Trait-major: all lines for Trait 1 first, then Trait 2, ...
             # This matches kronecker(Ga, relm) which is block-structured as
             # Ga[i,j] * relm in Trait-major order.
@@ -147,7 +123,10 @@
             # Back-transform: qtilde.mat is nmarkers x ntrait
             qtilde.mat <- cov.env$trans %*% atilde
             vatilde    <- kronecker(Ga, cov.env$relm) - pev
-            vqtilde    <- .compute_vqtilde(cov.env$trans, Ginv, vatilde, ntrait)
+
+            # Use the Rcpp implementation for speed and correctness.
+            vqtilde    <- compute_vqtilde(cov.env$trans, Ginv,
+                                          as.matrix(vatilde), ntrait)
             # Scalar outlier stat: t(qtilde_i) %*% Ginv %*% qtilde_i
             qtilde <- apply(qtilde.mat, 1L, function(q) sum(q * (Ginv %*% q)))
             # Signed scaled BLUPs (nmarkers x ntrait): per-trial z-scores.
@@ -224,7 +203,6 @@
         ifelse(vqtilde > 0, qtilde  / vqtilde, 0)
     names(oint) <- gnams
     ochr <- NULL
-
     if (selection == "chromosome") {
         chr.names <- names(intervalObj$geno)
         nochr     <- length(chr.names)
@@ -278,20 +256,9 @@
     qtl  <- qtl[1]
     tint <- state
     tint[as.logical(state)] <- oint
-    # blups:
-    #   ntrait == 1: named vector (all markers), signed z-score qtilde/sqrt(vqtilde).
-    #                Sign is preserved for contrast/BLUP plots.
-    #   ntrait >  1: named matrix (all markers x ntrait), per-trial signed z-scores
-    #                from scaled.mat.  Rows for excluded markers are zero.
-    #                Column names are trait levels.
-    # blups:
-    #   ntrait == 1: named vector (all markers), signed z-score qtilde/sqrt(vqtilde).
-    #                Markers where vqtilde == 0 (floored from negative PEV > prior)
-    #                are set to zero to avoid Inf/huge values from near-zero denominators.
-    #   ntrait >  1: named matrix (all markers x ntrait), per-trial signed z-scores
-    #                from scaled.mat.  Rows for excluded markers and rows where all
-    #                per-trial variances are zero are set to zero.
-    #                Column names are trait levels.
+    # blups: signed z-scores for BLUP/contrast plots.
+    #   ntrait == 1: named vector (length = all markers); zero where vqtilde == 0.
+    #   ntrait >  1: named matrix (all markers x ntrait); zero rows for excluded markers.
     if (ntrait == 1L) {
         blups <- state
         blups[as.logical(state)] <- ifelse(
