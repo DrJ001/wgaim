@@ -187,7 +187,7 @@ comparison correction is needed for this test as the `TypeI` value acts like a
 family-wise error rate (see Verbyla et al. 2007 for more details.)
 
 Once the null hypothesis of no QTL is rejected genome-wide **outlier statistics**
-are calculated for every every interval where, for interval $k$, are
+are calculated for every interval where, for interval $k$, is
 
 $$
 o_k = \frac{\tilde{q}_k^2}{\tilde{v}_k},
