@@ -209,9 +209,7 @@ $\tilde{v}_k = \text{tr}\!\left(\boldsymbol{G}_a^{-1}\,
 $\boldsymbol{T}_k = \boldsymbol{I}_T \otimes \boldsymbol{t}_k^\top$ is the
 extraction matrix for interval $k$, and
 $\tilde{\boldsymbol{V}}_{\boldsymbol{a}}$ is the posterior variance matrix
-of the composite random term. This statistic is non-negative and
-approximately chi-squared scaled, placing all intervals on a common scale
-regardless of the number of environments.
+of the composite random term. 
 
 ### Post-selection: main-effect vs G×E QTL
 

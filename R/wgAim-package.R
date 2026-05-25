@@ -94,4 +94,6 @@
 #' @aliases wgAim
 #'
 #' @import stats utils graphics grDevices qtl ggplot2
+#' @importFrom Rcpp sourceCpp
+#' @useDynLib wgAim, .registration = TRUE
 NULL

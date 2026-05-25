@@ -65,8 +65,10 @@ plots. Default \code{"firebrick"}.}
 \item{\dots}{Further arguments (e.g.\ \code{digits}) passed to methods.}
 
 \item{ncol}{Integer. Number of columns in the \code{facet_wrap} layout of
-the \code{"stability"} plot. Defaults to \code{NULL}, which uses 3
-columns (or fewer if there are fewer QTL).}
+the \code{"stability"} plot for univariate analyses. Defaults to
+\code{NULL}, which uses 3 columns (or fewer if there are fewer QTL).
+Ignored for multivariate analyses, which use
+\code{facet_grid(trial ~ qtl)} regardless.}
 }
 \value{
 \code{NULL} invisibly when \code{plot = FALSE}; a \code{ggplot}
