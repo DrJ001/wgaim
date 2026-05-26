@@ -133,9 +133,21 @@ typical call sequence is:
 ```r
 chk   <- checkPanel(geno, map)
 print(chk)
-clean <- filterPanel(chk, miss.marker = 0.20, miss.line = 0.20, maf = 0.05)
+clean <- filterPanel(chk)           # default steps: map → miss.marker → miss.line → dup.lines → maf
 print(clean)
 panel <- primePanel(clean, impute = "knn", knn.k = 5)
+```
+
+`filterPanel()` can also be called on a `"filteredPanel"` object to apply
+additional filtering in a second pass. Each pass is appended to the
+object's history and displayed by `print()`:
+
+```r
+# Two-pass workflow: broad filters first, then tighten MAF on the clean set
+pass1 <- filterPanel(chk,   steps = list(map = TRUE, miss.marker = 0.20,
+                                         miss.line = 0.20, dup.lines = TRUE))
+pass2 <- filterPanel(pass1, steps = list(maf = 0.05))
+print(pass2)   # shows both passes and an overall Final summary
 ```
 
 #### `checkPanel()` — diagnose data quality
@@ -163,25 +175,46 @@ summary output.
 
 #### `filterPanel()` — apply data quality filters
 
-`filterPanel()` applies a sequential set of filters in a statistically
-principled order. Each step operates on data already cleaned by the
-preceding steps. Passing a `"checkPanel"` object as the first argument
-automatically reuses the stored `geno`, `map`, `encoding`, and column-name
-arguments.
+`filterPanel()` applies a user-defined sequence of data quality filters.
+Filtering is controlled by a single `steps` named list — the **element
+order is the execution order**, so users have full control over which
+filters run and in what sequence. Passing a `"checkPanel"` object as the
+first argument automatically reuses the stored `geno`, `map`, `encoding`,
+and column-name arguments.
 
-| Step | Filter | Default |
+The eight available steps and their default values are:
+
+| Step name | Filter | Default value |
 |---|---|---|
-| 1 | **Map consistency** — markers absent from `map` are dropped | always applied |
-| 2 | **Marker missingness** — markers above `miss.marker` are removed first, before lines are assessed | `0.20` |
-| 3 | **Line missingness** — lines above `miss.line` are removed, computed on the cleaned marker set | `0.20` |
-| 4 | **Line heterozygosity** — lines above `het.line` are removed; excess het indicates a mislabelled or contaminated sample | `NULL` (skipped) |
-| 5 | **Marker heterozygosity** — markers above `het.marker` are removed; high per-marker het suggests a paralogous locus | `NULL` (skipped) |
-| 6 | **Duplicate lines** — second and subsequent copies removed after quality filters, so clean copies are retained | `TRUE` |
-| 7 | **Duplicate markers** — second and subsequent copies removed | `FALSE` |
-| 8 | **MAF** — markers below `maf` are removed last, on the fully cleaned dataset | `0.05` |
+| `map` | **Map consistency** — markers absent from `map` are dropped; always forced as step 1 | `TRUE` |
+| `miss.marker` | **Marker missingness** — markers above threshold removed before lines are assessed | `0.20` |
+| `miss.line` | **Line missingness** — lines above threshold removed on the cleaned marker set | `0.20` |
+| `het.line` | **Line heterozygosity** — lines above threshold removed; excess het indicates a mislabelled or contaminated sample | `NULL` (skipped) |
+| `het.marker` | **Marker heterozygosity** — markers above threshold removed; high per-marker het suggests a paralogous locus | `NULL` (skipped) |
+| `dup.lines` | **Duplicate lines** — second and subsequent copies removed after quality filters | `TRUE` |
+| `dup.markers` | **Duplicate markers** — second and subsequent copies removed | `FALSE` (skipped) |
+| `maf` | **MAF** — markers below threshold removed last, on the fully cleaned dataset | `0.05` |
 
-The `print()` method reports each step, the number of lines or markers
-removed, and the final panel dimensions.
+The default `steps` list reproduces the original statistically principled
+workflow. Supply a partial list to run only selected steps in a chosen
+order, or use `modifyList()` to adjust individual thresholds while keeping
+all other defaults:
+
+```r
+# Run only three steps in a custom order
+filterPanel(chk, steps = list(map = TRUE, maf = 0.01, miss.marker = 0.10))
+
+# Tighten one threshold, keep everything else at its default
+filterPanel(chk, steps = modifyList(formals(filterPanel.default)$steps,
+                                    list(miss.marker = 0.10)))
+```
+
+Numeric steps are skipped when their value is `NULL`; logical steps
+(`map`, `dup.lines`, `dup.markers`) are skipped when `FALSE`. The
+`print()` method reports each step in the order it ran, the number of
+lines or markers removed per step, and the final panel dimensions.
+Multi-pass objects show a section per pass and an overall **Final**
+summary.
 
 #### `primePanel()` — build the analysis-ready object
 

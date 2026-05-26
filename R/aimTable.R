@@ -71,7 +71,7 @@
 #' }
 #'
 #' @export
-aimTable <- function(..., genObj, labels = NULL, columns = "all", LOD = TRUE) {
+aimTable <- function(..., genObj = NULL, labels = NULL, columns = "all", LOD = TRUE) {
 
     dots <- list(...)
 
@@ -80,7 +80,7 @@ aimTable <- function(..., genObj, labels = NULL, columns = "all", LOD = TRUE) {
     if (length(dots) == 0L)
         stop("Supply at least one 'qtlAim' or 'gwasAim' object via '...'.")
 
-    if (missing(genObj))
+    if (is.null(genObj))
         stop("'genObj' is a required argument.")
 
     # Determine and enforce a single common object class
@@ -181,7 +181,7 @@ aimTable <- function(..., genObj, labels = NULL, columns = "all", LOD = TRUE) {
         summ_list <- lapply(summ_list, function(s) {
             bad <- columns[columns < 1L | columns > ncol(s)]
             if (length(bad))
-                stop("'columns' contains out-of-range indices (", 
+                stop("'columns' contains out-of-range indices (",
                      paste(bad, collapse = ", "), ") for a summary table ",
                      "with ", ncol(s), " columns (valid range: 1 to ",
                      ncol(s), ").")

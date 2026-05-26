@@ -2,9 +2,14 @@
 % Please edit documentation in R/filterPanel.R
 \name{filterPanel}
 \alias{filterPanel}
+\alias{filterPanel.default}
+\alias{filterPanel.checkPanel}
+\alias{filterPanel.filteredPanel}
 \title{Filter a Marker Panel by Data Quality Thresholds}
 \usage{
-filterPanel(
+filterPanel(geno, ...)
+
+\method{filterPanel}{default}(
   geno,
   map,
   id = "id",
@@ -12,25 +17,34 @@ filterPanel(
   map.chr = "chr",
   map.pos = "pos",
   encoding = "012",
-  miss.marker = 0.2,
-  miss.line = 0.2,
-  het.line = NULL,
-  het.marker = NULL,
-  dup.lines = TRUE,
-  dup.markers = FALSE,
-  maf = 0.05
+  steps = list(map = TRUE, miss.marker = 0.2, miss.line = 0.2, het.line = NULL,
+    het.marker = NULL, dup.lines = TRUE, dup.markers = FALSE, maf = 0.05),
+  ...
+)
+
+\method{filterPanel}{checkPanel}(
+  geno,
+  steps = list(map = TRUE, miss.marker = 0.2, miss.line = 0.2, het.line = NULL,
+    het.marker = NULL, dup.lines = TRUE, dup.markers = FALSE, maf = 0.05),
+  ...
+)
+
+\method{filterPanel}{filteredPanel}(
+  geno,
+  steps = list(map = TRUE, miss.marker = 0.2, miss.line = 0.2, het.line = NULL,
+    het.marker = NULL, dup.lines = TRUE, dup.markers = FALSE, maf = 0.05),
+  ...
 )
 }
 \arguments{
 \item{geno}{A numeric matrix (\code{lines x markers}) with row names
-identifying lines, a \code{data.frame} with a line identifier column, or
-a \code{"checkPanel"} object from \code{\link{checkPanel}}.  When a
-\code{"checkPanel"} object is supplied the stored \code{geno},
-\code{map}, \code{encoding}, and column-name arguments are used
-automatically and the remaining arguments below need not be specified.}
+identifying lines, a \code{data.frame} with a line identifier column, a
+\code{"checkPanel"} object from \code{\link{checkPanel}}, or a
+\code{"filteredPanel"} object from a previous \code{filterPanel()} call.}
 
 \item{map}{A \code{data.frame} containing the genetic map.  Not required
-when \code{geno} is a \code{"checkPanel"} object.}
+when \code{geno} is a \code{"checkPanel"} or \code{"filteredPanel"} object
+(the stored map is used automatically).}
 
 \item{id}{Character string naming the line identifier column when
 \code{geno} is a \code{data.frame}.  Default \code{"id"}.}
@@ -47,83 +61,83 @@ Default \code{"chr"}.}
 \item{encoding}{Character string specifying the genotype encoding:
 \code{"012"} (default) or \code{"pm1"}.}
 
-\item{miss.marker}{Numeric scalar.  Markers with a missing rate above this
-threshold are removed.  Default \code{0.20}.  Set to \code{NULL} to
-skip.}
-
-\item{miss.line}{Numeric scalar.  Lines with a missing rate above this
-threshold are removed.  Default \code{0.20}.  Set to \code{NULL} to
-skip.}
-
-\item{het.line}{Numeric scalar.  Lines with a heterozygosity rate above
-this threshold are removed (step 4).  Excess heterozygosity in a line
-typically indicates a mislabelled or contaminated sample.
-\code{NULL} (default) skips this filter.}
-
-\item{het.marker}{Numeric scalar.  Markers with a heterozygosity rate
-above this threshold are removed (step 5).  High per-marker
-heterozygosity can indicate a paralogous locus or genotyping artefact.
-\code{NULL} (default) skips this filter.}
-
-\item{dup.lines}{Logical.  If \code{TRUE} (default), duplicate lines are
-removed (step 6, after quality filters so clean copies are retained).}
-
-\item{dup.markers}{Logical.  If \code{FALSE} (default), duplicate markers
-are \emph{not} removed.  Set to \code{TRUE} to drop them (step 7).}
-
-\item{maf}{Numeric scalar.  Markers with minor allele frequency below this
-threshold are removed.  Default \code{0.05}.  Set to \code{NULL} to
-skip.}
+\item{steps}{A named list controlling which filters are applied and in what
+order.  Each element name must be one of \code{"map"},
+\code{"miss.marker"}, \code{"miss.line"}, \code{"het.line"},
+\code{"het.marker"}, \code{"dup.lines"}, \code{"dup.markers"},
+\code{"maf"}.  Numeric steps are skipped when their value is
+\code{NULL}; logical steps (\code{map}, \code{dup.lines},
+\code{dup.markers}) are skipped when \code{FALSE}.  Map consistency is
+always prepended as step 1 if not already first in the list.  The
+default list reproduces the original fixed workflow.}
 }
 \value{
 An object of class \code{"filteredPanel"} — a list containing:
 \describe{
-  \item{\code{$geno}}{Filtered genotype matrix.}
-  \item{\code{$map}}{Filtered map data frame.}
+  \item{\code{$geno}}{Filtered genotype matrix (current state).}
+  \item{\code{$map}}{Filtered map data frame (current state).}
   \item{\code{$encoding}, \code{$id}, \code{$map.id}, \code{$map.chr},
     \code{$map.pos}}{Carried through for \code{\link{primePanel}}.}
-  \item{\code{$thresholds}}{Named list of the threshold arguments used.}
-  \item{\code{$removed}}{Named list with one element per filter step,
-    each a character vector of the removed line or marker names.}
-  \item{\code{$n.original}}{Named integer: \code{lines} and
-    \code{markers} before filtering.}
-  \item{\code{$n.final}}{Named integer: \code{lines} and \code{markers}
-    after filtering.}
+  \item{\code{$history}}{A list of pass records, one per \code{filterPanel}
+    call.  Each pass contains \code{$pass} (integer), \code{$steps} (the
+    steps list used), \code{$removed} (named list of removed items per
+    step), \code{$n.before}, and \code{$n.after} (named integer vectors).}
+  \item{\code{$n.original}}{Named integer vector (\code{lines},
+    \code{markers}) recording the dimensions \emph{before the very first
+    filtering pass}.}
+  \item{\code{$n.final}}{Named integer vector (\code{lines},
+    \code{markers}) recording the current dimensions after all passes.}
 }
 }
 \description{
-Applies a sequential set of data quality filters to a raw marker genotype
-matrix and its associated genetic map.  Filters are applied in a
-statistically principled order so that each step operates on data already
-cleaned by the preceding steps:
+Applies a user-defined sequence of data quality filters to a raw marker
+genotype matrix and its associated genetic map.  Filtering is controlled
+by a single \code{steps} named list whose \emph{element order} determines
+the execution order.  The default \code{steps} list applies a statistically
+principled workflow:
 
 \enumerate{
-  \item \strong{Map consistency} — markers absent from \code{map} are
-    dropped; these cannot be placed on the genome.
-  \item \strong{Marker missingness} — markers with a missing rate above
-    \code{miss.marker} are removed first, because a failed genotyping
-    assay creates a column of \code{NA}s that can make good lines appear
-    more missing than they really are.
-  \item \strong{Line missingness} — lines with a missing rate above
-    \code{miss.line} are removed, calculated on the cleaned marker set.
-  \item \strong{Line heterozygosity} — lines with a heterozygosity rate
-    above \code{het.line} are removed.  Excess heterozygosity typically
-    indicates a mislabelled or contaminated sample.
-    Skipped when \code{het.line = NULL} (default).
-  \item \strong{Marker heterozygosity} — markers with a heterozygosity
-    rate above \code{het.marker} are removed.  High per-marker
+  \item \strong{Map consistency} (\code{map}) — markers absent from
+    \code{map} are dropped; always executed first even if omitted from a
+    custom \code{steps} list.
+  \item \strong{Marker missingness} (\code{miss.marker}) — markers with a
+    missing rate above the threshold are removed first, because a failed
+    genotyping assay inflates apparent line-level missingness.
+  \item \strong{Line missingness} (\code{miss.line}) — lines with a missing
+    rate above the threshold are removed on the cleaned marker set.
+  \item \strong{Line heterozygosity} (\code{het.line}) — lines with a
+    heterozygosity rate above the threshold are removed.  Excess
+    heterozygosity typically indicates a mislabelled or contaminated
+    sample.  Skipped by default (\code{NULL}).
+  \item \strong{Marker heterozygosity} (\code{het.marker}) — markers with
+    a heterozygosity rate above the threshold are removed.  High per-marker
     heterozygosity suggests a paralogous locus or genotyping artefact.
-    Skipped when \code{het.marker = NULL} (default).
-  \item \strong{Duplicate lines} — lines with identical genotype profiles
-    are dropped (second and subsequent copies).  Performed after quality
-    filters so that clean copies are retained over artefact copies.
-  \item \strong{Duplicate markers} — markers with identical genotype
-    profiles are dropped (second and subsequent copies).
-  \item \strong{MAF} — markers with minor allele frequency below
-    \code{maf} are removed last, so that allele frequencies are computed
-    on the fully cleaned dataset.
+    Skipped by default (\code{NULL}).
+  \item \strong{Duplicate lines} (\code{dup.lines}) — lines with identical
+    genotype profiles are dropped (second and subsequent copies), performed
+    after quality filters so that clean copies are retained.
+  \item \strong{Duplicate markers} (\code{dup.markers}) — markers with
+    identical genotype profiles are dropped.  Skipped by default
+    (\code{FALSE}).
+  \item \strong{MAF} (\code{maf}) — markers with minor allele frequency
+    below the threshold are removed last, so that allele frequencies are
+    computed on the fully cleaned dataset.
 }
 }
+\section{Custom step lists}{
+
+Supply a partial \code{steps} list to run only those steps, in the order
+given.  Use \code{modifyList(formals(filterPanel.default)$steps, list(...))}
+to adjust individual thresholds while keeping all other defaults.
+}
+
+\section{Multi-pass filtering}{
+
+Passing a \code{"filteredPanel"} object as \code{geno} runs an additional
+filtering pass and \emph{appends} the new pass to \code{$history}.
+\code{print()} displays the full audit trail across all passes.
+}
+
 \seealso{
 \code{\link{checkPanel}}, \code{\link{primePanel}}
 }

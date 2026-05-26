@@ -8,14 +8,16 @@
 # Strategy
 # --------
 # filterPanel() tests verify:
-#   - Correct class and slots returned.
+#   - Correct class and slots returned ($geno, $map, $history, $n.original,
+#     $n.final).
 #   - Each filter step removes exactly the right items.
-#   - Filtering order is respected (marker missingness before line
-#     missingness; MAF after both; het last).
+#   - Custom step list order is respected.
 #   - filterPanel.checkPanel() S3 dispatch works.
-#   - Thresholds set to NULL correctly skip that step.
+#   - filterPanel.filteredPanel() S3 dispatch appends a new pass to $history.
+#   - Steps with NULL / FALSE values are skipped.
 #   - 0-row / 0-col warnings fire when over-filtering.
-#   - print.filteredPanel() produces output.
+#   - print.filteredPanel() produces correct output for single and multi-pass
+#     objects.
 #
 # primePanel() tests verify:
 #   - impute = "knn" produces a complete (no-NA) wgPanel.
@@ -26,11 +28,23 @@
 
 testthat::local_edition(3)
 
-# ---- shared fixture ---------------------------------------------------------
+# ---- shared fixtures --------------------------------------------------------
 p     <- make_raw_panel()
 p_min <- make_raw_panel(n_dup_lines = 0, n_dup_marks = 0, n_mono = 0,
                          n_highmiss_marks = 0, n_highmiss_lines = 0,
                          n_highhet = 0, n_notinmap = 0, miss_rate = 0)
+
+# Convenience: default steps list (mirrors formals(filterPanel.default)$steps)
+default_steps <- list(
+    map         = TRUE,
+    miss.marker = 0.20,
+    miss.line   = 0.20,
+    het.line    = NULL,
+    het.marker  = NULL,
+    dup.lines   = TRUE,
+    dup.markers = FALSE,
+    maf         = 0.05
+)
 
 # =============================================================================
 # 1. Return structure
@@ -44,8 +58,14 @@ test_that("filterPanel returns object of class 'filteredPanel'", {
 test_that("filteredPanel has all expected slots", {
     fp <- filterPanel(p$geno, p$map)
     expect_true(all(c("geno", "map", "encoding", "id", "map.id", "map.chr",
-                      "map.pos", "thresholds", "removed", "n.original",
+                      "map.pos", "history", "n.original",
                       "n.final") %in% names(fp)))
+})
+
+test_that("filteredPanel does NOT have old $removed or $thresholds slots", {
+    fp <- filterPanel(p$geno, p$map)
+    expect_false("removed"    %in% names(fp))
+    expect_false("thresholds" %in% names(fp))
 })
 
 test_that("filteredPanel$geno is a matrix with row and column names", {
@@ -55,11 +75,18 @@ test_that("filteredPanel$geno is a matrix with row and column names", {
     expect_false(is.null(colnames(fp$geno)))
 })
 
-test_that("filteredPanel$removed has one entry per filter step", {
+test_that("filteredPanel$history is a list with one element after single call", {
     fp <- filterPanel(p$geno, p$map)
-    expect_true(all(c("map_consistency", "miss_marker", "miss_line",
-                      "het_line", "het_marker", "dup_lines", "dup_markers",
-                      "maf") %in% names(fp$removed)))
+    expect_type(fp$history, "list")
+    expect_equal(length(fp$history), 1L)
+})
+
+test_that("filteredPanel history pass 1 has expected fields", {
+    fp   <- filterPanel(p$geno, p$map)
+    pass <- fp$history[[1L]]
+    expect_true(all(c("pass", "steps", "removed", "n.before",
+                      "n.after") %in% names(pass)))
+    expect_equal(pass$pass, 1L)
 })
 
 test_that("filteredPanel n.original records pre-filter dimensions", {
@@ -68,112 +95,143 @@ test_that("filteredPanel n.original records pre-filter dimensions", {
     expect_equal(unname(fp$n.original["markers"]), ncol(p$geno))
 })
 
+test_that("filteredPanel n.before in pass 1 equals n.original", {
+    fp <- filterPanel(p$geno, p$map)
+    expect_equal(fp$history[[1L]]$n.before, fp$n.original)
+})
+
 # =============================================================================
-# 2. Individual filter steps
+# 2. Individual filter steps (via steps = list(...))
 # =============================================================================
 
-test_that("Step 1: map consistency removes markers not in map", {
-    fp <- filterPanel(p$geno, p$map, miss.line = NULL, miss.marker = NULL,
-                      maf = NULL, dup.lines = FALSE, dup.markers = FALSE)
-    expect_equal(length(fp$removed$map_consistency), p$n_notinmap)
-    expect_false(any(fp$removed$map_consistency %in% colnames(fp$geno)))
+test_that("map consistency always runs first and removes markers not in map", {
+    fp <- filterPanel(p$geno, p$map,
+                      steps = list(map = TRUE))
+    expect_equal(length(fp$history[[1L]]$removed$map_consistency),
+                 p$n_notinmap)
+    expect_false(any(fp$history[[1L]]$removed$map_consistency %in%
+                         colnames(fp$geno)))
 })
 
-test_that("Step 2: dup.lines = TRUE removes duplicate lines", {
-    fp <- filterPanel(p$geno, p$map, miss.line = NULL, miss.marker = NULL,
-                      maf = NULL, dup.lines = TRUE, dup.markers = FALSE)
-    expect_equal(length(fp$removed$dup_lines), p$n_dup_lines)
-    expect_false(any(fp$removed$dup_lines %in% rownames(fp$geno)))
-})
-
-test_that("Step 2: dup.lines = FALSE skips duplicate line removal", {
-    fp <- filterPanel(p$geno, p$map, miss.line = NULL, miss.marker = NULL,
-                      maf = NULL, dup.lines = FALSE, dup.markers = FALSE)
-    expect_equal(length(fp$removed$dup_lines), 0L)
-})
-
-test_that("Step 3: dup.markers = TRUE removes duplicate markers", {
-    fp <- filterPanel(p$geno, p$map, miss.line = NULL, miss.marker = NULL,
-                      maf = NULL, dup.lines = FALSE, dup.markers = TRUE)
-    expect_true(length(fp$removed$dup_markers) >= p$n_dup_marks)
-    expect_false(any(fp$removed$dup_markers %in% colnames(fp$geno)))
-})
-
-test_that("Step 4: marker missingness filter removes high-missing markers", {
-    fp <- filterPanel(p$geno, p$map, miss.marker = 0.20, miss.line = NULL,
-                      maf = NULL, dup.lines = FALSE, dup.markers = FALSE)
-    expect_true(length(fp$removed$miss_marker) >= p$n_highmiss_marks)
-    # Remaining markers all have missingness <= threshold
+test_that("miss.marker step removes high-missing markers", {
+    fp <- filterPanel(p$geno, p$map,
+                      steps = list(map = TRUE, miss.marker = 0.20))
+    rem <- fp$history[[1L]]$removed$miss.marker
+    expect_true(length(rem) >= p$n_highmiss_marks)
     mm <- colMeans(is.na(fp$geno))
     expect_true(all(mm <= 0.20))
 })
 
-test_that("Step 5: line missingness filter removes high-missing lines", {
-    fp <- filterPanel(p$geno, p$map, miss.marker = NULL, miss.line = 0.20,
-                      maf = NULL, dup.lines = FALSE, dup.markers = FALSE)
-    expect_true(length(fp$removed$miss_line) >= p$n_highmiss_lines)
+test_that("miss.line step removes high-missing lines", {
+    fp <- filterPanel(p$geno, p$map,
+                      steps = list(map = TRUE, miss.line = 0.20))
+    rem <- fp$history[[1L]]$removed$miss.line
+    expect_true(length(rem) >= p$n_highmiss_lines)
     ml <- rowMeans(is.na(fp$geno))
     expect_true(all(ml <= 0.20))
 })
 
-test_that("Step 6: MAF filter removes monomorphic and low-MAF markers", {
-    fp <- filterPanel(p$geno, p$map, miss.line = NULL, miss.marker = NULL,
-                      maf = 0.05, dup.lines = FALSE, dup.markers = FALSE)
-    expect_true(length(fp$removed$maf) >= p$n_mono)
-    # All remaining markers have MAF >= 0.05
+test_that("dup.lines = TRUE removes duplicate lines", {
+    fp <- filterPanel(p$geno, p$map,
+                      steps = list(map = TRUE, dup.lines = TRUE))
+    rem <- fp$history[[1L]]$removed$dup.lines
+    expect_equal(length(rem), p$n_dup_lines)
+    expect_false(any(rem %in% rownames(fp$geno)))
+})
+
+test_that("dup.lines = FALSE skips duplicate line removal", {
+    fp <- filterPanel(p$geno, p$map,
+                      steps = list(map = TRUE, dup.lines = FALSE))
+    expect_equal(length(fp$history[[1L]]$removed$dup.lines), 0L)
+})
+
+test_that("dup.markers = TRUE removes duplicate markers", {
+    fp <- filterPanel(p$geno, p$map,
+                      steps = list(map = TRUE, dup.markers = TRUE))
+    rem <- fp$history[[1L]]$removed$dup.markers
+    expect_true(length(rem) >= p$n_dup_marks)
+    expect_false(any(rem %in% colnames(fp$geno)))
+})
+
+test_that("maf step removes monomorphic and low-MAF markers", {
+    fp <- filterPanel(p$geno, p$map,
+                      steps = list(map = TRUE, maf = 0.05))
+    rem <- fp$history[[1L]]$removed$maf
+    expect_true(length(rem) >= p$n_mono)
     col_means <- colMeans(fp$geno, na.rm = TRUE)
-    pvals     <- col_means / 2   # 012 encoding
+    pvals     <- col_means / 2
     mafs      <- pmin(pvals, 1 - pvals)
     expect_true(all(mafs >= 0.05 - 1e-9))
 })
 
-test_that("Step 4: het.line filter removes high-heterozygosity lines", {
-    fp <- filterPanel(p$geno, p$map, miss.line = NULL, miss.marker = NULL,
-                      maf = NULL, dup.lines = FALSE, dup.markers = FALSE,
-                      het.line = 0.55)
-    expect_true(length(fp$removed$het_line) >= p$n_highhet)
+test_that("het.line step removes high-heterozygosity lines", {
+    fp <- filterPanel(p$geno, p$map,
+                      steps = list(map = TRUE, het.line = 0.55))
+    rem <- fp$history[[1L]]$removed$het.line
+    expect_true(length(rem) >= p$n_highhet)
     het_vals <- rowMeans(fp$geno == 1L, na.rm = TRUE)
     expect_true(all(het_vals <= 0.55))
 })
 
-test_that("Step 5: het.marker filter removes high-heterozygosity markers", {
-    fp <- filterPanel(p$geno, p$map, miss.line = NULL, miss.marker = NULL,
-                      maf = NULL, dup.lines = FALSE, dup.markers = FALSE,
-                      het.marker = 0.55)
+test_that("het.marker step removes high-heterozygosity markers", {
+    fp <- filterPanel(p$geno, p$map,
+                      steps = list(map = TRUE, het.marker = 0.55))
     het_vals <- colMeans(fp$geno == 1L, na.rm = TRUE)
     expect_true(all(het_vals <= 0.55))
 })
 
-test_that("het.line = NULL and het.marker = NULL skip heterozygosity filters", {
-    fp <- filterPanel(p$geno, p$map, het.line = NULL, het.marker = NULL)
-    expect_equal(length(fp$removed$het_line),   0L)
-    expect_equal(length(fp$removed$het_marker), 0L)
+test_that("het.line = NULL and het.marker = NULL are skipped", {
+    fp <- filterPanel(p$geno, p$map,
+                      steps = list(map = TRUE, het.line = NULL,
+                                   het.marker = NULL))
+    expect_equal(length(fp$history[[1L]]$removed$het.line),   0L)
+    expect_equal(length(fp$history[[1L]]$removed$het.marker), 0L)
 })
 
 # =============================================================================
-# 3. Filtering order: marker missingness before line missingness
+# 3. Marker missingness before line missingness (order matters)
 # =============================================================================
 
-test_that("Marker missingness applied before line missingness", {
-    # Build a panel where one marker is all-missing for 3 specific lines;
-    # those lines would appear high-missing due to that marker but are fine
-    # once the bad marker is removed.
+test_that("marker missingness applied before line missingness by default", {
     set.seed(200)
     n <- 30; p2 <- 10
     ids  <- paste0("L", seq_len(n))
     mids <- paste0("M", seq_len(p2))
     g    <- matrix(sample(0:2, n * p2, replace = TRUE),
                    nrow = n, dimnames = list(ids, mids))
-    # Make first marker 100% missing — this inflates missingness for all lines
+    g[, 1] <- NA   # 100% missing marker inflates all line miss rates
+    mp <- data.frame(marker = mids, chr = "C1",
+                     pos = seq_len(p2), stringsAsFactors = FALSE)
+
+    # Default order: miss.marker before miss.line
+    fp <- filterPanel(g, mp,
+                      steps = list(map         = TRUE,
+                                   miss.marker = 0.50,
+                                   miss.line   = 0.20))
+    expect_true("M1" %in% fp$history[[1L]]$removed$miss.marker)
+    expect_equal(length(fp$history[[1L]]$removed$miss.line), 0L)
+})
+
+test_that("custom step order is respected: miss.line before miss.marker", {
+    set.seed(201)
+    n <- 30; p2 <- 10
+    ids  <- paste0("L", seq_len(n))
+    mids <- paste0("M", seq_len(p2))
+    g    <- matrix(sample(0:2, n * p2, replace = TRUE),
+                   nrow = n, dimnames = list(ids, mids))
     g[, 1] <- NA
     mp <- data.frame(marker = mids, chr = "C1",
                      pos = seq_len(p2), stringsAsFactors = FALSE)
 
-    # With marker filter first: bad marker removed, no lines fail miss.line
-    fp <- filterPanel(g, mp, miss.marker = 0.50, miss.line = 0.20,
-                      maf = NULL, dup.lines = FALSE, dup.markers = FALSE)
-    expect_true("M1" %in% fp$removed$miss_marker)
-    expect_equal(length(fp$removed$miss_line), 0L)
+    # Reversed order: miss.line runs first (while bad marker is still there)
+    fp <- filterPanel(g, mp,
+                      steps = list(map       = TRUE,
+                                   miss.line   = 0.20,
+                                   miss.marker = 0.50))
+    step_names <- names(fp$history[[1L]]$steps)
+    miss_line_pos   <- which(step_names == "miss.line")
+    miss_marker_pos <- which(step_names == "miss.marker")
+    expect_true(miss_line_pos < miss_marker_pos)
 })
 
 # =============================================================================
@@ -182,74 +240,151 @@ test_that("Marker missingness applied before line missingness", {
 
 test_that("filterPanel.checkPanel accepts a checkPanel object", {
     chk <- checkPanel(p$geno, p$map)
-    fp  <- filterPanel(chk, maf = 0.05)
+    fp  <- filterPanel(chk, steps = list(map = TRUE, maf = 0.05))
     expect_s3_class(fp, "filteredPanel")
 })
 
 test_that("filterPanel.checkPanel produces same result as filterPanel.default", {
     chk  <- checkPanel(p$geno, p$map)
-    fp1  <- filterPanel(chk,     maf = 0.05, miss.line = 0.20,
-                         miss.marker = 0.20, dup.lines = TRUE,
-                         dup.markers = FALSE)
-    fp2  <- filterPanel(p$geno, p$map, maf = 0.05, miss.line = 0.20,
-                         miss.marker = 0.20, dup.lines = TRUE,
-                         dup.markers = FALSE)
+    fp1  <- filterPanel(chk,     steps = default_steps)
+    fp2  <- filterPanel(p$geno, p$map, steps = default_steps)
     expect_equal(dim(fp1$geno), dim(fp2$geno))
     expect_equal(fp1$n.final,   fp2$n.final)
 })
 
 # =============================================================================
-# 5. NULL thresholds skip steps
+# 5. filterPanel.filteredPanel S3 dispatch — multi-pass / history
 # =============================================================================
 
-test_that("miss.marker = NULL skips marker missingness step", {
-    fp <- filterPanel(p$geno, p$map, miss.marker = NULL, miss.line = NULL,
-                      maf = NULL, dup.lines = FALSE, dup.markers = FALSE)
-    expect_equal(length(fp$removed$miss_marker), 0L)
+test_that("filterPanel on a filteredPanel returns a filteredPanel", {
+    fp1 <- filterPanel(p$geno, p$map,
+                       steps = list(map = TRUE, miss.marker = 0.20))
+    fp2 <- filterPanel(fp1, steps = list(maf = 0.05))
+    expect_s3_class(fp2, "filteredPanel")
+})
+
+test_that("second pass appends to $history (length 2)", {
+    fp1 <- filterPanel(p$geno, p$map,
+                       steps = list(map = TRUE, miss.marker = 0.20))
+    fp2 <- filterPanel(fp1, steps = list(maf = 0.05))
+    expect_equal(length(fp2$history), 2L)
+    expect_equal(fp2$history[[2L]]$pass, 2L)
+})
+
+test_that("n.original is preserved across multiple passes", {
+    fp1 <- filterPanel(p$geno, p$map,
+                       steps = list(map = TRUE, miss.marker = 0.20))
+    fp2 <- filterPanel(fp1, steps = list(maf = 0.05))
+    expect_equal(fp2$n.original,
+                 c(lines = nrow(p$geno), markers = ncol(p$geno)))
+})
+
+test_that("n.before in pass 2 equals n.after from pass 1", {
+    fp1 <- filterPanel(p$geno, p$map,
+                       steps = list(map = TRUE, miss.marker = 0.20))
+    fp2 <- filterPanel(fp1, steps = list(maf = 0.05))
+    expect_equal(fp2$history[[2L]]$n.before, fp1$n.final)
+})
+
+test_that("n.final reflects state after both passes", {
+    fp1 <- filterPanel(p$geno, p$map,
+                       steps = list(map = TRUE, miss.marker = 0.20))
+    fp2 <- filterPanel(fp1, steps = list(maf = 0.05))
+    expect_equal(fp2$n.final,
+                 c(lines   = nrow(fp2$geno),
+                   markers = ncol(fp2$geno)))
+})
+
+test_that("three-pass filtering accumulates three history entries", {
+    fp1 <- filterPanel(p$geno, p$map,
+                       steps = list(map = TRUE, miss.marker = 0.20))
+    fp2 <- filterPanel(fp1,   steps = list(miss.line = 0.20))
+    fp3 <- filterPanel(fp2,   steps = list(maf = 0.05))
+    expect_equal(length(fp3$history), 3L)
+    expect_equal(fp3$history[[3L]]$pass, 3L)
+})
+
+# =============================================================================
+# 6. Unknown step name causes an error
+# =============================================================================
+
+test_that("unknown step name in steps list causes an error", {
+    expect_error(
+        filterPanel(p$geno, p$map, steps = list(map = TRUE, foo = 0.1)),
+        regexp = "Unknown step name"
+    )
+})
+
+# =============================================================================
+# 7. Map consistency always runs first even if omitted from custom steps list
+# =============================================================================
+
+test_that("map consistency is prepended even when not first in steps list", {
+    fp <- filterPanel(p$geno, p$map,
+                      steps = list(miss.marker = 0.20))
+    step_names <- names(fp$history[[1L]]$steps)
+    expect_equal(step_names[1L], "map")
+})
+
+# =============================================================================
+# 8. NULL / FALSE thresholds skip steps
+# =============================================================================
+
+test_that("miss.marker = NULL skips that step", {
+    fp <- filterPanel(p$geno, p$map,
+                      steps = list(map = TRUE, miss.marker = NULL))
+    expect_equal(length(fp$history[[1L]]$removed$miss.marker), 0L)
 })
 
 test_that("maf = NULL skips MAF step", {
-    fp <- filterPanel(p$geno, p$map, maf = NULL, miss.line = NULL,
-                      miss.marker = NULL, dup.lines = FALSE,
-                      dup.markers = FALSE)
-    expect_equal(length(fp$removed$maf), 0L)
+    fp <- filterPanel(p$geno, p$map,
+                      steps = list(map = TRUE, maf = NULL))
+    expect_equal(length(fp$history[[1L]]$removed$maf), 0L)
+})
+
+test_that("dup.markers = FALSE skips duplicate marker removal", {
+    fp <- filterPanel(p$geno, p$map,
+                      steps = list(map = TRUE, dup.markers = FALSE))
+    expect_equal(length(fp$history[[1L]]$removed$dup.markers), 0L)
 })
 
 # =============================================================================
-# 6. Over-filtering warnings
+# 9. Over-filtering warnings
 # =============================================================================
 
 test_that("filterPanel warns when all lines are removed", {
-    # Force all lines to have 100% missing on first marker so miss.line = 0
-    # triggers removal of every line
-    g_all_miss <- p$geno
-    g_all_miss[, ] <- NA   # every value missing -> every line has miss.line = 1
+    g_all_miss        <- p$geno
+    g_all_miss[, ]    <- NA
     expect_warning(
-        filterPanel(g_all_miss, p$map, miss.line = 0.50, miss.marker = NULL,
-                    maf = NULL, dup.lines = FALSE, dup.markers = FALSE),
+        filterPanel(g_all_miss, p$map,
+                    steps = list(map = TRUE, miss.line = 0.50)),
         "All lines"
     )
 })
 
 test_that("filterPanel warns when all markers are removed", {
     expect_warning(
-        filterPanel(p$geno, p$map, maf = 0.99, miss.line = NULL,
-                    miss.marker = NULL, dup.lines = FALSE,
-                    dup.markers = FALSE),
+        filterPanel(p$geno, p$map,
+                    steps = list(map = TRUE, maf = 0.99)),
         "All markers"
     )
 })
 
 # =============================================================================
-# 7. print.filteredPanel
+# 10. print.filteredPanel
 # =============================================================================
 
 test_that("print.filteredPanel produces output without error", {
     fp <- filterPanel(p$geno, p$map)
-    expect_output(print(fp), "Filter Summary")
+    expect_output(print(fp), "Filter History")
 })
 
-test_that("print.filteredPanel shows Remaining line", {
+test_that("print.filteredPanel shows After line for single pass", {
+    fp <- filterPanel(p$geno, p$map)
+    expect_output(print(fp), "After")
+})
+
+test_that("print.filteredPanel shows Remaining line for single pass", {
     fp <- filterPanel(p$geno, p$map)
     expect_output(print(fp), "Remaining")
 })
@@ -261,8 +396,30 @@ test_that("print.filteredPanel returns x invisibly", {
     expect_identical(out$value, fp)
 })
 
+test_that("print.filteredPanel shows pass headers for multi-pass object", {
+    fp1 <- filterPanel(p$geno, p$map,
+                       steps = list(map = TRUE, miss.marker = 0.20))
+    fp2 <- filterPanel(fp1, steps = list(maf = 0.05))
+    expect_output(print(fp2), "Pass 1")
+    expect_output(print(fp2), "Pass 2")
+})
+
+test_that("print.filteredPanel shows Final line for multi-pass object", {
+    fp1 <- filterPanel(p$geno, p$map,
+                       steps = list(map = TRUE, miss.marker = 0.20))
+    fp2 <- filterPanel(fp1, steps = list(maf = 0.05))
+    expect_output(print(fp2), "Final")
+})
+
+test_that("print.filteredPanel shows [2 passes] in header for multi-pass", {
+    fp1 <- filterPanel(p$geno, p$map,
+                       steps = list(map = TRUE, miss.marker = 0.20))
+    fp2 <- filterPanel(fp1, steps = list(maf = 0.05))
+    expect_output(print(fp2), "2 passes")
+})
+
 # =============================================================================
-# 8. primePanel() — KNN imputation path
+# 11. primePanel() — KNN imputation path
 # =============================================================================
 
 test_that("primePanel impute='knn' returns wgPanel with no NAs", {
@@ -313,8 +470,6 @@ test_that("primePanel impute='knn' imputed values are in [-1, 1]", {
 })
 
 test_that("primePanel impute='knn': data slot retains original NAs", {
-    # $data should be the raw encoded matrix (with NAs);
-    # $imputed.data should be the knn-completed version.
     set.seed(58)
     n <- 15; m <- 6
     g <- matrix(sample(0:2, n * m, replace = TRUE), nrow = n,
@@ -330,7 +485,7 @@ test_that("primePanel impute='knn': data slot retains original NAs", {
 })
 
 # =============================================================================
-# 9. primePanel() — filteredPanel dispatch
+# 12. primePanel() — filteredPanel dispatch
 # =============================================================================
 
 test_that("primePanel.filteredPanel returns wgPanel from a filteredPanel", {
@@ -353,24 +508,30 @@ test_that("primePanel.filteredPanel preserves marker count", {
 })
 
 test_that("primePanel.filteredPanel works with impute='knn'", {
-    # Use the minimal panel with a few NAs introduced
-    g_na <- p_min$geno
+    g_na       <- p_min$geno
     g_na[1, 1] <- NA
-    fp    <- filterPanel(g_na, p_min$map, miss.line = NULL,
-                          miss.marker = NULL, maf = NULL,
-                          dup.lines = FALSE, dup.markers = FALSE)
+    fp    <- filterPanel(g_na, p_min$map,
+                         steps = list(map = TRUE))
     panel <- suppressMessages(primePanel(fp, impute = "knn", knn.k = 3L))
     imp   <- do.call("cbind",
                      lapply(panel$geno, function(el) el$imputed.data))
     expect_false(anyNA(imp))
 })
 
+# multi-pass filteredPanel flows through to primePanel
+test_that("primePanel accepts a multi-pass filteredPanel", {
+    fp1   <- filterPanel(p_min$geno, p_min$map,
+                         steps = list(map = TRUE, miss.marker = 0.50))
+    fp2   <- filterPanel(fp1, steps = list(maf = 0.01))
+    panel <- suppressMessages(primePanel(fp2, impute = "none"))
+    expect_s3_class(panel, "wgPanel")
+})
+
 # =============================================================================
-# 10. primePanel() — maf argument removed
+# 13. primePanel() — maf argument removed
 # =============================================================================
 
 test_that("primePanel no longer accepts maf argument", {
-    # maf was removed from primePanel(); passing it should now error
     expect_error(
         primePanel(p_min$geno, p_min$map, maf = 0.05),
         "unused argument"
@@ -378,13 +539,11 @@ test_that("primePanel no longer accepts maf argument", {
 })
 
 test_that("primePanel does NOT filter by MAF (monomorphic markers kept)", {
-    # Build clean data with one monomorphic marker
-    g  <- p_min$geno
-    g[, 1] <- 0L   # monomorphic
-    mp <- p_min$map
-    panel <- suppressMessages(
-        suppressWarnings(primePanel(g, mp, impute = "mean")))
-    all_marks <- unlist(lapply(panel$geno, function(el) colnames(el$imputed.data)))
-    # Monomorphic marker should still be present (no MAF filter in primePanel)
+    g       <- p_min$geno
+    g[, 1]  <- 0L
+    panel   <- suppressMessages(
+        suppressWarnings(primePanel(g, p_min$map, impute = "mean")))
+    all_marks <- unlist(lapply(panel$geno,
+                               function(el) colnames(el$imputed.data)))
     expect_true(colnames(g)[1] %in% all_marks)
 })

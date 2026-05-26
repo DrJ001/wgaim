@@ -4,7 +4,7 @@
 \alias{aimTable}
 \title{Stack QTL summary tables from multiple fitted models}
 \usage{
-aimTable(..., genObj, labels = NULL, columns = "all", LOD = TRUE)
+aimTable(..., genObj = NULL, labels = NULL, columns = "all", LOD = TRUE)
 }
 \arguments{
 \item{\dots}{One or more fitted objects of class \code{"qtlAim"} or
