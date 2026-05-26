@@ -72,6 +72,8 @@ An object of class \code{"checkPanel"} — a list containing:
     names (MAF = 0).}
   \item{\code{$het}}{Named numeric vector of per-line heterozygosity
     rates.}
+  \item{\code{$het.marker}}{Named numeric vector of per-marker
+    heterozygosity rates.}
   \item{\code{$chr.coverage}}{Data frame with columns \code{chr},
     \code{n.markers}, \code{cM.min}, \code{cM.max}.}
 }

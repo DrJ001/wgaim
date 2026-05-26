@@ -27,7 +27,7 @@
 by \code{\link{primePanel}}.}
 
 \item{type}{Character string: \code{"manhattan"} (default), \code{"outlier"},
-\code{"blups"}, \code{"effects"}, or \code{"contrast"}.}
+\code{"blups"}, \code{"effects"}, \code{"contrast"}, or \code{"heatmap"}.}
 
 \item{data}{Data frame. The phenotypic data used in the analysis. Required
 only when \code{type = "contrast"}.}

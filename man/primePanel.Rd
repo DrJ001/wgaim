@@ -94,7 +94,7 @@ smoother imputations but are slower; values between 3 and 10 are
 typical.  Ignored when \code{impute != "knn"}.}
 }
 \value{
-An object of class \code{c("wgPanel", "wgCross")} -- a list with:
+An object of class \code{c("wgPanel", "wgCross", "cross")} -- a list with:
 \describe{
   \item{\code{$pheno}}{A \code{data.frame} with the line identifier column.}
   \item{\code{$geno}}{A named list (one element per chromosome) each
