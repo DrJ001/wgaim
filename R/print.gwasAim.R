@@ -47,4 +47,5 @@ print.gwasAim <- function(x, genObj, ...) {
                         qtlm[z, 1], qtlm[z, 3], as.numeric(qtlm[z, 4]), type))
         }
     }
+    invisible(x)
 }

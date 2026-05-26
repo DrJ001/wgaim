@@ -58,6 +58,14 @@ test_that("print.qtlAim (marker type): output contains chromosome name", {
   expect_true(any(sapply(chr_names, function(cn) any(grepl(cn, out)))))
 })
 
+test_that("print.qtlAim: returns x invisibly", {
+  obj    <- make_mock_qtlAim(n_qtl = 2)
+  genObj <- attr(obj, "genObj")
+  result <- withVisible(print(obj, genObj = genObj))
+  expect_false(result$visible)
+  expect_identical(result$value, obj)
+})
+
 # =============================================================================
 # summary.qtlAim
 # =============================================================================
@@ -207,6 +215,14 @@ test_that("print.gwasAim: with QTL output contains chromosome name", {
   out      <- capture.output(print(obj, genObj = genObj))
   chr_names <- names(genObj$geno)
   expect_true(any(sapply(chr_names, function(cn) any(grepl(cn, out)))))
+})
+
+test_that("print.gwasAim: returns x invisibly", {
+  obj    <- make_mock_gwasAim(n_qtl = 2)
+  genObj <- attr(obj, "genObj")
+  result <- withVisible(print(obj, genObj = genObj))
+  expect_false(result$visible)
+  expect_identical(result$value, obj)
 })
 
 # =============================================================================

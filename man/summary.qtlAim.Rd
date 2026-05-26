@@ -22,14 +22,20 @@ as \eqn{0.5 \log_{10}(\exp(z^2))}.}
 }
 \value{
 A \code{data.frame} with one row per detected QTL and columns
-  depending on \code{gen.type}:
+  depending on \code{gen.type} and whether the model is univariate or
+  multivariate:
 \describe{
-  \item{Interval type (11 or 12 columns)}{Chromosome, Left Marker,
-    dist(cM), Infer. Marker, dist(cM), Right Marker, dist(cM), Size,
-    Prob, Perc.Var, and optionally LOD.}
-  \item{Marker type (6 or 7 columns)}{Chromosome, Marker, dist(cM),
-    Size, Prob, Perc.Var, and optionally LOD.}
+  \item{Interval type}{Columns: Chromosome, Left Marker, dist(cM), Infer.\
+    Marker, dist(cM), Right Marker, dist(cM), Size, Prob, Perc.Var, and
+    optionally LOD (10 or 11 columns univariate; 11 or 12 columns
+    multivariate with a leading \code{Trait} column).}
+  \item{Marker type}{Columns: Chromosome, Marker, dist(cM), Size, Prob,
+    Perc.Var, and optionally LOD (6 or 7 columns univariate; 7 or 8 columns
+    multivariate with a leading \code{Trait} column).}
 }
+For multivariate models a leading \code{Trait} column identifies the
+environment or trial, and rows are repeated once per trial level for each
+detected QTL.
 Returns \code{NULL} invisibly if no QTL were detected.
 }
 \description{

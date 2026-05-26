@@ -52,4 +52,5 @@ print.qtlAim <- function(x, genObj, ...) {
                     "\nMarker is", qtlm[z, 3], "\n")
         }
     }
+    invisible(x)
 }

@@ -67,7 +67,10 @@
 #'   }
 #'   The list has attribute \code{"qtl.key"} recording the original QTL key
 #'   names, and attribute \code{"type"} recording \code{"qtlAim"} or
-#'   \code{"gwasAim"}.
+#'   \code{"gwasAim"}.  Each per-QTL data frame additionally carries two
+#'   attributes: \code{"qtl_pos"} (numeric, the cM position of the original
+#'   QTL / marker used as the window centre) and \code{"clipped"} (logical,
+#'   \code{TRUE} if the window was truncated at a chromosome boundary).
 #'
 #' @seealso \code{\link{qtlAim}}, \code{\link{gwasAim}},
 #'   \code{\link{primeCross}}, \code{\link{primePanel}},

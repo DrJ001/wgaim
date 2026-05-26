@@ -56,7 +56,10 @@ An object of class \code{c("wgCross", cls, "cross")} where
       midpoint positions in cM. Only present when \code{type = "interval"}.}
   }
   The \code{$type} field records the value of \code{type} for use by
-  downstream analysis functions.
+  downstream analysis functions.  When \code{consensus.mark = TRUE}
+  (default), \code{$colocated.markers} is a data frame listing any
+  markers that were collapsed to consensus genotypes by
+  \code{\link{fixMap}}.
 }
 \description{
 Converts a \code{qtl} cross object into a \code{"wgCross"} object suitable

@@ -22,7 +22,10 @@ appended to the summary table. LOD is computed as
 }
 \value{
 A \code{data.frame} with one row per significant marker and columns
-  Chromosome, Marker, dist(cM), Size, Pvalue, Perc.Var, and optionally LOD.
+  Chromosome, Marker, dist(cM), Size, Pvalue, Perc.Var, and optionally LOD
+  (6 or 7 columns univariate).  For multivariate models a leading
+  \code{Trait} column is prepended (7 or 8 columns), with rows repeated
+  once per trial level for each detected marker.
   Returns \code{NULL} invisibly if no markers were detected.
 }
 \description{
