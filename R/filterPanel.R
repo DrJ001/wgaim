@@ -2,63 +2,106 @@
 # filterPanel.R
 # Filter a raw marker panel based on data quality thresholds.
 #
-# filterPanel() applies filters in the statistically correct order:
-#   1. Map consistency  -- drop unplaceable markers
-#   2. Duplicate lines  -- drop exact genotype duplicates
-#   3. Duplicate markers-- drop redundant marker columns
-#   4. Marker missingness -- drop high-missing markers before assessing lines
-#   5. Line missingness   -- drop high-missing lines (on cleaned marker set)
-#   6. MAF               -- drop rare/monomorphic markers on cleaned line set
-#   7. Heterozygosity     -- flag/drop lines with excess heterozygosity
+# filterPanel() is an S3 generic that accepts:
+#   - A raw geno matrix / data.frame  (filterPanel.default)
+#   - A "checkPanel"   object         (filterPanel.checkPanel)
+#   - A "filteredPanel" object        (filterPanel.filteredPanel)
 #
-# The function is an S3 generic:
-#   filterPanel.default()     -- accepts raw geno + map
-#   filterPanel.checkPanel()  -- accepts a checkPanel object (reuses stored args)
+# Filtering is controlled by a single `steps` named list.  The list element
+# order determines execution order.  The supported step names and their
+# sentinel "skip" values are:
+#
+#   map         = FALSE  (logical; TRUE runs the step)
+#   miss.marker = NULL   (numeric threshold or NULL to skip)
+#   miss.line   = NULL   (numeric threshold or NULL to skip)
+#   het.line    = NULL   (numeric threshold or NULL to skip)
+#   het.marker  = NULL   (numeric threshold or NULL to skip)
+#   dup.lines   = FALSE  (logical)
+#   dup.markers = FALSE  (logical)
+#   maf         = NULL   (numeric threshold or NULL to skip)
+#
+# Map consistency is always inserted as the very first step, even if the
+# user omits it from a custom steps list.
+#
+# When the input is a "filteredPanel" object, a new pass is appended to
+# $history rather than replacing it, so the full filtering audit trail is
+# preserved across multiple calls.
+# =============================================================================
+
+# Valid step names (used for validation and label lookup)
+.valid_step_names <- c("map", "miss.marker", "miss.line", "het.line",
+                       "het.marker", "dup.lines", "dup.markers", "maf")
+
+# Default steps list (canonical reference; matches old function-argument defaults)
+.default_filter_steps <- list(
+    map         = TRUE,
+    miss.marker = 0.20,
+    miss.line   = 0.20,
+    het.line    = NULL,
+    het.marker  = NULL,
+    dup.lines   = TRUE,
+    dup.markers = FALSE,
+    maf         = 0.05
+)
+
+# =============================================================================
+# S3 generic
 # =============================================================================
 
 #' Filter a Marker Panel by Data Quality Thresholds
 #'
 #' @description
-#' Applies a sequential set of data quality filters to a raw marker genotype
-#' matrix and its associated genetic map.  Filters are applied in a
-#' statistically principled order so that each step operates on data already
-#' cleaned by the preceding steps:
+#' Applies a user-defined sequence of data quality filters to a raw marker
+#' genotype matrix and its associated genetic map.  Filtering is controlled
+#' by a single \code{steps} named list whose \emph{element order} determines
+#' the execution order.  The default \code{steps} list applies a statistically
+#' principled workflow:
 #'
 #' \enumerate{
-#'   \item \strong{Map consistency} — markers absent from \code{map} are
-#'     dropped; these cannot be placed on the genome.
-#'   \item \strong{Marker missingness} — markers with a missing rate above
-#'     \code{miss.marker} are removed first, because a failed genotyping
-#'     assay creates a column of \code{NA}s that can make good lines appear
-#'     more missing than they really are.
-#'   \item \strong{Line missingness} — lines with a missing rate above
-#'     \code{miss.line} are removed, calculated on the cleaned marker set.
-#'   \item \strong{Line heterozygosity} — lines with a heterozygosity rate
-#'     above \code{het.line} are removed.  Excess heterozygosity typically
-#'     indicates a mislabelled or contaminated sample.
-#'     Skipped when \code{het.line = NULL} (default).
-#'   \item \strong{Marker heterozygosity} — markers with a heterozygosity
-#'     rate above \code{het.marker} are removed.  High per-marker
+#'   \item \strong{Map consistency} (\code{map}) — markers absent from
+#'     \code{map} are dropped; always executed first even if omitted from a
+#'     custom \code{steps} list.
+#'   \item \strong{Marker missingness} (\code{miss.marker}) — markers with a
+#'     missing rate above the threshold are removed first, because a failed
+#'     genotyping assay inflates apparent line-level missingness.
+#'   \item \strong{Line missingness} (\code{miss.line}) — lines with a missing
+#'     rate above the threshold are removed on the cleaned marker set.
+#'   \item \strong{Line heterozygosity} (\code{het.line}) — lines with a
+#'     heterozygosity rate above the threshold are removed.  Excess
+#'     heterozygosity typically indicates a mislabelled or contaminated
+#'     sample.  Skipped by default (\code{NULL}).
+#'   \item \strong{Marker heterozygosity} (\code{het.marker}) — markers with
+#'     a heterozygosity rate above the threshold are removed.  High per-marker
 #'     heterozygosity suggests a paralogous locus or genotyping artefact.
-#'     Skipped when \code{het.marker = NULL} (default).
-#'   \item \strong{Duplicate lines} — lines with identical genotype profiles
-#'     are dropped (second and subsequent copies).  Performed after quality
-#'     filters so that clean copies are retained over artefact copies.
-#'   \item \strong{Duplicate markers} — markers with identical genotype
-#'     profiles are dropped (second and subsequent copies).
-#'   \item \strong{MAF} — markers with minor allele frequency below
-#'     \code{maf} are removed last, so that allele frequencies are computed
-#'     on the fully cleaned dataset.
+#'     Skipped by default (\code{NULL}).
+#'   \item \strong{Duplicate lines} (\code{dup.lines}) — lines with identical
+#'     genotype profiles are dropped (second and subsequent copies), performed
+#'     after quality filters so that clean copies are retained.
+#'   \item \strong{Duplicate markers} (\code{dup.markers}) — markers with
+#'     identical genotype profiles are dropped.  Skipped by default
+#'     (\code{FALSE}).
+#'   \item \strong{MAF} (\code{maf}) — markers with minor allele frequency
+#'     below the threshold are removed last, so that allele frequencies are
+#'     computed on the fully cleaned dataset.
 #' }
 #'
+#' @section Custom step lists:
+#' Supply a partial \code{steps} list to run only those steps, in the order
+#' given.  Use \code{modifyList(formals(filterPanel.default)$steps, list(...))}
+#' to adjust individual thresholds while keeping all other defaults.
+#'
+#' @section Multi-pass filtering:
+#' Passing a \code{"filteredPanel"} object as \code{geno} runs an additional
+#' filtering pass and \emph{appends} the new pass to \code{$history}.
+#' \code{print()} displays the full audit trail across all passes.
+#'
 #' @param geno A numeric matrix (\code{lines x markers}) with row names
-#'   identifying lines, a \code{data.frame} with a line identifier column, or
-#'   a \code{"checkPanel"} object from \code{\link{checkPanel}}.  When a
-#'   \code{"checkPanel"} object is supplied the stored \code{geno},
-#'   \code{map}, \code{encoding}, and column-name arguments are used
-#'   automatically and the remaining arguments below need not be specified.
+#'   identifying lines, a \code{data.frame} with a line identifier column, a
+#'   \code{"checkPanel"} object from \code{\link{checkPanel}}, or a
+#'   \code{"filteredPanel"} object from a previous \code{filterPanel()} call.
 #' @param map A \code{data.frame} containing the genetic map.  Not required
-#'   when \code{geno} is a \code{"checkPanel"} object.
+#'   when \code{geno} is a \code{"checkPanel"} or \code{"filteredPanel"} object
+#'   (the stored map is used automatically).
 #' @param id Character string naming the line identifier column when
 #'   \code{geno} is a \code{data.frame}.  Default \code{"id"}.
 #' @param map.id Character string naming the marker column in \code{map}.
@@ -69,230 +112,313 @@
 #'   \code{map}.  Default \code{"pos"}.
 #' @param encoding Character string specifying the genotype encoding:
 #'   \code{"012"} (default) or \code{"pm1"}.
-#' @param miss.line Numeric scalar.  Lines with a missing rate above this
-#'   threshold are removed.  Default \code{0.20}.  Set to \code{NULL} to
-#'   skip.
-#' @param miss.marker Numeric scalar.  Markers with a missing rate above this
-#'   threshold are removed.  Default \code{0.20}.  Set to \code{NULL} to
-#'   skip.
-#' @param maf Numeric scalar.  Markers with minor allele frequency below this
-#'   threshold are removed.  Default \code{0.05}.  Set to \code{NULL} to
-#'   skip.
-#' @param het.line Numeric scalar.  Lines with a heterozygosity rate above
-#'   this threshold are removed (step 4).  Excess heterozygosity in a line
-#'   typically indicates a mislabelled or contaminated sample.
-#'   \code{NULL} (default) skips this filter.
-#' @param het.marker Numeric scalar.  Markers with a heterozygosity rate
-#'   above this threshold are removed (step 5).  High per-marker
-#'   heterozygosity can indicate a paralogous locus or genotyping artefact.
-#'   \code{NULL} (default) skips this filter.
-#' @param dup.lines Logical.  If \code{TRUE} (default), duplicate lines are
-#'   removed (step 6, after quality filters so clean copies are retained).
-#' @param dup.markers Logical.  If \code{FALSE} (default), duplicate markers
-#'   are \emph{not} removed.  Set to \code{TRUE} to drop them (step 7).
+#' @param steps A named list controlling which filters are applied and in what
+#'   order.  Each element name must be one of \code{"map"},
+#'   \code{"miss.marker"}, \code{"miss.line"}, \code{"het.line"},
+#'   \code{"het.marker"}, \code{"dup.lines"}, \code{"dup.markers"},
+#'   \code{"maf"}.  Numeric steps are skipped when their value is
+#'   \code{NULL}; logical steps (\code{map}, \code{dup.lines},
+#'   \code{dup.markers}) are skipped when \code{FALSE}.  Map consistency is
+#'   always prepended as step 1 if not already first in the list.  The
+#'   default list reproduces the original fixed workflow.
 #'
 #' @return An object of class \code{"filteredPanel"} — a list containing:
 #' \describe{
-#'   \item{\code{$geno}}{Filtered genotype matrix.}
-#'   \item{\code{$map}}{Filtered map data frame.}
+#'   \item{\code{$geno}}{Filtered genotype matrix (current state).}
+#'   \item{\code{$map}}{Filtered map data frame (current state).}
 #'   \item{\code{$encoding}, \code{$id}, \code{$map.id}, \code{$map.chr},
 #'     \code{$map.pos}}{Carried through for \code{\link{primePanel}}.}
-#'   \item{\code{$thresholds}}{Named list of the threshold arguments used.}
-#'   \item{\code{$removed}}{Named list with one element per filter step,
-#'     each a character vector of the removed line or marker names.}
-#'   \item{\code{$n.original}}{Named integer: \code{lines} and
-#'     \code{markers} before filtering.}
-#'   \item{\code{$n.final}}{Named integer: \code{lines} and \code{markers}
-#'     after filtering.}
+#'   \item{\code{$history}}{A list of pass records, one per \code{filterPanel}
+#'     call.  Each pass contains \code{$pass} (integer), \code{$steps} (the
+#'     steps list used), \code{$removed} (named list of removed items per
+#'     step), \code{$n.before}, and \code{$n.after} (named integer vectors).}
+#'   \item{\code{$n.original}}{Named integer vector (\code{lines},
+#'     \code{markers}) recording the dimensions \emph{before the very first
+#'     filtering pass}.}
+#'   \item{\code{$n.final}}{Named integer vector (\code{lines},
+#'     \code{markers}) recording the current dimensions after all passes.}
 #' }
 #'
 #' @seealso \code{\link{checkPanel}}, \code{\link{primePanel}}
 #' @export
-filterPanel <- function(geno, map,
-                        id          = "id",
-                        map.id      = "marker",
-                        map.chr     = "chr",
-                        map.pos     = "pos",
-                        encoding    = "012",
-                        miss.marker = 0.20,
-                        miss.line   = 0.20,
-                        het.line    = NULL,
-                        het.marker  = NULL,
-                        dup.lines   = TRUE,
-                        dup.markers = FALSE,
-                        maf         = 0.05) {
-    # Accept a checkPanel object as the first argument; extract stored fields.
-    if (inherits(geno, "checkPanel")) {
-        chk      <- geno
-        geno     <- chk$geno
-        map      <- chk$map
-        id       <- chk$id
-        map.id   <- chk$map.id
-        map.chr  <- chk$map.chr
-        map.pos  <- chk$map.pos
-        encoding <- chk$encoding
-    }
-    .filterPanel_core(geno = geno, map = map, id = id, map.id = map.id,
-                      map.chr = map.chr, map.pos = map.pos,
-                      encoding = encoding, miss.marker = miss.marker,
-                      miss.line = miss.line, het.line = het.line,
-                      het.marker = het.marker, dup.lines = dup.lines,
-                      dup.markers = dup.markers, maf = maf)
-}
+filterPanel <- function(geno, ...) UseMethod("filterPanel")
+
 
 # =============================================================================
-# Internal workhorse
+# filterPanel.default  —  raw matrix or data.frame
 # =============================================================================
-.filterPanel_core <- function(geno, map, id, map.id, map.chr, map.pos,
-                               encoding, miss.marker, miss.line,
-                               het.line, het.marker, dup.lines,
-                               dup.markers, maf) {
+
+#' @rdname filterPanel
+#' @export
+filterPanel.default <- function(geno,
+                                map,
+                                id       = "id",
+                                map.id   = "marker",
+                                map.chr  = "chr",
+                                map.pos  = "pos",
+                                encoding = "012",
+                                steps    = list(
+                                    map         = TRUE,
+                                    miss.marker = 0.20,
+                                    miss.line   = 0.20,
+                                    het.line    = NULL,
+                                    het.marker  = NULL,
+                                    dup.lines   = TRUE,
+                                    dup.markers = FALSE,
+                                    maf         = 0.05
+                                ), ...) {
+
+    geno.mat <- .extract_geno_matrix(geno, id)
+    n.orig   <- c(lines = nrow(geno.mat), markers = ncol(geno.mat))
+
+    result   <- .run_steps(geno.mat, map, encoding, id, map.id, map.chr,
+                           map.pos, steps)
+
+    .build_filteredPanel(
+        result     = result,
+        encoding   = encoding,
+        id         = id,
+        map.id     = map.id,
+        map.chr    = map.chr,
+        map.pos    = map.pos,
+        steps      = steps,
+        prev_hist  = list(),
+        n.original = n.orig,
+        n.before   = n.orig
+    )
+}
+
+
+# =============================================================================
+# filterPanel.checkPanel  —  accepts a checkPanel object
+# =============================================================================
+
+#' @rdname filterPanel
+#' @export
+filterPanel.checkPanel <- function(geno,
+                                   steps = list(
+                                       map         = TRUE,
+                                       miss.marker = 0.20,
+                                       miss.line   = 0.20,
+                                       het.line    = NULL,
+                                       het.marker  = NULL,
+                                       dup.lines   = TRUE,
+                                       dup.markers = FALSE,
+                                       maf         = 0.05
+                                   ), ...) {
+    chk <- geno
+    filterPanel.default(
+        geno     = chk$geno,
+        map      = chk$map,
+        id       = chk$id,
+        map.id   = chk$map.id,
+        map.chr  = chk$map.chr,
+        map.pos  = chk$map.pos,
+        encoding = chk$encoding,
+        steps    = steps
+    )
+}
+
+
+# =============================================================================
+# filterPanel.filteredPanel  —  additional pass; appends to $history
+# =============================================================================
+
+#' @rdname filterPanel
+#' @export
+filterPanel.filteredPanel <- function(geno,
+                                      steps = list(
+                                          map         = TRUE,
+                                          miss.marker = 0.20,
+                                          miss.line   = 0.20,
+                                          het.line    = NULL,
+                                          het.marker  = NULL,
+                                          dup.lines   = TRUE,
+                                          dup.markers = FALSE,
+                                          maf         = 0.05
+                                      ), ...) {
+    prev     <- geno
+    n.before <- prev$n.final
+
+    result   <- .run_steps(prev$geno, prev$map, prev$encoding,
+                           prev$id, prev$map.id, prev$map.chr,
+                           prev$map.pos, steps)
+
+    .build_filteredPanel(
+        result     = result,
+        encoding   = prev$encoding,
+        id         = prev$id,
+        map.id     = prev$map.id,
+        map.chr    = prev$map.chr,
+        map.pos    = prev$map.pos,
+        steps      = steps,
+        prev_hist  = prev$history,
+        n.original = prev$n.original,
+        n.before   = n.before
+    )
+}
+
+
+# =============================================================================
+# .run_steps()  —  workhorse: iterate over the steps list
+# =============================================================================
+
+.run_steps <- function(geno.mat, map, encoding, id, map.id, map.chr,
+                       map.pos, steps) {
 
     encoding <- match.arg(encoding, c("012", "pm1"))
 
-    # Helper: is value heterozygous under the current encoding?
-    .is_het <- function(mat)
-        if (encoding == "012") mat == 1L else mat == 0L
+    # --- Validate step names --------------------------------------------------
+    bad <- setdiff(names(steps), .valid_step_names)
+    if (length(bad))
+        stop("Unknown step name(s) in 'steps': ",
+             paste(bad, collapse = ", "),
+             ".  Valid names: ",
+             paste(.valid_step_names, collapse = ", "), ".")
 
-    # Extract matrix and IDs
-    if (is.data.frame(geno)) {
-        if (!id %in% names(geno))
-            stop("Column '", id, "' not found in geno data frame.")
-        ids      <- as.character(geno[[id]])
-        geno.mat <- as.matrix(geno[, !names(geno) %in% id, drop = FALSE])
-        rownames(geno.mat) <- ids
-    } else {
-        geno.mat <- as.matrix(geno)
-        ids      <- rownames(geno.mat)
-        if (is.null(ids))
-            stop("geno matrix must have row names identifying lines.")
+    # --- Ensure map consistency is always the first step ---------------------
+    if (!identical(names(steps)[1L], "map")) {
+        steps <- c(list(map = TRUE), steps[names(steps) != "map"])
     }
-    storage.mode(geno.mat) <- "numeric"
 
     for (col in c(map.id, map.chr, map.pos))
         if (!col %in% names(map))
             stop("Column '", col, "' not found in map.")
 
-    n.orig.lines   <- nrow(geno.mat)
-    n.orig.markers <- ncol(geno.mat)
-    removed        <- list()
+    # Helper: is a genotype call heterozygous under the current encoding?
+    .is_het <- function(mat)
+        if (encoding == "012") mat == 1L else mat == 0L
 
-    # -------------------------------------------------------------------------
-    # Step 1: Map consistency
-    # -------------------------------------------------------------------------
-    map.markers  <- as.character(map[[map.id]])
-    geno.markers <- colnames(geno.mat)
-    not_in_map   <- setdiff(geno.markers, map.markers)
-    if (length(not_in_map)) {
-        geno.mat <- geno.mat[, !colnames(geno.mat) %in% not_in_map, drop = FALSE]
-        map      <- map[map[[map.id]] %in% colnames(geno.mat), , drop = FALSE]
-    }
-    removed$map_consistency <- not_in_map
+    removed     <- list()
+    steps_run   <- list()   # records what actually ran (including forced map)
 
-    # -------------------------------------------------------------------------
-    # Step 2: Marker missingness  (before line missingness)
-    # -------------------------------------------------------------------------
-    if (!is.null(miss.marker)) {
-        mm     <- colMeans(is.na(geno.mat))
-        drop_m <- names(mm)[mm > miss.marker]
-        if (length(drop_m)) {
-            geno.mat <- geno.mat[, !colnames(geno.mat) %in% drop_m, drop = FALSE]
-            map      <- map[map[[map.id]] %in% colnames(geno.mat), , drop = FALSE]
+    for (nm in names(steps)) {
+        val <- steps[[nm]]
+
+        # ---- map consistency ------------------------------------------------
+        if (nm == "map") {
+            steps_run[[nm]] <- val
+            if (isFALSE(val)) { removed[[nm]] <- character(0L); next }
+            map.markers  <- as.character(map[[map.id]])
+            geno.markers <- colnames(geno.mat)
+            drop_m       <- setdiff(geno.markers, map.markers)
+            if (length(drop_m)) {
+                geno.mat <- geno.mat[, !colnames(geno.mat) %in% drop_m,
+                                     drop = FALSE]
+                map      <- map[map[[map.id]] %in% colnames(geno.mat), ,
+                                drop = FALSE]
+            }
+            removed[["map_consistency"]] <- drop_m
+            next
         }
-        removed$miss_marker <- drop_m
-    } else {
-        removed$miss_marker <- character(0L)
-    }
 
-    # -------------------------------------------------------------------------
-    # Step 3: Line missingness  (on cleaned marker set)
-    # -------------------------------------------------------------------------
-    if (!is.null(miss.line)) {
-        ml     <- rowMeans(is.na(geno.mat))
-        drop_l <- names(ml)[ml > miss.line]
-        if (length(drop_l))
-            geno.mat <- geno.mat[!rownames(geno.mat) %in% drop_l, , drop = FALSE]
-        removed$miss_line <- drop_l
-    } else {
-        removed$miss_line <- character(0L)
-    }
-
-    # -------------------------------------------------------------------------
-    # Step 4: Line heterozygosity  (mislabelled / contaminated samples)
-    # -------------------------------------------------------------------------
-    if (!is.null(het.line)) {
-        hl     <- rowMeans(.is_het(geno.mat), na.rm = TRUE)
-        drop_l <- names(hl)[!is.na(hl) & hl > het.line]
-        if (length(drop_l))
-            geno.mat <- geno.mat[!rownames(geno.mat) %in% drop_l, , drop = FALSE]
-        removed$het_line <- drop_l
-    } else {
-        removed$het_line <- character(0L)
-    }
-
-    # -------------------------------------------------------------------------
-    # Step 5: Marker heterozygosity  (paralogous / artefact loci)
-    # -------------------------------------------------------------------------
-    if (!is.null(het.marker)) {
-        hm     <- colMeans(.is_het(geno.mat), na.rm = TRUE)
-        drop_m <- names(hm)[!is.na(hm) & hm > het.marker]
-        if (length(drop_m)) {
-            geno.mat <- geno.mat[, !colnames(geno.mat) %in% drop_m, drop = FALSE]
-            map      <- map[map[[map.id]] %in% colnames(geno.mat), , drop = FALSE]
+        # ---- marker missingness ---------------------------------------------
+        if (nm == "miss.marker") {
+            steps_run[[nm]] <- val
+            if (is.null(val)) { removed[[nm]] <- character(0L); next }
+            mm     <- colMeans(is.na(geno.mat))
+            drop_m <- names(mm)[mm > val]
+            if (length(drop_m)) {
+                geno.mat <- geno.mat[, !colnames(geno.mat) %in% drop_m,
+                                     drop = FALSE]
+                map      <- map[map[[map.id]] %in% colnames(geno.mat), ,
+                                drop = FALSE]
+            }
+            removed[[nm]] <- drop_m
+            next
         }
-        removed$het_marker <- drop_m
-    } else {
-        removed$het_marker <- character(0L)
-    }
 
-    # -------------------------------------------------------------------------
-    # Step 6: Duplicate lines  (after quality filters)
-    # -------------------------------------------------------------------------
-    if (dup.lines) {
-        line_sigs <- apply(geno.mat, 1L, function(x)
-            paste(ifelse(is.na(x), "NA", as.character(x)), collapse = "|"))
-        dup_idx <- duplicated(line_sigs)
-        dup_nms <- rownames(geno.mat)[dup_idx]
-        if (length(dup_nms))
-            geno.mat <- geno.mat[!dup_idx, , drop = FALSE]
-        removed$dup_lines <- dup_nms
-    } else {
-        removed$dup_lines <- character(0L)
-    }
-
-    # -------------------------------------------------------------------------
-    # Step 7: Duplicate markers  (after quality filters)
-    # -------------------------------------------------------------------------
-    if (dup.markers) {
-        mark_sigs <- apply(geno.mat, 2L, function(x)
-            paste(ifelse(is.na(x), "NA", as.character(x)), collapse = "|"))
-        dup_midx <- duplicated(mark_sigs)
-        dup_mnms <- colnames(geno.mat)[dup_midx]
-        if (length(dup_mnms)) {
-            geno.mat <- geno.mat[, !dup_midx, drop = FALSE]
-            map      <- map[map[[map.id]] %in% colnames(geno.mat), , drop = FALSE]
+        # ---- line missingness -----------------------------------------------
+        if (nm == "miss.line") {
+            steps_run[[nm]] <- val
+            if (is.null(val)) { removed[[nm]] <- character(0L); next }
+            ml     <- rowMeans(is.na(geno.mat))
+            drop_l <- names(ml)[ml > val]
+            if (length(drop_l))
+                geno.mat <- geno.mat[!rownames(geno.mat) %in% drop_l, ,
+                                     drop = FALSE]
+            removed[[nm]] <- drop_l
+            next
         }
-        removed$dup_markers <- dup_mnms
-    } else {
-        removed$dup_markers <- character(0L)
-    }
 
-    # -------------------------------------------------------------------------
-    # Step 8: MAF  (last — on the fully cleaned dataset)
-    # -------------------------------------------------------------------------
-    if (!is.null(maf) && maf > 0) {
-        col_means <- colMeans(geno.mat, na.rm = TRUE)
-        p         <- if (encoding == "012") col_means / 2
-                     else (col_means + 1) / 2
-        maf_vec   <- pmin(p, 1 - p)
-        drop_maf  <- names(maf_vec)[!is.na(maf_vec) & maf_vec < maf]
-        if (length(drop_maf)) {
-            geno.mat <- geno.mat[, !colnames(geno.mat) %in% drop_maf, drop = FALSE]
-            map      <- map[map[[map.id]] %in% colnames(geno.mat), , drop = FALSE]
+        # ---- line heterozygosity --------------------------------------------
+        if (nm == "het.line") {
+            steps_run[[nm]] <- val
+            if (is.null(val)) { removed[[nm]] <- character(0L); next }
+            hl     <- rowMeans(.is_het(geno.mat), na.rm = TRUE)
+            drop_l <- names(hl)[!is.na(hl) & hl > val]
+            if (length(drop_l))
+                geno.mat <- geno.mat[!rownames(geno.mat) %in% drop_l, ,
+                                     drop = FALSE]
+            removed[[nm]] <- drop_l
+            next
         }
-        removed$maf <- drop_maf
-    } else {
-        removed$maf <- character(0L)
+
+        # ---- marker heterozygosity ------------------------------------------
+        if (nm == "het.marker") {
+            steps_run[[nm]] <- val
+            if (is.null(val)) { removed[[nm]] <- character(0L); next }
+            hm     <- colMeans(.is_het(geno.mat), na.rm = TRUE)
+            drop_m <- names(hm)[!is.na(hm) & hm > val]
+            if (length(drop_m)) {
+                geno.mat <- geno.mat[, !colnames(geno.mat) %in% drop_m,
+                                     drop = FALSE]
+                map      <- map[map[[map.id]] %in% colnames(geno.mat), ,
+                                drop = FALSE]
+            }
+            removed[[nm]] <- drop_m
+            next
+        }
+
+        # ---- duplicate lines ------------------------------------------------
+        if (nm == "dup.lines") {
+            steps_run[[nm]] <- val
+            if (isFALSE(val)) { removed[[nm]] <- character(0L); next }
+            line_sigs <- apply(geno.mat, 1L, function(x)
+                paste(ifelse(is.na(x), "NA", as.character(x)), collapse = "|"))
+            dup_idx <- duplicated(line_sigs)
+            dup_nms <- rownames(geno.mat)[dup_idx]
+            if (length(dup_nms))
+                geno.mat <- geno.mat[!dup_idx, , drop = FALSE]
+            removed[[nm]] <- dup_nms
+            next
+        }
+
+        # ---- duplicate markers ----------------------------------------------
+        if (nm == "dup.markers") {
+            steps_run[[nm]] <- val
+            if (isFALSE(val)) { removed[[nm]] <- character(0L); next }
+            mark_sigs <- apply(geno.mat, 2L, function(x)
+                paste(ifelse(is.na(x), "NA", as.character(x)), collapse = "|"))
+            dup_midx <- duplicated(mark_sigs)
+            dup_mnms <- colnames(geno.mat)[dup_midx]
+            if (length(dup_mnms)) {
+                geno.mat <- geno.mat[, !dup_midx, drop = FALSE]
+                map      <- map[map[[map.id]] %in% colnames(geno.mat), ,
+                                drop = FALSE]
+            }
+            removed[[nm]] <- dup_mnms
+            next
+        }
+
+        # ---- MAF ------------------------------------------------------------
+        if (nm == "maf") {
+            steps_run[[nm]] <- val
+            if (is.null(val) || val <= 0) { removed[[nm]] <- character(0L); next }
+            col_means <- colMeans(geno.mat, na.rm = TRUE)
+            p_vec     <- if (encoding == "012") col_means / 2
+                         else (col_means + 1) / 2
+            maf_vec   <- pmin(p_vec, 1 - p_vec)
+            drop_maf  <- names(maf_vec)[!is.na(maf_vec) & maf_vec < val]
+            if (length(drop_maf)) {
+                geno.mat <- geno.mat[, !colnames(geno.mat) %in% drop_maf,
+                                     drop = FALSE]
+                map      <- map[map[[map.id]] %in% colnames(geno.mat), ,
+                                drop = FALSE]
+            }
+            removed[[nm]] <- drop_maf
+            next
+        }
     }
 
     if (nrow(geno.mat) == 0L)
@@ -302,27 +428,103 @@ filterPanel <- function(geno, map,
         warning("All markers were removed by the filters. ",
                 "Consider relaxing one or more thresholds.")
 
+    list(geno.mat  = geno.mat,
+         map       = map,
+         removed   = removed,
+         steps_run = steps_run)
+}
+
+
+# =============================================================================
+# .build_filteredPanel()  —  assemble the return object
+# =============================================================================
+
+.build_filteredPanel <- function(result, encoding, id, map.id, map.chr,
+                                 map.pos, steps, prev_hist,
+                                 n.original, n.before) {
+
+    n.after <- c(lines   = nrow(result$geno.mat),
+                 markers = ncol(result$geno.mat))
+
+    new_pass <- list(
+        pass     = length(prev_hist) + 1L,
+        steps    = result$steps_run,
+        removed  = result$removed,
+        n.before = n.before,
+        n.after  = n.after
+    )
+
     structure(
         list(
-            geno       = geno.mat,
-            map        = map,
+            geno       = result$geno.mat,
+            map        = result$map,
             encoding   = encoding,
             id         = id,
             map.id     = map.id,
             map.chr    = map.chr,
             map.pos    = map.pos,
-            thresholds = list(miss.marker = miss.marker, miss.line = miss.line,
-                              het.line = het.line, het.marker = het.marker,
-                              dup.lines = dup.lines, dup.markers = dup.markers,
-                              maf = maf),
-            removed    = removed,
-            n.original = c(lines = n.orig.lines, markers = n.orig.markers),
-            n.final    = c(lines   = nrow(geno.mat),
-                           markers = ncol(geno.mat))
+            history    = c(prev_hist, list(new_pass)),
+            n.original = n.original,
+            n.final    = n.after
         ),
         class = "filteredPanel"
     )
 }
+
+
+# =============================================================================
+# .extract_geno_matrix()  —  shared matrix extraction
+# =============================================================================
+
+.extract_geno_matrix <- function(geno, id) {
+    if (is.data.frame(geno)) {
+        if (!id %in% names(geno))
+            stop("Column '", id, "' not found in geno data frame.")
+        ids      <- as.character(geno[[id]])
+        geno.mat <- as.matrix(geno[, !names(geno) %in% id, drop = FALSE])
+        rownames(geno.mat) <- ids
+    } else {
+        geno.mat <- as.matrix(geno)
+        if (is.null(rownames(geno.mat)))
+            stop("geno matrix must have row names identifying lines.")
+    }
+    storage.mode(geno.mat) <- "numeric"
+    geno.mat
+}
+
+
+# =============================================================================
+# .step_label()  —  human-readable label for a step
+# =============================================================================
+
+.step_label <- function(nm, val) {
+    switch(nm,
+        map         = "Map consistency",
+        miss.marker = sprintf("Marker missingness > %.0f%%", 100 * val),
+        miss.line   = sprintf("Line missingness > %.0f%%",   100 * val),
+        het.line    = sprintf("Line heterozygosity > %.0f%%",   100 * val),
+        het.marker  = sprintf("Marker heterozygosity > %.0f%%", 100 * val),
+        dup.lines   = "Duplicate lines",
+        dup.markers = "Duplicate markers",
+        maf         = sprintf("MAF < %.2f", val),
+        nm   # fallback: use name as-is
+    )
+}
+
+.step_what <- function(nm) {
+    switch(nm,
+        map         = "marker",
+        miss.marker = "marker",
+        miss.line   = "line",
+        het.line    = "line",
+        het.marker  = "marker",
+        dup.lines   = "line",
+        dup.markers = "marker",
+        maf         = "marker",
+        "item"
+    )
+}
+
 
 # =============================================================================
 # print.filteredPanel
@@ -330,62 +532,72 @@ filterPanel <- function(geno, map,
 
 #' Print a filteredPanel summary
 #'
+#' Displays the full filtering history across all passes, one section per
+#' \code{filterPanel()} call, followed by an overall summary line.
+#'
 #' @param x A \code{"filteredPanel"} object from \code{\link{filterPanel}}.
 #' @param \dots Currently ignored.
 #' @return \code{x} invisibly.
 #' @exportS3Method
 print.filteredPanel <- function(x, ...) {
-    cat("\nFilter Summary\n")
+
+    n_passes <- length(x$history)
+    cat("\nFilter History",
+        if (n_passes > 1L) sprintf("  [%d passes]", n_passes) else "",
+        "\n", sep = "")
     cat(strrep("=", 52), "\n", sep = "")
     cat(sprintf("  Original : %d lines,  %d markers\n",
                 x$n.original["lines"], x$n.original["markers"]))
-    cat("\n")
 
-    steps <- list(
-        list(key = "map_consistency",
-             label = "Map consistency",
-             what  = "marker"),
-        list(key = "miss_marker",
-             label = sprintf("Marker missingness > %.0f%%",
-                             100 * (x$thresholds$miss.marker %||% 0)),
-             what  = "marker"),
-        list(key = "miss_line",
-             label = sprintf("Line missingness > %.0f%%",
-                             100 * (x$thresholds$miss.line %||% 0)),
-             what  = "line"),
-        list(key = "het_line",
-             label = sprintf("Line heterozygosity > %.0f%%",
-                             100 * (x$thresholds$het.line %||% 0)),
-             what  = "line"),
-        list(key = "het_marker",
-             label = sprintf("Marker heterozygosity > %.0f%%",
-                             100 * (x$thresholds$het.marker %||% 0)),
-             what  = "marker"),
-        list(key = "dup_lines",
-             label = "Duplicate lines",
-             what  = "line"),
-        list(key = "dup_markers",
-             label = "Duplicate markers",
-             what  = "marker"),
-        list(key = "maf",
-             label = sprintf("MAF < %.2f", x$thresholds$maf %||% 0),
-             what  = "marker")
-    )
+    for (h in x$history) {
+        cat("\n")
+        if (n_passes > 1L)
+            cat(sprintf("  -- Pass %d ", h$pass),
+                strrep("-", max(0L, 40L - nchar(h$pass))), "\n", sep = "")
 
-    for (i in seq_along(steps)) {
-        s   <- steps[[i]]
-        rem <- x$removed[[s$key]]
-        if (is.null(rem)) {
-            cat(sprintf("  Step %d [%-35s]: skipped\n", i, s$label))
-        } else {
-            cat(sprintf("  Step %d [%-35s]: removed %d %s(s)\n",
-                        i, s$label, length(rem), s$what))
+        step_num <- 0L
+        # map_consistency is stored under "map_consistency" key; all others
+        # use their step name as the removed key.
+        removed_keys <- names(h$removed)
+
+        for (nm in names(h$steps)) {
+            step_num  <- step_num + 1L
+            val       <- h$steps[[nm]]
+
+            # Determine the removed-list key for this step name
+            rem_key <- if (nm == "map") "map_consistency" else nm
+            rem     <- h$removed[[rem_key]]
+
+            # Is this step active?
+            active <- if (nm %in% c("map", "dup.lines", "dup.markers"))
+                          isTRUE(val)
+                      else
+                          !is.null(val)
+
+            if (!active) {
+                cat(sprintf("  Step %d [%-35s]: skipped\n",
+                            step_num, .step_label(nm, val)))
+            } else {
+                cat(sprintf("  Step %d [%-35s]: removed %d %s(s)\n",
+                            step_num,
+                            .step_label(nm, val),
+                            length(rem),
+                            .step_what(nm)))
+            }
         }
+
+        cat(sprintf("  After    : %d lines,  %d markers\n",
+                    h$n.after["lines"], h$n.after["markers"]))
     }
 
     cat("\n")
-    cat(sprintf("  Remaining: %d lines,  %d markers\n",
-                x$n.final["lines"], x$n.final["markers"]))
+    if (n_passes > 1L)
+        cat(sprintf("  Final    : %d lines,  %d markers  (from %d lines, %d markers)\n",
+                    x$n.final["lines"],    x$n.final["markers"],
+                    x$n.original["lines"], x$n.original["markers"]))
+    else
+        cat(sprintf("  Remaining: %d lines,  %d markers\n",
+                    x$n.final["lines"], x$n.final["markers"]))
     cat("\n")
     invisible(x)
 }

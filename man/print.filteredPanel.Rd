@@ -15,5 +15,6 @@
 \code{x} invisibly.
 }
 \description{
-Print a filteredPanel summary
+Displays the full filtering history across all passes, one section per
+\code{filterPanel()} call, followed by an overall summary line.
 }

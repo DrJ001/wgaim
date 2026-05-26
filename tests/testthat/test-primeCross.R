@@ -344,13 +344,12 @@ test_that("filterPanel MAF filter drops monomorphic markers", {
     stringsAsFactors = FALSE
   )
 
-  fp <- filterPanel(gmat, map_df, encoding = "012", maf = 0.05,
-                    miss.line = NULL, miss.marker = NULL,
-                    dup.lines = FALSE, dup.markers = FALSE)
+  fp <- filterPanel(gmat, map_df, encoding = "012",
+                    steps = list(map = TRUE, maf = 0.05))
 
   # Monomorphic marker must be removed
   expect_false(paste0("M", n_mar) %in% colnames(fp$geno))
-  expect_true(length(fp$removed$maf) >= 1L)
+  expect_true(length(fp$history[[1L]]$removed$maf) >= 1L)
 })
 
 # =============================================================================
@@ -371,12 +370,11 @@ test_that("filterPanel with maf=NULL keeps all markers", {
     stringsAsFactors = FALSE
   )
 
-  fp <- filterPanel(gmat, map_df, encoding = "012", maf = NULL,
-                    miss.line = NULL, miss.marker = NULL,
-                    dup.lines = FALSE, dup.markers = FALSE)
+  fp <- filterPanel(gmat, map_df, encoding = "012",
+                    steps = list(map = TRUE, maf = NULL))
 
   expect_equal(ncol(fp$geno), n_mar)
-  expect_equal(length(fp$removed$maf), 0L)
+  expect_equal(length(fp$history[[1L]]$removed$maf), 0L)
 })
 
 # =============================================================================

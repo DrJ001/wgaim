@@ -2,6 +2,9 @@
 
 S3method(aimTrace,gwasAim)
 S3method(aimTrace,qtlAim)
+S3method(filterPanel,checkPanel)
+S3method(filterPanel,default)
+S3method(filterPanel,filteredPanel)
 S3method(gpAim,asreml)
 S3method(gpAim,default)
 S3method(gwasAim,asreml)
