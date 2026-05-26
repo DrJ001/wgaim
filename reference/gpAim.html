@@ -234,9 +234,19 @@ unchanged; only the additive genomic term is overridden.</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An object of class <code>c("gpAim","asreml")</code> – the fitted ASReml
   model augmented with a <code>$GP</code> list containing:</p><dl><dt><code>$gebv</code></dt>
-<dd><p>A <code>data.frame</code> with columns for the line
-    identifier, <code>GEBV</code> (genomic estimated breeding value), and
-    <code>SE</code> (standard error of the GEBV).</p></dd>
+<dd><p>A <code>data.frame</code> with one row per genotyped line
+    (or one row per line-by-trial combination for multivariate models) and
+    columns: line identifier; <code>GEBV</code> (genomic estimated breeding
+    value); <code>SE</code> (standard error); <code>Accuracy</code>
+    (\(\sqrt{1 - PEV/V_g}\)); <code>gen.H2</code> (Cullis generalised
+    \(H^2\), <code>NA</code> for the mbf path).  For multivariate models a
+    <code>&lt;Trait&gt;</code> factor column is prepended.</p></dd>
+
+  <dt><code>$marker.effects</code></dt>
+<dd><p>Data frame with columns <code>marker</code> and
+    <code>effect</code> giving back-computed marker effect BLUPs
+    (\(\hat{q} = M^T G^{-1} \hat{g}\)). <code>NULL</code> for multivariate
+    models.</p></dd>
 
   <dt><code>$gen.type</code></dt>
 <dd><p>The genotype data type used (<code>"marker"</code> or
@@ -256,8 +266,17 @@ unchanged; only the additive genomic term is overridden.</p></dd>
 <dd><p>Estimated narrow-sense heritability
     \(h^2 = V_g/(V_g + V_e)\).</p></dd>
 
+  <dt><code>$gen.H2</code></dt>
+<dd><p>Cullis (2006) generalised \(H^2\): a scalar for
+    univariate models or a named numeric vector (one value per trial) for
+    multivariate models. <code>NA</code> when the mbf path is used.</p></dd>
+
   <dt><code>$n.markers</code></dt>
 <dd><p>Number of markers used.</p></dd>
+
+  <dt><code>$rel.scale</code></dt>
+<dd><p>Numeric scaling constant \(s\) used to
+    normalise the genomic relationship matrix (\(G = XX'/s\)).</p></dd>
 
   <dt><code>$rel.matrix</code></dt>
 <dd><p>The genomic relationship matrix \(G\),
@@ -266,6 +285,22 @@ unchanged; only the additive genomic term is overridden.</p></dd>
   <dt><code>$genetic.term</code></dt>
 <dd><p>The name of the genetic line identifier
     column (as named in the returned <code>$gebv</code> data frame).</p></dd>
+
+  <dt><code>$Trait</code></dt>
+<dd><p>The <code>Trait</code> column name supplied by the user;
+    <code>NULL</code> for univariate models.</p></dd>
+
+  <dt><code>$trait.levels</code></dt>
+<dd><p>Character vector of factor levels of
+    <code>Trait</code>; <code>NULL</code> for univariate models.</p></dd>
+
+  <dt><code>$Ga</code></dt>
+<dd><p>Estimated \(t \times t\) genetic covariance matrix
+    across environments; <code>NULL</code> for univariate models.</p></dd>
+
+  <dt><code>$Gcor</code></dt>
+<dd><p>Estimated \(t \times t\) genetic correlation
+    matrix; <code>NULL</code> for univariate models.</p></dd>
 
 
 </dl><p>Additionally, the (possibly modified) phenotypic data frame is assigned

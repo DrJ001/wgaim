@@ -67,17 +67,29 @@ lines, and number of markers used.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A <code>data.frame</code> with one row per genotyped line, sorted
-  descending by GEBV, containing columns:</p><dl><dt>(line identifier)</dt>
-<dd><p>The genetic line identifier (column name
-    matches the <code>merge.by</code> argument used in <code>gpAim</code>).</p></dd>
+    <p>A <code>data.frame</code> with one row per genotyped line (or one row per
+  line-by-trial combination for multivariate models), sorted descending by
+  GEBV, containing columns:</p><dl><dt>(line identifier)</dt>
+<dd><p>The genetic line identifier (column name matches
+    the <code>merge.by</code> argument used in <code>gpAim</code>).</p></dd>
+
+  <dt>(Trait)</dt>
+<dd><p>Factor of environment/trial levels.  Present only for
+    multivariate models.</p></dd>
 
   <dt>GEBV</dt>
-<dd><p>Genomic estimated breeding value, rounded to 4 decimal
-    places.</p></dd>
+<dd><p>Genomic estimated breeding value, rounded to 4 decimal places.</p></dd>
 
   <dt>SE</dt>
 <dd><p>Standard error of the GEBV, rounded to 4 decimal places.</p></dd>
+
+  <dt>Accuracy</dt>
+<dd><p>Prediction accuracy \(\sqrt{1 - PEV/V_g}\), rounded to
+    4 decimal places.</p></dd>
+
+  <dt>gen.H2</dt>
+<dd><p>Cullis (2006) generalised \(H^2\), rounded to 4 decimal
+    places. <code>NA</code> for the mbf path.</p></dd>
 
 
 </dl></div>

@@ -221,9 +221,16 @@
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">chk</span>   <span class="op">&lt;-</span> <span class="fu"><a href="reference/checkPanel.html">checkPanel</a></span><span class="op">(</span><span class="va">geno</span>, <span class="va">map</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">chk</span><span class="op">)</span></span>
-<span><span class="va">clean</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/filterPanel.html">filterPanel</a></span><span class="op">(</span><span class="va">chk</span>, miss.marker <span class="op">=</span> <span class="fl">0.20</span>, miss.line <span class="op">=</span> <span class="fl">0.20</span>, maf <span class="op">=</span> <span class="fl">0.05</span><span class="op">)</span></span>
+<span><span class="va">clean</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/filterPanel.html">filterPanel</a></span><span class="op">(</span><span class="va">chk</span><span class="op">)</span>           <span class="co"># default steps: map → miss.marker → miss.line → dup.lines → maf</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">clean</span><span class="op">)</span></span>
 <span><span class="va">panel</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/primePanel.html">primePanel</a></span><span class="op">(</span><span class="va">clean</span>, impute <span class="op">=</span> <span class="st">"knn"</span>, knn.k <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></code></pre></div>
+<p><code><a href="reference/filterPanel.html">filterPanel()</a></code> can also be called on a <code>"filteredPanel"</code> object to apply additional filtering in a second pass. Each pass is appended to the object’s history and displayed by <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Two-pass workflow: broad filters first, then tighten MAF on the clean set</span></span>
+<span><span class="va">pass1</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/filterPanel.html">filterPanel</a></span><span class="op">(</span><span class="va">chk</span>,   steps <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>map <span class="op">=</span> <span class="cn">TRUE</span>, miss.marker <span class="op">=</span> <span class="fl">0.20</span>,</span>
+<span>                                         miss.line <span class="op">=</span> <span class="fl">0.20</span>, dup.lines <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">pass2</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/filterPanel.html">filterPanel</a></span><span class="op">(</span><span class="va">pass1</span>, steps <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>maf <span class="op">=</span> <span class="fl">0.05</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">pass2</span><span class="op">)</span>   <span class="co"># shows both passes and an overall Final summary</span></span></code></pre></div>
 <div class="section level4">
 <h4 id="checkpanel--diagnose-data-quality">
 <code>checkPanel()</code> — diagnose data quality<a class="anchor" aria-label="anchor" href="#checkpanel--diagnose-data-quality"></a>
@@ -283,7 +290,8 @@
 <h4 id="filterpanel--apply-data-quality-filters">
 <code>filterPanel()</code> — apply data quality filters<a class="anchor" aria-label="anchor" href="#filterpanel--apply-data-quality-filters"></a>
 </h4>
-<p><code><a href="reference/filterPanel.html">filterPanel()</a></code> applies a sequential set of filters in a statistically principled order. Each step operates on data already cleaned by the preceding steps. Passing a <code>"checkPanel"</code> object as the first argument automatically reuses the stored <code>geno</code>, <code>map</code>, <code>encoding</code>, and column-name arguments.</p>
+<p><code><a href="reference/filterPanel.html">filterPanel()</a></code> applies a user-defined sequence of data quality filters. Filtering is controlled by a single <code>steps</code> named list — the <strong>element order is the execution order</strong>, so users have full control over which filters run and in what sequence. Passing a <code>"checkPanel"</code> object as the first argument automatically reuses the stored <code>geno</code>, <code>map</code>, <code>encoding</code>, and column-name arguments.</p>
+<p>The eight available steps and their default values are:</p>
 <table class="table">
 <colgroup>
 <col width="33%">
@@ -291,71 +299,80 @@
 <col width="33%">
 </colgroup>
 <thead><tr>
-<th>Step</th>
+<th>Step name</th>
 <th>Filter</th>
-<th>Default</th>
+<th>Default value</th>
 </tr></thead>
 <tbody>
 <tr>
-<td>1</td>
+<td><code>map</code></td>
 <td>
-<strong>Map consistency</strong> — markers absent from <code>map</code> are dropped</td>
-<td>always applied</td>
-</tr>
-<tr>
-<td>2</td>
-<td>
-<strong>Marker missingness</strong> — markers above <code>miss.marker</code> are removed first, before lines are assessed</td>
-<td><code>0.20</code></td>
-</tr>
-<tr>
-<td>3</td>
-<td>
-<strong>Line missingness</strong> — lines above <code>miss.line</code> are removed, computed on the cleaned marker set</td>
-<td><code>0.20</code></td>
-</tr>
-<tr>
-<td>4</td>
-<td>
-<strong>Line heterozygosity</strong> — lines above <code>het.line</code> are removed; excess het indicates a mislabelled or contaminated sample</td>
-<td>
-<code>NULL</code> (skipped)</td>
-</tr>
-<tr>
-<td>5</td>
-<td>
-<strong>Marker heterozygosity</strong> — markers above <code>het.marker</code> are removed; high per-marker het suggests a paralogous locus</td>
-<td>
-<code>NULL</code> (skipped)</td>
-</tr>
-<tr>
-<td>6</td>
-<td>
-<strong>Duplicate lines</strong> — second and subsequent copies removed after quality filters, so clean copies are retained</td>
+<strong>Map consistency</strong> — markers absent from <code>map</code> are dropped; always forced as step 1</td>
 <td><code>TRUE</code></td>
 </tr>
 <tr>
-<td>7</td>
+<td><code>miss.marker</code></td>
 <td>
-<strong>Duplicate markers</strong> — second and subsequent copies removed</td>
-<td><code>FALSE</code></td>
+<strong>Marker missingness</strong> — markers above threshold removed before lines are assessed</td>
+<td><code>0.20</code></td>
 </tr>
 <tr>
-<td>8</td>
+<td><code>miss.line</code></td>
 <td>
-<strong>MAF</strong> — markers below <code>maf</code> are removed last, on the fully cleaned dataset</td>
+<strong>Line missingness</strong> — lines above threshold removed on the cleaned marker set</td>
+<td><code>0.20</code></td>
+</tr>
+<tr>
+<td><code>het.line</code></td>
+<td>
+<strong>Line heterozygosity</strong> — lines above threshold removed; excess het indicates a mislabelled or contaminated sample</td>
+<td>
+<code>NULL</code> (skipped)</td>
+</tr>
+<tr>
+<td><code>het.marker</code></td>
+<td>
+<strong>Marker heterozygosity</strong> — markers above threshold removed; high per-marker het suggests a paralogous locus</td>
+<td>
+<code>NULL</code> (skipped)</td>
+</tr>
+<tr>
+<td><code>dup.lines</code></td>
+<td>
+<strong>Duplicate lines</strong> — second and subsequent copies removed after quality filters</td>
+<td><code>TRUE</code></td>
+</tr>
+<tr>
+<td><code>dup.markers</code></td>
+<td>
+<strong>Duplicate markers</strong> — second and subsequent copies removed</td>
+<td>
+<code>FALSE</code> (skipped)</td>
+</tr>
+<tr>
+<td><code>maf</code></td>
+<td>
+<strong>MAF</strong> — markers below threshold removed last, on the fully cleaned dataset</td>
 <td><code>0.05</code></td>
 </tr>
 </tbody>
 </table>
-<p>The <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> method reports each step, the number of lines or markers removed, and the final panel dimensions.</p>
+<p>The default <code>steps</code> list reproduces the original statistically principled workflow. Supply a partial list to run only selected steps in a chosen order, or use <code><a href="https://rdrr.io/r/utils/modifyList.html" class="external-link">modifyList()</a></code> to adjust individual thresholds while keeping all other defaults:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Run only three steps in a custom order</span></span>
+<span><span class="fu"><a href="reference/filterPanel.html">filterPanel</a></span><span class="op">(</span><span class="va">chk</span>, steps <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>map <span class="op">=</span> <span class="cn">TRUE</span>, maf <span class="op">=</span> <span class="fl">0.01</span>, miss.marker <span class="op">=</span> <span class="fl">0.10</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Tighten one threshold, keep everything else at its default</span></span>
+<span><span class="fu"><a href="reference/filterPanel.html">filterPanel</a></span><span class="op">(</span><span class="va">chk</span>, steps <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/utils/modifyList.html" class="external-link">modifyList</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/formals.html" class="external-link">formals</a></span><span class="op">(</span><span class="va">filterPanel.default</span><span class="op">)</span><span class="op">$</span><span class="va">steps</span>,</span>
+<span>                                    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>miss.marker <span class="op">=</span> <span class="fl">0.10</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p>Numeric steps are skipped when their value is <code>NULL</code>; logical steps (<code>map</code>, <code>dup.lines</code>, <code>dup.markers</code>) are skipped when <code>FALSE</code>. The <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> method reports each step in the order it ran, the number of lines or markers removed per step, and the final panel dimensions. Multi-pass objects show a section per pass and an overall <strong>Final</strong> summary.</p>
 </div>
 <div class="section level4">
 <h4 id="primepanel--build-the-analysis-ready-object">
 <code>primePanel()</code> — build the analysis-ready object<a class="anchor" aria-label="anchor" href="#primepanel--build-the-analysis-ready-object"></a>
 </h4>
 <p><code><a href="reference/primePanel.html">primePanel()</a></code> converts the filtered (and optionally imputed) genotype data into a <code>wgPanel</code> object for use with <code><a href="reference/gwasAim.html">gwasAim()</a></code> or <code><a href="reference/gpAim.html">gpAim()</a></code>. It accepts a <code>"filteredPanel"</code> object directly; all column-name and encoding arguments are then extracted automatically.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">wgPanel</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/primePanel.html">primePanel</a></span><span class="op">(</span><span class="va">geno</span>, <span class="va">map</span>, id <span class="op">=</span> <span class="st">"id"</span>, map.id <span class="op">=</span> <span class="st">"marker"</span>,</span>
 <span>                      map.chr <span class="op">=</span> <span class="st">"chr"</span>, map.pos <span class="op">=</span> <span class="st">"pos"</span>,</span>
 <span>                      encoding <span class="op">=</span> <span class="st">"012"</span>, impute <span class="op">=</span> <span class="st">"none"</span>, knn.k <span class="op">=</span> <span class="fl">5L</span><span class="op">)</span></span></code></pre></div>
@@ -426,7 +443,7 @@
 <a class="anchor" aria-label="anchor" href="#qtl-mapping--qtlaim"></a>
 </h3>
 <p>Designed for biparental mapping populations (<code>wgCross</code>). Performs forward selection of QTL as fixed effects against a composite genome-wide random background, iterating until no further significant QTL are detected.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">qtl.fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/qtlAim.html">qtlAim</a></span><span class="op">(</span><span class="va">baseModel</span>, <span class="va">genObj</span>, <span class="va">merge.by</span>, fix.lines <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>                  gen.type <span class="op">=</span> <span class="cn">NULL</span>, method <span class="op">=</span> <span class="st">"fixed"</span>,</span>
 <span>                  selection <span class="op">=</span> <span class="st">"interval"</span>, force <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -525,7 +542,7 @@
 <a class="anchor" aria-label="anchor" href="#gwas--gwasaim"></a>
 </h3>
 <p>Designed for diversity panels (<code>wgPanel</code>). Uses the same forward- selection engine as <code><a href="reference/qtlAim.html">qtlAim()</a></code> but scans actual panel markers and applies a panel-size-adjusted significance threshold.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">gwas.fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gwasAim.html">gwasAim</a></span><span class="op">(</span><span class="va">baseModel</span>, <span class="va">genObj</span>, <span class="va">merge.by</span>, fix.lines <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>                    force <span class="op">=</span> <span class="cn">FALSE</span>, exclusion.window <span class="op">=</span> <span class="fl">20</span>, breakout <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>,</span>
 <span>                    TypeI <span class="op">=</span> <span class="fl">0.05</span>, trace <span class="op">=</span> <span class="cn">TRUE</span>, verboseLev <span class="op">=</span> <span class="fl">0</span>,</span>
@@ -607,7 +624,7 @@
 <a class="anchor" aria-label="anchor" href="#genomic-prediction--gpaim"></a>
 </h3>
 <p>Fits a whole-genome G-BLUP model and extracts genomic estimated breeding values (GEBVs), prediction accuracies, and generalised heritabilities for all genotyped lines. Works with both <code>wgCross</code> and <code>wgPanel</code> objects.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">gp.fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gpAim.html">gpAim</a></span><span class="op">(</span><span class="va">baseModel</span>, <span class="va">genObj</span>, <span class="va">merge.by</span>, fix.lines <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>                gen.type <span class="op">=</span> <span class="st">"marker"</span>, force <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>                trace <span class="op">=</span> <span class="cn">TRUE</span>, Trait <span class="op">=</span> <span class="cn">NULL</span>, str <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
@@ -699,7 +716,7 @@
 <a class="anchor" aria-label="anchor" href="#selection-index--selindex"></a>
 </h3>
 <p>Combines per-environment GEBVs from a multivariate <code><a href="reference/gpAim.html">gpAim()</a></code> result into a single selection index. Three index types are available:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">si</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/selIndex.html">selIndex</a></span><span class="op">(</span><span class="va">gp.fit</span>, weights <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>E1 <span class="op">=</span> <span class="fl">1</span>, E2 <span class="op">=</span> <span class="fl">2</span><span class="op">)</span>,</span>
 <span>               type <span class="op">=</span> <span class="st">"smith-hazel"</span>, prop.select <span class="op">=</span> <span class="fl">0.10</span>, selected <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
 <table class="table">
@@ -843,7 +860,7 @@
 <a class="anchor" aria-label="anchor" href="#iteration-diagnostics--aimtrace"></a>
 </h3>
 <p><code><a href="reference/aimTrace.html">aimTrace()</a></code> traces the forward-selection iterations of a <code>qtlAim</code> or <code>gwasAim</code> fit, showing how QTL were progressively added and how their effects evolved.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/aimTrace.html">aimTrace</a></span><span class="op">(</span><span class="va">qtl.fit</span>, plot <span class="op">=</span> <span class="st">"lrt"</span><span class="op">)</span>                        <span class="co"># LRT statistic at each iteration</span></span>
 <span><span class="fu"><a href="reference/aimTrace.html">aimTrace</a></span><span class="op">(</span><span class="va">qtl.fit</span>, plot <span class="op">=</span> <span class="st">"stability"</span><span class="op">)</span>                  <span class="co"># QTL effect ± 1 SE across iterations</span></span>
 <span><span class="fu"><a href="reference/aimTrace.html">aimTrace</a></span><span class="op">(</span><span class="va">qtl.fit</span>, plot <span class="op">=</span> <span class="st">"both"</span><span class="op">)</span>                       <span class="co"># returns both plots as a list</span></span>
@@ -854,7 +871,7 @@
 <a class="anchor" aria-label="anchor" href="#fine-mapping--finemap"></a>
 </h3>
 <p><code><a href="reference/fineMap.html">fineMap()</a></code> performs high-resolution single-QTL scanning in a window around each detected QTL or GWAS marker, with all other detected effects held in the model.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fm</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fineMap.html">fineMap</a></span><span class="op">(</span><span class="va">qtl.fit</span>, genObj <span class="op">=</span> <span class="va">wgCross</span>, window <span class="op">=</span> <span class="fl">50</span>, step <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fm</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fm</span><span class="op">)</span></span></code></pre></div>
@@ -865,7 +882,7 @@
 <a class="anchor" aria-label="anchor" href="#linkage-map-display--linkmap"></a>
 </h3>
 <p><code><a href="reference/linkMap.html">linkMap()</a></code> produces publication-quality chromosome diagrams and has methods for raw cross objects, fitted <code>qtlAim</code> results, and fitted <code>gwasAim</code> results:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/linkMap.html">linkMap</a></span><span class="op">(</span><span class="va">wgCross</span><span class="op">)</span>                         <span class="co"># raw map</span></span>
 <span><span class="fu"><a href="reference/linkMap.html">linkMap</a></span><span class="op">(</span><span class="va">qtl.fit</span>, genObj <span class="op">=</span> <span class="va">wgCross</span><span class="op">)</span>       <span class="co"># map with QTL positions</span></span>
 <span><span class="fu"><a href="reference/linkMap.html">linkMap</a></span><span class="op">(</span><span class="va">gwas.fit</span>, genObj <span class="op">=</span> <span class="va">wgPanel</span><span class="op">)</span>      <span class="co"># map with GWAS marker positions</span></span></code></pre></div>
