@@ -211,15 +211,106 @@ Explicit options: <code>"corh"</code>, <code>"corgh"</code>, <code>"us"</code>,
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An object of class <code>c("gwasAim","asreml")</code> – the final fitted
-  ASReml model augmented with a <code>$QTL</code> list (structured identically
-  to <code><a href="qtlAim.html">qtlAim</a></code>) plus GWAS-specific fields:</p><dl><dt><code>$TypeI</code></dt>
-<dd><p>The significance threshold used.</p></dd>
+  ASReml model augmented with a <code>$QTL</code> list containing:</p><dl><dt><code>$qtl</code></dt>
+<dd><p>Character vector of internal key names of detected
+    markers (e.g. <code>"Chr.3B.14"</code>), in detection order.</p></dd>
+
+  <dt><code>$effects</code></dt>
+<dd><p>Named numeric vector of estimated marker additive
+    effects from the final model.</p></dd>
+
+  <dt><code>$veffects</code></dt>
+<dd><p>Named numeric vector of estimated variances of
+    those marker effects.</p></dd>
+
+  <dt><code>$method</code></dt>
+<dd><p>Always <code>"fixed"</code> (hard-coded for GWAS).</p></dd>
+
+  <dt><code>$type</code></dt>
+<dd><p>Always <code>"marker"</code> (hard-coded for GWAS).</p></dd>
+
+  <dt><code>$selection</code></dt>
+<dd><p>Always <code>"interval"</code> (hard-coded for GWAS).</p></dd>
+
+  <dt><code>$TypeI</code></dt>
+<dd><p>The significance threshold used for the LRT.</p></dd>
 
   <dt><code>$n.markers</code></dt>
 <dd><p>Total number of markers in the panel.</p></dd>
 
+  <dt><code>$iterations</code></dt>
+<dd><p>Total number of forward-selection iterations
+    performed.</p></dd>
 
-</dl></div>
+  <dt><code>$breakout</code></dt>
+<dd><p>Integer; the <code>breakout</code> value passed by the
+    user. <code>-1</code> means the algorithm ran to completion.</p></dd>
+
+  <dt><code>$Trait</code></dt>
+<dd><p>The <code>Trait</code> column name for multivariate models;
+    <code>NULL</code> for univariate.</p></dd>
+
+  <dt><code>$trait.levels</code></dt>
+<dd><p>Character vector of factor levels of
+    <code>Trait</code>; <code>NULL</code> for univariate.</p></dd>
+
+  <dt><code>$is.interaction</code></dt>
+<dd><p>Logical vector (one per detected marker)
+    indicating whether each association is a G\(\times\)E interaction
+    effect (<code>TRUE</code>) or a main effect (<code>FALSE</code>).  <code>NULL</code> for
+    univariate models.</p></dd>
+
+  <dt><code>$diag</code></dt>
+<dd><p>A diagnostic list with one element per iteration,
+    containing:</p><dl><dt><code>$oint</code></dt>
+<dd><p>Per-iteration named numeric vectors of outlier
+        statistics \(\tilde{q}_i^2/\tilde{v}_i\) for all active markers.</p></dd>
+
+      <dt><code>$ochr</code></dt>
+<dd><p>Per-iteration chromosome-level aggregated
+        statistics (unused for GWAS but present for structural consistency
+        with <code>qtlAim</code>).</p></dd>
+
+      <dt><code>$blups</code></dt>
+<dd><p>Per-iteration named numeric vectors of scaled
+        BLUPs \(\tilde{q}_i/\sqrt{|\tilde{v}_i|}\).</p></dd>
+
+      <dt><code>$lik</code></dt>
+<dd><p>Per-iteration LRT components (<code>$baseLogL</code>,
+        <code>$stat</code>, <code>$pvalue</code>, <code>$pass</code>).</p></dd>
+
+      <dt><code>$lik.mat</code></dt>
+<dd><p>Matrix of LRT statistics across iterations,
+        used by <code><a href="aimTrace.html">aimTrace</a></code>.</p></dd>
+
+      <dt><code>$coef.list</code></dt>
+<dd><p>Per-iteration named numeric vectors of
+        cumulative marker fixed effect estimates.</p></dd>
+
+      <dt><code>$vcoef.list</code></dt>
+<dd><p>Per-iteration named numeric vectors of
+        cumulative marker effect variances.</p></dd>
+
+      <dt><code>$state</code></dt>
+<dd><p>Named integer vector recording which markers
+        have been selected (1) or are still active (0).</p></dd>
+
+      <dt><code>$genetic.term</code></dt>
+<dd><p>Name of the genetic line identifier column
+        used in the model.</p></dd>
+
+      <dt><code>$rel.scale</code></dt>
+<dd><p>Numeric scaling constant \(s\) used to
+        normalise the genomic relationship matrix \(G = XX'/s\).</p></dd>
+
+
+</dl><p></p></dd>
+
+
+</dl><p>Additionally, the updated phenotypic data frame (with detected marker
+genotype columns appended) is assigned to <code>&lt;response&gt;.data</code> in the
+calling environment.</p>
+    </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p><strong>Why TypeI = 0.05 without Bonferroni:</strong>

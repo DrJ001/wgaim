@@ -162,7 +162,10 @@ at the cost of more model refits.  Default <code>2</code>.</p></dd>
 
 </dl><p>The list has attribute <code>"qtl.key"</code> recording the original QTL key
   names, and attribute <code>"type"</code> recording <code>"qtlAim"</code> or
-  <code>"gwasAim"</code>.</p>
+  <code>"gwasAim"</code>.  Each per-QTL data frame additionally carries two
+  attributes: <code>"qtl_pos"</code> (numeric, the cM position of the original
+  QTL / marker used as the window centre) and <code>"clipped"</code> (logical,
+  <code>TRUE</code> if the window was truncated at a chromosome boundary).</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

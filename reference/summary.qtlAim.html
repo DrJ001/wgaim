@@ -98,17 +98,23 @@ as \(0.5 \log_{10}(\exp(z^2))\).</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>data.frame</code> with one row per detected QTL and columns
-  depending on <code>gen.type</code>:</p><dl><dt>Interval type (11 or 12 columns)</dt>
-<dd><p>Chromosome, Left Marker,
-    dist(cM), Infer. Marker, dist(cM), Right Marker, dist(cM), Size,
-    Prob, Perc.Var, and optionally LOD.</p></dd>
+  depending on <code>gen.type</code> and whether the model is univariate or
+  multivariate:</p><dl><dt>Interval type</dt>
+<dd><p>Columns: Chromosome, Left Marker, dist(cM), Infer.\
+    Marker, dist(cM), Right Marker, dist(cM), Size, Prob, Perc.Var, and
+    optionally LOD (10 or 11 columns univariate; 11 or 12 columns
+    multivariate with a leading <code>Trait</code> column).</p></dd>
 
-  <dt>Marker type (6 or 7 columns)</dt>
-<dd><p>Chromosome, Marker, dist(cM),
-    Size, Prob, Perc.Var, and optionally LOD.</p></dd>
+  <dt>Marker type</dt>
+<dd><p>Columns: Chromosome, Marker, dist(cM), Size, Prob,
+    Perc.Var, and optionally LOD (6 or 7 columns univariate; 7 or 8 columns
+    multivariate with a leading <code>Trait</code> column).</p></dd>
 
 
-</dl><p>Returns <code>NULL</code> invisibly if no QTL were detected.</p>
+</dl><p>For multivariate models a leading <code>Trait</code> column identifies the
+environment or trial, and rows are repeated once per trial level for each
+detected QTL.
+Returns <code>NULL</code> invisibly if no QTL were detected.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

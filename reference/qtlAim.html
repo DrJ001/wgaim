@@ -240,31 +240,99 @@ structures.  The number of factors must be stated explicitly;
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An object of class <code>c("qtlAim","asreml")</code> – the final fitted
   ASReml model augmented with a <code>$QTL</code> list containing:</p><dl><dt><code>$qtl</code></dt>
-<dd><p>Character vector of internal names of detected QTL
-    (e.g. <code>"Chr.3B.14"</code>), in order of detection.</p></dd>
+<dd><p>Character vector of internal key names of detected QTL
+    (e.g. <code>"Chr.3B.14"</code>), in detection order.</p></dd>
 
   <dt><code>$effects</code></dt>
-<dd><p>Named numeric vector of estimated QTL effects from
-    the final iteration.</p></dd>
+<dd><p>Named numeric vector of estimated QTL additive
+    effects from the final model.</p></dd>
 
   <dt><code>$veffects</code></dt>
-<dd><p>Named numeric vector of estimated variances of QTL
-    effects.</p></dd>
+<dd><p>Named numeric vector of estimated variances of
+    those QTL effects.</p></dd>
 
-  <dt><code>$method</code>, <code>$type</code>, <code>$selection</code></dt>
-<dd><p>Settings used.</p></dd>
+  <dt><code>$method</code></dt>
+<dd><p>The <code>method</code> argument used (<code>"fixed"</code> or
+    <code>"random"</code>).</p></dd>
+
+  <dt><code>$type</code></dt>
+<dd><p>The <code>gen.type</code> used (<code>"interval"</code> or
+    <code>"marker"</code>).</p></dd>
+
+  <dt><code>$selection</code></dt>
+<dd><p>The <code>selection</code> argument used.</p></dd>
+
+  <dt><code>$TypeI</code></dt>
+<dd><p>The significance threshold used for the LRT.</p></dd>
 
   <dt><code>$iterations</code></dt>
-<dd><p>Total number of iterations performed.</p></dd>
+<dd><p>Total number of forward-selection iterations
+    performed.</p></dd>
 
   <dt><code>$breakout</code></dt>
-<dd><p>Logical; <code>TRUE</code> if early stopping was used.</p></dd>
+<dd><p>Integer; the <code>breakout</code> value passed by the
+    user. <code>-1</code> means the algorithm ran to completion.</p></dd>
+
+  <dt><code>$Trait</code></dt>
+<dd><p>The <code>Trait</code> column name for multivariate models;
+    <code>NULL</code> for univariate.</p></dd>
+
+  <dt><code>$trait.levels</code></dt>
+<dd><p>Character vector of factor levels of
+    <code>Trait</code>; <code>NULL</code> for univariate.</p></dd>
+
+  <dt><code>$is.interaction</code></dt>
+<dd><p>Logical vector (one per detected QTL)
+    indicating whether each QTL is a G\(\times\)E interaction effect
+    (<code>TRUE</code>) or a main effect (<code>FALSE</code>).  <code>NULL</code> for
+    univariate models.</p></dd>
 
   <dt><code>$diag</code></dt>
-<dd><p>A diagnostic list containing per-iteration outlier
-    statistics (<code>$oint</code>), chromosome statistics (<code>$ochr</code>), scaled
-    BLUPs (<code>$blups</code>), LRT components (<code>$lik</code>), coefficient lists,
-    and the final interval state vector.</p></dd>
+<dd><p>A diagnostic list with one element per iteration,
+    containing:</p><dl><dt><code>$oint</code></dt>
+<dd><p>Per-iteration list of named numeric vectors of
+        outlier statistics \(\tilde{q}_i^2/\tilde{v}_i\) for all active
+        intervals.</p></dd>
+
+      <dt><code>$ochr</code></dt>
+<dd><p>Per-iteration list of chromosome-level aggregated
+        statistics (used when <code>selection = "chromosome"</code>).</p></dd>
+
+      <dt><code>$blups</code></dt>
+<dd><p>Per-iteration list of named numeric vectors of
+        scaled BLUPs \(\tilde{q}_i/\sqrt{|\tilde{v}_i|}\).</p></dd>
+
+      <dt><code>$lik</code></dt>
+<dd><p>Per-iteration list of LRT components
+        (<code>$baseLogL</code>, <code>$stat</code>, <code>$pvalue</code>, <code>$pass</code>).</p></dd>
+
+      <dt><code>$lik.mat</code></dt>
+<dd><p>Matrix of LRT statistics across iterations,
+        used by <code><a href="aimTrace.html">aimTrace</a></code>.</p></dd>
+
+      <dt><code>$coef.list</code></dt>
+<dd><p>Per-iteration list of named numeric vectors
+        of cumulative QTL fixed (or random) effect estimates.</p></dd>
+
+      <dt><code>$vcoef.list</code></dt>
+<dd><p>Per-iteration list of named numeric vectors
+        of cumulative QTL effect variances.</p></dd>
+
+      <dt><code>$state</code></dt>
+<dd><p>Named integer vector recording which intervals
+        have been selected (1) or are still active (0) at the end of the
+        last iteration.</p></dd>
+
+      <dt><code>$genetic.term</code></dt>
+<dd><p>Name of the genetic line identifier column
+        used in the model.</p></dd>
+
+      <dt><code>$rel.scale</code></dt>
+<dd><p>Numeric scaling constant \(s\) used to
+        normalise the genomic relationship matrix \(G = XX'/s\).</p></dd>
+
+
+</dl><p></p></dd>
 
 
 </dl><p>Additionally, the updated phenotypic data frame (with QTL genotype columns

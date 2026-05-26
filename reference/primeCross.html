@@ -175,7 +175,10 @@ markers at interval midpoints, or a numeric cM step size passed to
 
 
 </dl><p>The <code>$type</code> field records the value of <code>type</code> for use by
-  downstream analysis functions.</p>
+  downstream analysis functions.  When <code>consensus.mark = TRUE</code>
+  (default), <code>$colocated.markers</code> is a data frame listing any
+  markers that were collapsed to consensus genotypes by
+  <code><a href="fixMap.html">fixMap</a></code>.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
