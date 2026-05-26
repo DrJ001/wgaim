@@ -112,12 +112,61 @@
 #' Formal significance comes only from the LRT.
 #'
 #' @return An object of class \code{c("gwasAim","asreml")} -- the final fitted
-#'   ASReml model augmented with a \code{$QTL} list (structured identically
-#'   to \code{\link{qtlAim}}) plus GWAS-specific fields:
+#'   ASReml model augmented with a \code{$QTL} list containing:
 #' \describe{
-#'   \item{\code{$TypeI}}{The significance threshold used.}
+#'   \item{\code{$qtl}}{Character vector of internal key names of detected
+#'     markers (e.g. \code{"Chr.3B.14"}), in detection order.}
+#'   \item{\code{$effects}}{Named numeric vector of estimated marker additive
+#'     effects from the final model.}
+#'   \item{\code{$veffects}}{Named numeric vector of estimated variances of
+#'     those marker effects.}
+#'   \item{\code{$method}}{Always \code{"fixed"} (hard-coded for GWAS).}
+#'   \item{\code{$type}}{Always \code{"marker"} (hard-coded for GWAS).}
+#'   \item{\code{$selection}}{Always \code{"interval"} (hard-coded for GWAS).}
+#'   \item{\code{$TypeI}}{The significance threshold used for the LRT.}
 #'   \item{\code{$n.markers}}{Total number of markers in the panel.}
+#'   \item{\code{$iterations}}{Total number of forward-selection iterations
+#'     performed.}
+#'   \item{\code{$breakout}}{Integer; the \code{breakout} value passed by the
+#'     user (\code{-1} means the algorithm ran to completion).}
+#'   \item{\code{$Trait}}{The \code{Trait} column name for multivariate models;
+#'     \code{NULL} for univariate.}
+#'   \item{\code{$trait.levels}}{Character vector of factor levels of
+#'     \code{Trait}; \code{NULL} for univariate.}
+#'   \item{\code{$is.interaction}}{Logical vector (one entry per detected marker)
+#'     indicating whether each association is a G\eqn{\times}E interaction
+#'     effect (\code{TRUE}) or a main effect (\code{FALSE}).  \code{NULL} for
+#'     univariate models.}
+#'   \item{\code{$diag}}{A diagnostic list containing:
+#'     \describe{
+#'       \item{\code{$oint}}{Per-iteration list of named numeric vectors of
+#'         outlier statistics \eqn{\tilde{q}_i^2/\tilde{v}_i} for all active
+#'         markers.}
+#'       \item{\code{$ochr}}{Per-iteration list of chromosome-level aggregated
+#'         statistics (present for structural consistency with
+#'         \code{qtlAim} but unused in GWAS).}
+#'       \item{\code{$blups}}{Per-iteration list of named numeric vectors of
+#'         scaled BLUPs \eqn{\tilde{q}_i/\sqrt{|\tilde{v}_i|}}.}
+#'       \item{\code{$lik}}{Per-iteration list of LRT components
+#'         (\code{$baseLogL}, \code{$stat}, \code{$pvalue}, \code{$pass}).}
+#'       \item{\code{$lik.mat}}{Matrix of LRT statistics across iterations,
+#'         used by \code{\link{aimTrace}}.}
+#'       \item{\code{$coef.list}}{Per-iteration list of named numeric vectors
+#'         of cumulative marker fixed effect estimates.}
+#'       \item{\code{$vcoef.list}}{Per-iteration list of named numeric vectors
+#'         of cumulative marker effect variances.}
+#'       \item{\code{$state}}{Named integer vector recording which markers
+#'         have been selected (1) or are still active (0).}
+#'       \item{\code{$genetic.term}}{Name of the genetic line identifier column
+#'         used in the model.}
+#'       \item{\code{$rel.scale}}{Numeric scaling constant \eqn{s} used to
+#'         normalise the genomic relationship matrix \eqn{G = XX'/s}.}
+#'     }
+#'   }
 #' }
+#' Additionally, the updated phenotypic data frame (with detected marker
+#' genotype columns appended) is assigned to \code{<response>.data} in the
+#' calling environment.
 #'
 #' @references
 #' Verbyla, A.P., Cullis, B.R. and Thompson, R. (2007). The analysis of QTL

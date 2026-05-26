@@ -153,19 +153,56 @@
 #' @return An object of class \code{c("qtlAim","asreml")} -- the final fitted
 #'   ASReml model augmented with a \code{$QTL} list containing:
 #' \describe{
-#'   \item{\code{$qtl}}{Character vector of internal names of detected QTL
-#'     (e.g. \code{"Chr.3B.14"}), in order of detection.}
-#'   \item{\code{$effects}}{Named numeric vector of estimated QTL effects from
-#'     the final iteration.}
-#'   \item{\code{$veffects}}{Named numeric vector of estimated variances of QTL
-#'     effects.}
-#'   \item{\code{$method}, \code{$type}, \code{$selection}}{Settings used.}
-#'   \item{\code{$iterations}}{Total number of iterations performed.}
-#'   \item{\code{$breakout}}{Logical; \code{TRUE} if early stopping was used.}
-#'   \item{\code{$diag}}{A diagnostic list containing per-iteration outlier
-#'     statistics (\code{$oint}), chromosome statistics (\code{$ochr}), scaled
-#'     BLUPs (\code{$blups}), LRT components (\code{$lik}), coefficient lists,
-#'     and the final interval state vector.}
+#'   \item{\code{$qtl}}{Character vector of internal key names of detected QTL
+#'     (e.g. \code{"Chr.3B.14"}), in detection order.}
+#'   \item{\code{$effects}}{Named numeric vector of estimated QTL additive
+#'     effects from the final model.}
+#'   \item{\code{$veffects}}{Named numeric vector of estimated variances of
+#'     those QTL effects.}
+#'   \item{\code{$method}}{The \code{method} argument used (\code{"fixed"} or
+#'     \code{"random"}).}
+#'   \item{\code{$type}}{The \code{gen.type} used (\code{"interval"} or
+#'     \code{"marker"}).}
+#'   \item{\code{$selection}}{The \code{selection} argument used.}
+#'   \item{\code{$TypeI}}{The significance threshold used for the LRT.}
+#'   \item{\code{$iterations}}{Total number of forward-selection iterations
+#'     performed.}
+#'   \item{\code{$breakout}}{Integer; the \code{breakout} value passed by the
+#'     user (\code{-1} means the algorithm ran to completion).}
+#'   \item{\code{$Trait}}{The \code{Trait} column name for multivariate models;
+#'     \code{NULL} for univariate.}
+#'   \item{\code{$trait.levels}}{Character vector of factor levels of
+#'     \code{Trait}; \code{NULL} for univariate.}
+#'   \item{\code{$is.interaction}}{Logical vector (one entry per detected QTL)
+#'     indicating whether each QTL is a G\eqn{\times}E interaction effect
+#'     (\code{TRUE}) or a main effect (\code{FALSE}).  \code{NULL} for
+#'     univariate models.}
+#'   \item{\code{$diag}}{A diagnostic list containing:
+#'     \describe{
+#'       \item{\code{$oint}}{Per-iteration list of named numeric vectors of
+#'         outlier statistics \eqn{\tilde{q}_i^2/\tilde{v}_i} for all active
+#'         intervals.}
+#'       \item{\code{$ochr}}{Per-iteration list of chromosome-level aggregated
+#'         statistics (used when \code{selection = "chromosome"}).}
+#'       \item{\code{$blups}}{Per-iteration list of named numeric vectors of
+#'         scaled BLUPs \eqn{\tilde{q}_i/\sqrt{|\tilde{v}_i|}}.}
+#'       \item{\code{$lik}}{Per-iteration list of LRT components
+#'         (\code{$baseLogL}, \code{$stat}, \code{$pvalue}, \code{$pass}).}
+#'       \item{\code{$lik.mat}}{Matrix of LRT statistics across iterations,
+#'         used by \code{\link{aimTrace}}.}
+#'       \item{\code{$coef.list}}{Per-iteration list of named numeric vectors
+#'         of cumulative QTL fixed (or random) effect estimates.}
+#'       \item{\code{$vcoef.list}}{Per-iteration list of named numeric vectors
+#'         of cumulative QTL effect variances.}
+#'       \item{\code{$state}}{Named integer vector recording which intervals
+#'         have been selected (1) or are still active (0) at the end of the
+#'         last iteration.}
+#'       \item{\code{$genetic.term}}{Name of the genetic line identifier column
+#'         used in the model.}
+#'       \item{\code{$rel.scale}}{Numeric scaling constant \eqn{s} used to
+#'         normalise the genomic relationship matrix \eqn{G = XX'/s}.}
+#'     }
+#'   }
 #' }
 #' Additionally, the updated phenotypic data frame (with QTL genotype columns
 #' appended) is assigned to \code{<response>.data} in the calling environment.
