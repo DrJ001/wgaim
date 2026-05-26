@@ -160,17 +160,16 @@ An object of class \code{c("qtlAim","asreml")} -- the final fitted
   \item{\code{$iterations}}{Total number of forward-selection iterations
     performed.}
   \item{\code{$breakout}}{Integer; the \code{breakout} value passed by the
-    user. \code{-1} means the algorithm ran to completion.}
+    user (\code{-1} means the algorithm ran to completion).}
   \item{\code{$Trait}}{The \code{Trait} column name for multivariate models;
     \code{NULL} for univariate.}
   \item{\code{$trait.levels}}{Character vector of factor levels of
     \code{Trait}; \code{NULL} for univariate.}
-  \item{\code{$is.interaction}}{Logical vector (one per detected QTL)
+  \item{\code{$is.interaction}}{Logical vector (one entry per detected QTL)
     indicating whether each QTL is a G\eqn{\times}E interaction effect
     (\code{TRUE}) or a main effect (\code{FALSE}).  \code{NULL} for
     univariate models.}
-  \item{\code{$diag}}{A diagnostic list with one element per iteration,
-    containing:
+  \item{\code{$diag}}{A diagnostic list containing:
     \describe{
       \item{\code{$oint}}{Per-iteration list of named numeric vectors of
         outlier statistics \eqn{\tilde{q}_i^2/\tilde{v}_i} for all active
