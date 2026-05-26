@@ -271,7 +271,7 @@ structures.  The number of factors must be stated explicitly;
 
   <dt><code>$breakout</code></dt>
 <dd><p>Integer; the <code>breakout</code> value passed by the
-    user. <code>-1</code> means the algorithm ran to completion.</p></dd>
+    user (<code>-1</code> means the algorithm ran to completion).</p></dd>
 
   <dt><code>$Trait</code></dt>
 <dd><p>The <code>Trait</code> column name for multivariate models;
@@ -282,14 +282,13 @@ structures.  The number of factors must be stated explicitly;
     <code>Trait</code>; <code>NULL</code> for univariate.</p></dd>
 
   <dt><code>$is.interaction</code></dt>
-<dd><p>Logical vector (one per detected QTL)
+<dd><p>Logical vector (one entry per detected QTL)
     indicating whether each QTL is a G\(\times\)E interaction effect
     (<code>TRUE</code>) or a main effect (<code>FALSE</code>).  <code>NULL</code> for
     univariate models.</p></dd>
 
   <dt><code>$diag</code></dt>
-<dd><p>A diagnostic list with one element per iteration,
-    containing:</p><dl><dt><code>$oint</code></dt>
+<dd><p>A diagnostic list containing:</p><dl><dt><code>$oint</code></dt>
 <dd><p>Per-iteration list of named numeric vectors of
         outlier statistics \(\tilde{q}_i^2/\tilde{v}_i\) for all active
         intervals.</p></dd>

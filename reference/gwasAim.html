@@ -244,7 +244,7 @@ Explicit options: <code>"corh"</code>, <code>"corgh"</code>, <code>"us"</code>,
 
   <dt><code>$breakout</code></dt>
 <dd><p>Integer; the <code>breakout</code> value passed by the
-    user. <code>-1</code> means the algorithm ran to completion.</p></dd>
+    user (<code>-1</code> means the algorithm ran to completion).</p></dd>
 
   <dt><code>$Trait</code></dt>
 <dd><p>The <code>Trait</code> column name for multivariate models;
@@ -255,41 +255,41 @@ Explicit options: <code>"corh"</code>, <code>"corgh"</code>, <code>"us"</code>,
     <code>Trait</code>; <code>NULL</code> for univariate.</p></dd>
 
   <dt><code>$is.interaction</code></dt>
-<dd><p>Logical vector (one per detected marker)
+<dd><p>Logical vector (one entry per detected marker)
     indicating whether each association is a G\(\times\)E interaction
     effect (<code>TRUE</code>) or a main effect (<code>FALSE</code>).  <code>NULL</code> for
     univariate models.</p></dd>
 
   <dt><code>$diag</code></dt>
-<dd><p>A diagnostic list with one element per iteration,
-    containing:</p><dl><dt><code>$oint</code></dt>
-<dd><p>Per-iteration named numeric vectors of outlier
-        statistics \(\tilde{q}_i^2/\tilde{v}_i\) for all active markers.</p></dd>
+<dd><p>A diagnostic list containing:</p><dl><dt><code>$oint</code></dt>
+<dd><p>Per-iteration list of named numeric vectors of
+        outlier statistics \(\tilde{q}_i^2/\tilde{v}_i\) for all active
+        markers.</p></dd>
 
       <dt><code>$ochr</code></dt>
-<dd><p>Per-iteration chromosome-level aggregated
-        statistics (unused for GWAS but present for structural consistency
-        with <code>qtlAim</code>).</p></dd>
+<dd><p>Per-iteration list of chromosome-level aggregated
+        statistics (present for structural consistency with
+        <code>qtlAim</code> but unused in GWAS).</p></dd>
 
       <dt><code>$blups</code></dt>
-<dd><p>Per-iteration named numeric vectors of scaled
-        BLUPs \(\tilde{q}_i/\sqrt{|\tilde{v}_i|}\).</p></dd>
+<dd><p>Per-iteration list of named numeric vectors of
+        scaled BLUPs \(\tilde{q}_i/\sqrt{|\tilde{v}_i|}\).</p></dd>
 
       <dt><code>$lik</code></dt>
-<dd><p>Per-iteration LRT components (<code>$baseLogL</code>,
-        <code>$stat</code>, <code>$pvalue</code>, <code>$pass</code>).</p></dd>
+<dd><p>Per-iteration list of LRT components
+        (<code>$baseLogL</code>, <code>$stat</code>, <code>$pvalue</code>, <code>$pass</code>).</p></dd>
 
       <dt><code>$lik.mat</code></dt>
 <dd><p>Matrix of LRT statistics across iterations,
         used by <code><a href="aimTrace.html">aimTrace</a></code>.</p></dd>
 
       <dt><code>$coef.list</code></dt>
-<dd><p>Per-iteration named numeric vectors of
-        cumulative marker fixed effect estimates.</p></dd>
+<dd><p>Per-iteration list of named numeric vectors
+        of cumulative marker fixed effect estimates.</p></dd>
 
       <dt><code>$vcoef.list</code></dt>
-<dd><p>Per-iteration named numeric vectors of
-        cumulative marker effect variances.</p></dd>
+<dd><p>Per-iteration list of named numeric vectors
+        of cumulative marker effect variances.</p></dd>
 
       <dt><code>$state</code></dt>
 <dd><p>Named integer vector recording which markers
