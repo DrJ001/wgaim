@@ -13,14 +13,20 @@
 \item{\dots}{Currently unused.}
 }
 \value{
-A \code{data.frame} with one row per genotyped line, sorted
-  descending by GEBV, containing columns:
+A \code{data.frame} with one row per genotyped line (or one row per
+  line-by-trial combination for multivariate models), sorted descending by
+  GEBV, containing columns:
 \describe{
-  \item{(line identifier)}{The genetic line identifier (column name
-    matches the \code{merge.by} argument used in \code{gpAim}).}
-  \item{GEBV}{Genomic estimated breeding value, rounded to 4 decimal
-    places.}
+  \item{(line identifier)}{The genetic line identifier (column name matches
+    the \code{merge.by} argument used in \code{gpAim}).}
+  \item{(Trait)}{Factor of environment/trial levels.  Present only for
+    multivariate models.}
+  \item{GEBV}{Genomic estimated breeding value, rounded to 4 decimal places.}
   \item{SE}{Standard error of the GEBV, rounded to 4 decimal places.}
+  \item{Accuracy}{Prediction accuracy \eqn{\sqrt{1 - PEV/V_g}}, rounded to
+    4 decimal places.}
+  \item{gen.H2}{Cullis (2006) generalised \eqn{H^2}, rounded to 4 decimal
+    places. \code{NA} for the mbf path.}
 }
 }
 \description{

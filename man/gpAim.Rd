@@ -100,9 +100,17 @@ unchanged; only the additive genomic term is overridden.}
 An object of class \code{c("gpAim","asreml")} -- the fitted ASReml
   model augmented with a \code{$GP} list containing:
 \describe{
-  \item{\code{$gebv}}{A \code{data.frame} with columns for the line
-    identifier, \code{GEBV} (genomic estimated breeding value), and
-    \code{SE} (standard error of the GEBV).}
+  \item{\code{$gebv}}{A \code{data.frame} with one row per genotyped line
+    (or one row per line-by-trial combination for multivariate models) and
+    columns: line identifier; \code{GEBV} (genomic estimated breeding
+    value); \code{SE} (standard error); \code{Accuracy}
+    (\eqn{\sqrt{1 - PEV/V_g}}); \code{gen.H2} (Cullis generalised
+    \eqn{H^2}, \code{NA} for the mbf path).  For multivariate models a
+    \code{<Trait>} factor column is prepended.}
+  \item{\code{$marker.effects}}{Data frame with columns \code{marker} and
+    \code{effect} giving back-computed marker effect BLUPs
+    (\eqn{\hat{q} = M^T G^{-1} \hat{g}}). \code{NULL} for multivariate
+    models.}
   \item{\code{$gen.type}}{The genotype data type used (\code{"marker"} or
     \code{"interval"}).}
   \item{\code{$path}}{The computational path used (\code{"vm"} or
@@ -111,11 +119,24 @@ An object of class \code{c("gpAim","asreml")} -- the fitted ASReml
   \item{\code{$var.resid}}{Estimated residual variance \eqn{V_e}.}
   \item{\code{$heritability}}{Estimated narrow-sense heritability
     \eqn{h^2 = V_g/(V_g + V_e)}.}
+  \item{\code{$gen.H2}}{Cullis (2006) generalised \eqn{H^2}: a scalar for
+    univariate models or a named numeric vector (one value per trial) for
+    multivariate models. \code{NA} when the mbf path is used.}
   \item{\code{$n.markers}}{Number of markers used.}
+  \item{\code{$rel.scale}}{Numeric scaling constant \eqn{s} used to
+    normalise the genomic relationship matrix (\eqn{G = XX'/s}).}
   \item{\code{$rel.matrix}}{The genomic relationship matrix \eqn{G},
     stored for use in \code{\link{plot.gpAim}}.}
   \item{\code{$genetic.term}}{The name of the genetic line identifier
     column (as named in the returned \code{$gebv} data frame).}
+  \item{\code{$Trait}}{The \code{Trait} column name supplied by the user;
+    \code{NULL} for univariate models.}
+  \item{\code{$trait.levels}}{Character vector of factor levels of
+    \code{Trait}; \code{NULL} for univariate models.}
+  \item{\code{$Ga}}{Estimated \eqn{t \times t} genetic covariance matrix
+    across environments; \code{NULL} for univariate models.}
+  \item{\code{$Gcor}}{Estimated \eqn{t \times t} genetic correlation
+    matrix; \code{NULL} for univariate models.}
 }
 Additionally, the (possibly modified) phenotypic data frame is assigned
 to \code{<response>.data} in the calling environment.

@@ -129,7 +129,7 @@
 #' the full dosage information is preserved for use in the relationship
 #' matrix or marker effect model.
 #'
-#' @return An object of class \code{c("wgPanel", "wgCross")} -- a list with:
+#' @return An object of class \code{c("wgPanel", "wgCross", "cross")} -- a list with:
 #' \describe{
 #'   \item{\code{$pheno}}{A \code{data.frame} with the line identifier column.}
 #'   \item{\code{$geno}}{A named list (one element per chromosome) each

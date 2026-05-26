@@ -47,7 +47,7 @@
 #' @param genObj The \code{"wgPanel"} object passed to \code{gwasAim}, produced
 #'   by \code{\link{primePanel}}.
 #' @param type Character string: \code{"manhattan"} (default), \code{"outlier"},
-#'   \code{"blups"}, \code{"effects"}, or \code{"contrast"}.
+#'   \code{"blups"}, \code{"effects"}, \code{"contrast"}, or \code{"heatmap"}.
 #' @param data Data frame. The phenotypic data used in the analysis. Required
 #'   only when \code{type = "contrast"}.
 #' @param iter Integer vector of iterations to display. Default is all stored
