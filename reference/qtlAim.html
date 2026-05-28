@@ -219,10 +219,13 @@ process.</p></dd>
 
 <dt id="arg-trait">Trait<a class="anchor" aria-label="anchor" href="#arg-trait"></a></dt>
 <dd><p>Character string naming a factor column in the phenotypic data
-that identifies the environment or trial (e.g. <code>"Site"</code>).  When
-supplied, a multivariate multi-environment QTL model is fitted using a
-mixture chi-squared LRT and Wald test pruning to separate
-main-effect from G\(\times\)E QTL.  Default <code>NULL</code> (univariate).</p></dd>
+that defines the grouping structure for multivariate analysis.  The column
+may represent trials, environments, sites, treatments, or measured traits
+— any factor whose levels define the multivariate response
+(e.g. <code>"Trial"</code>, <code>"Environment"</code>, <code>"Treatment"</code>).  When
+supplied, a multivariate QTL model is fitted using a mixture chi-squared
+LRT and Wald test pruning to separate main-effect from
+group-by-genotype interaction QTL.  Default <code>NULL</code> (univariate).</p></dd>
 
 
 <dt id="arg-str">str<a class="anchor" aria-label="anchor" href="#arg-str"></a></dt>

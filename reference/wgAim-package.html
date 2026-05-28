@@ -9,20 +9,21 @@ into three integrated analytical pillars:
 Forward-selection QTL detection in biparental
     mapping populations using whole-genome average interval mapping. Supports
     fixed and random QTL effects, interval or marker selection, and
-    multivariate multi-environment models via the Trait argument.
+    multivariate models via the Trait argument (trials, environments,
+    sites, treatments, or measured traits).
 
   gwasAim
 Forward-selection genome-wide association
     analysis in diversity panels. Uses the same composite genome-wide model
     as qtlAim with marker effects always treated as fixed. Supports
-    multivariate multi-environment models via Trait.
+    multivariate models via the Trait grouping argument.
 
   gpAim
 Genomic best linear unbiased prediction
     (G-BLUP) delivering genomic estimated breeding values (GEBVs) and
     BLUP accuracies via either a genomic relationship matrix (vm
     path) or direct marker-by-file random effects (mbf path).
-    Supports univariate and multivariate multi-environment models.
+    Supports univariate and multivariate models via Trait.
 
 
 
@@ -41,20 +42,21 @@ into three integrated analytical pillars:
 Forward-selection QTL detection in biparental
     mapping populations using whole-genome average interval mapping. Supports
     fixed and random QTL effects, interval or marker selection, and
-    multivariate multi-environment models via the Trait argument.
+    multivariate models via the Trait argument (trials, environments,
+    sites, treatments, or measured traits).
 
   gwasAim
 Forward-selection genome-wide association
     analysis in diversity panels. Uses the same composite genome-wide model
     as qtlAim with marker effects always treated as fixed. Supports
-    multivariate multi-environment models via Trait.
+    multivariate models via the Trait grouping argument.
 
   gpAim
 Genomic best linear unbiased prediction
     (G-BLUP) delivering genomic estimated breeding values (GEBVs) and
     BLUP accuracies via either a genomic relationship matrix (vm
     path) or direct marker-by-file random effects (mbf path).
-    Supports univariate and multivariate multi-environment models.
+    Supports univariate and multivariate models via Trait.
 
 
 
@@ -107,20 +109,21 @@ into three integrated analytical pillars:</p>
 <dd><p>Forward-selection QTL detection in biparental
     mapping populations using whole-genome average interval mapping. Supports
     fixed and random QTL effects, interval or marker selection, and
-    multivariate multi-environment models via the <code>Trait</code> argument.</p></dd>
+    multivariate models via the <code>Trait</code> argument (trials, environments,
+    sites, treatments, or measured traits).</p></dd>
 
   <dt><code><a href="gwasAim.html">gwasAim</a></code></dt>
 <dd><p>Forward-selection genome-wide association
     analysis in diversity panels. Uses the same composite genome-wide model
     as <code>qtlAim</code> with marker effects always treated as fixed. Supports
-    multivariate multi-environment models via <code>Trait</code>.</p></dd>
+    multivariate models via the <code>Trait</code> grouping argument.</p></dd>
 
   <dt><code><a href="gpAim.html">gpAim</a></code></dt>
 <dd><p>Genomic best linear unbiased prediction
     (G-BLUP) delivering genomic estimated breeding values (GEBVs) and
     BLUP accuracies via either a genomic relationship matrix (<code>vm</code>
     path) or direct marker-by-file random effects (<code>mbf</code> path).
-    Supports univariate and multivariate multi-environment models.</p></dd>
+    Supports univariate and multivariate models via <code>Trait</code>.</p></dd>
 
 
 </dl><p>The genomic prediction pillar is completed by <code><a href="selIndex.html">selIndex</a></code>, which
@@ -142,10 +145,12 @@ represented either as a genomic relationship matrix
 random effect (<code>mbf</code> path, when lines equal or exceed markers).</p>
 <p><strong>Multivariate extensions (<code>Trait</code> argument):</strong>
 All three analysis functions accept an optional <code>Trait</code> argument
-naming a factor column in the phenotypic data that identifies the
-environment or trial. When supplied, a multivariate multi-environment
-model is fitted using mixture chi-squared LRT for significance testing and
-Wald test pruning to classify QTL as main effects or G-by-E interactions.
+naming a factor column in the phenotypic data that defines the grouping
+structure for multivariate analysis — trials, environments, sites,
+treatments, or measured traits. When supplied, a multivariate model is
+fitted using mixture chi-squared LRT for significance testing and
+Wald test pruning to classify QTL as main effects or group-by-genotype
+interactions.
 The variance structure of the additive genomic term is controlled by the
 <code>str</code> argument (<code>"corh"</code>, <code>"fa1"</code>, etc.).</p>
 <p><strong>Data preparation:</strong></p><ul><li><p>Biparental mapping populations: use <code><a href="primeCross.html">primeCross</a></code> to

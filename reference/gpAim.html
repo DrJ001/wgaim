@@ -193,10 +193,12 @@ is redirected there.</p></dd>
 
 <dt id="arg-trait">Trait<a class="anchor" aria-label="anchor" href="#arg-trait"></a></dt>
 <dd><p>Character string naming a factor column in the phenotypic data
-identifying the environment or trial (e.g. <code>"Trial"</code>). When supplied,
-a multivariate G-BLUP model is fitted and per-environment GEBVs are
-returned. See <code>str</code> for how the variance structure of the additive
-genomic term is controlled. Default <code>NULL</code> (univariate).</p></dd>
+that defines the grouping structure for multivariate analysis — trials,
+environments, sites, treatments, or measured traits
+(e.g. <code>"Trial"</code>, <code>"Environment"</code>, <code>"Treatment"</code>).
+When supplied, a multivariate G-BLUP model is fitted and per-group GEBVs
+are returned. See <code>str</code> for variance structure control.
+Default <code>NULL</code> (univariate).</p></dd>
 
 
 <dt id="arg-str">str<a class="anchor" aria-label="anchor" href="#arg-str"></a></dt>
