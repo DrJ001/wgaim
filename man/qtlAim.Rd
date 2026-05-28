@@ -127,10 +127,13 @@ the standard ASReml fitting output. Useful for diagnosing the selection
 process.}
 
 \item{Trait}{Character string naming a factor column in the phenotypic data
-that identifies the environment or trial (e.g. \code{"Site"}).  When
-supplied, a multivariate multi-environment QTL model is fitted using a
-mixture chi-squared LRT and Wald test pruning to separate
-main-effect from G\eqn{\times}E QTL.  Default \code{NULL} (univariate).}
+that defines the grouping structure for multivariate analysis.  The column
+may represent trials, environments, sites, treatments, or measured traits
+— any factor whose levels define the multivariate response
+(e.g. \code{"Trial"}, \code{"Environment"}, \code{"Treatment"}).  When
+supplied, a multivariate QTL model is fitted using a mixture chi-squared
+LRT and Wald test pruning to separate main-effect from
+group-by-genotype interaction QTL.  Default \code{NULL} (univariate).}
 
 \item{str}{Character string controlling the variance structure of the
 additive genomic term in the multivariate model.  \code{NULL} (default)

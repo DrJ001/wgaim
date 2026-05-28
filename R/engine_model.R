@@ -71,13 +71,13 @@
     #
     # str = NULL  -> mirror the residual structure exactly:
     #   corh / corgh / us in residual  -> upgrade additive to corgh
-    #   fa(Trait, k) in residual       -> upgrade additive to fa(Trait, k)
+    #   fa(Trial, k) in residual       -> upgrade additive to fa(Trial, k)
     #   diag / bare                    -> no upgrade
     #
     # str non-NULL -> override, regardless of residual structure:
     #   "corh" / "corgh" / "us"  -> upgrade additive to corgh
-    #   "fa2", "fa3", ...         -> upgrade additive to fa(Trait, k)
-    #   "diag"                    -> no upgrade (independent per-trait)
+    #   "fa2", "fa3", ...         -> upgrade additive to fa(Trial, k)
+    #   "diag"                    -> no upgrade (independent per group level)
     #   "fa" (no number)          -> error: number of factors must be specified
     #
     # us(Trial) maps to corgh on the additive term: both span the same space of
@@ -263,8 +263,8 @@
         names(covObj)[1] <- merge.by
         if (is.null(qtlModel$call$mbf$ints) & vm) {
             # vm -> mbf switch: reconstruct the random formula, preserving the
-            # variance structure prefix (e.g. "diag(Trait):", "corgh(Trait):",
-            # "fa(Trait,k):") that precedes the vm term in the additive genomic
+            # variance structure prefix (e.g. "diag(Trial):", "corgh(Trial):",
+            # "fa(Trial,k):") that precedes the vm term in the additive genomic
             # term (vmterms[1]).  vmterms[2] is the residual genetic term
             # as extracted from the original base model; it is passed through
             # unchanged.

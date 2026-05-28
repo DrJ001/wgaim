@@ -68,10 +68,12 @@ output is printed to the console. If a file path character string, output
 is redirected there.}
 
 \item{Trait}{Character string naming a factor column in the phenotypic data
-identifying the environment or trial (e.g. \code{"Trial"}). When supplied,
-a multivariate G-BLUP model is fitted and per-environment GEBVs are
-returned. See \code{str} for how the variance structure of the additive
-genomic term is controlled. Default \code{NULL} (univariate).}
+that defines the grouping structure for multivariate analysis — trials,
+environments, sites, treatments, or measured traits
+(e.g. \code{"Trial"}, \code{"Environment"}, \code{"Treatment"}).
+When supplied, a multivariate G-BLUP model is fitted and per-group GEBVs
+are returned. See \code{str} for variance structure control.
+Default \code{NULL} (univariate).}
 
 \item{str}{Character string controlling the variance structure applied to
 the additive genomic term (\code{vm()} or \code{mbf()}) when

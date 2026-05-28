@@ -11,16 +11,17 @@
 #'   \item{\code{\link{qtlAim}}}{Forward-selection QTL detection in biparental
 #'     mapping populations using whole-genome average interval mapping. Supports
 #'     fixed and random QTL effects, interval or marker selection, and
-#'     multivariate multi-environment models via the \code{Trait} argument.}
+#'     multivariate models via the \code{Trait} argument (trials, environments,
+#'     sites, treatments, or measured traits).}
 #'   \item{\code{\link{gwasAim}}}{Forward-selection genome-wide association
 #'     analysis in diversity panels. Uses the same composite genome-wide model
 #'     as \code{qtlAim} with marker effects always treated as fixed. Supports
-#'     multivariate multi-environment models via \code{Trait}.}
+#'     multivariate models via the \code{Trait} grouping argument.}
 #'   \item{\code{\link{gpAim}}}{Genomic best linear unbiased prediction
 #'     (G-BLUP) delivering genomic estimated breeding values (GEBVs) and
 #'     BLUP accuracies via either a genomic relationship matrix (\code{vm}
 #'     path) or direct marker-by-file random effects (\code{mbf} path).
-#'     Supports univariate and multivariate multi-environment models.}
+#'     Supports univariate and multivariate models via \code{Trait}.}
 #' }
 #'
 #' The genomic prediction pillar is completed by \code{\link{selIndex}}, which
@@ -40,10 +41,12 @@
 #'
 #' \strong{Multivariate extensions (\code{Trait} argument):}
 #' All three analysis functions accept an optional \code{Trait} argument
-#' naming a factor column in the phenotypic data that identifies the
-#' environment or trial. When supplied, a multivariate multi-environment
-#' model is fitted using mixture chi-squared LRT for significance testing and
-#' Wald test pruning to classify QTL as main effects or G-by-E interactions.
+#' naming a factor column in the phenotypic data that defines the grouping
+#' structure for multivariate analysis — trials, environments, sites,
+#' treatments, or measured traits. When supplied, a multivariate model is
+#' fitted using mixture chi-squared LRT for significance testing and
+#' Wald test pruning to classify QTL as main effects or group-by-genotype
+#' interactions.
 #' The variance structure of the additive genomic term is controlled by the
 #' \code{str} argument (\code{"corh"}, \code{"fa1"}, etc.).
 #'
