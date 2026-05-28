@@ -42,6 +42,8 @@ identifying lines, a \code{data.frame} with a line identifier column, a
 \code{"checkPanel"} object from \code{\link{checkPanel}}, or a
 \code{"filteredPanel"} object from a previous \code{filterPanel()} call.}
 
+\item{\dots}{Currently ignored; reserved for future use.}
+
 \item{map}{A \code{data.frame} containing the genetic map.  Not required
 when \code{geno} is a \code{"checkPanel"} or \code{"filteredPanel"} object
 (the stored map is used automatically).}
