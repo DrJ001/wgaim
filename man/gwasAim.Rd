@@ -82,10 +82,13 @@ messages still appear on screen).}
 per-marker outlier statistics are printed at each iteration.}
 
 \item{Trait}{Character string naming a factor column in the phenotypic data
-that identifies the environment or trial (e.g. \code{"Site"}).  When
-supplied, a multivariate multi-environment GWAS model is fitted using a
-mixture chi-squared LRT and Wald test pruning to separate
-main-effect from G\eqn{\times}E associations.  Default \code{NULL}
+that defines the grouping structure for multivariate analysis.  The column
+may represent trials, environments, sites, treatments, or measured traits
+— any factor whose levels define the multivariate response
+(e.g. \code{"Trial"}, \code{"Environment"}, \code{"Treatment"}).  When
+supplied, a multivariate GWAS model is fitted using a mixture chi-squared
+LRT and Wald test pruning to separate main-effect from
+group-by-genotype interaction associations.  Default \code{NULL}
 (univariate).}
 
 \item{str}{Character string controlling the variance structure of the

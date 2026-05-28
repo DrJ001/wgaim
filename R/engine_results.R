@@ -71,8 +71,8 @@
             fix.form    <- as.formula(paste(
                 ". ~", paste(c(other.terms, final.terms), collapse = " + ")))
 
-            cat("\nWald Test: Pruning Trait x QTL interaction terms:\n")
-            cat("==================================================\n")
+            cat("\nWald Test: Pruning", Trait, "x QTL interaction terms:\n")
+            cat(paste0(rep("=", 36 + nchar(Trait)), collapse = ""), "\n")
             print(wt)
             cat("\n")
 
