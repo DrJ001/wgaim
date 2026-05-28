@@ -42,13 +42,15 @@
 #'       iterations with the significance threshold marked and each detected
 #'       QTL labelled.}
 #'     \item{\code{"stability"}}{Returns a \code{ggplot} of QTL effect
-#'       estimates \eqn{\pm}1 SE across every iteration in which the QTL was
-#'       in the model, one facet per QTL. For multivariate analyses, one line
-#'       per trial is shown within each facet. Large jumps suggest confounding.}
+#'       estimates \eqn{\pm}1 SE (points with error bars) across every
+#'       iteration in which the QTL was in the model, one facet per QTL.
+#'       For multivariate analyses a \code{facet_grid(trial \eqn{\times} QTL)}
+#'       layout is used with one panel per trial per QTL.
+#'       Large jumps suggest confounding.}
 #'     \item{\code{"both"}}{Returns a named list
 #'       \code{list(lrt = ..., stability = ...)} invisibly.}
 #'   }
-#' @param sig.col Colour for highlighted points and ribbons in diagnostic
+#' @param sig.col Colour for highlighted points and error bars in diagnostic
 #'   plots. Default \code{"firebrick"}.
 #' @param ncol Integer. Number of columns in the \code{facet_wrap} layout of
 #'   the \code{"stability"} plot for univariate analyses. Defaults to
@@ -350,12 +352,12 @@ aimTrace.qtlAim <- function(object,
 #
 # Univariate: one facet per QTL (ncol columns), one line + error bars.
 #
-# Multivariate: facet_grid(trial ~ qtl_label_fac).  Each cell shows a single
-#   line + translucent ribbon (±approx. 1 SE) for one trial × QTL combination.
-#   Trial rows are labelled on the right strip; QTL columns carry a [MAIN] or
-#   [INT] suffix.  Colour/legend are dropped — the grid position encodes trial
-#   identity.  y-scales are free within each QTL column (same scale across
-#   trials for a given QTL makes trial-to-trial comparison easy).
+# Multivariate: facet_grid(trial ~ qtl_label_fac).  Each cell shows points
+#   + error bars (±approx. 1 SE) for one trial × QTL combination, connected
+#   by a dashed grey line across iterations.  Trial rows are labelled on the
+#   right strip; QTL columns carry a [MAIN] or [INT] suffix.  Colour/legend
+#   are dropped — the grid position encodes trial identity.  y-scales are
+#   free within each QTL column.
 # =============================================================================
 .plot_stability <- function(object, sig.col = "firebrick", ncol = NULL) {
 
@@ -391,15 +393,15 @@ aimTrace.qtlAim <- function(object,
                                 linetype = "dashed", colour = "grey60",
                                 linewidth = 0.5) +
 
-            ggplot2::geom_ribbon(
+            ggplot2::geom_errorbar(
                 ggplot2::aes(ymin = .data$lo, ymax = .data$hi),
-                fill = sig.col, alpha = 0.15, colour = NA) +
+                colour = sig.col, width = 0.15, linewidth = 0.7) +
 
-            ggplot2::geom_line(colour = sig.col, linewidth = 0.6,
+            ggplot2::geom_line(colour = "grey50", linewidth = 0.5,
                                linetype = "dashed") +
 
             ggplot2::geom_point(fill = sig.col, colour = "white",
-                                shape = 21, size = 2, stroke = 0.5) +
+                                shape = 21, size = 3, stroke = 0.6) +
 
             ggplot2::scale_x_continuous(breaks = all_iters) +
             ggplot2::scale_y_continuous(

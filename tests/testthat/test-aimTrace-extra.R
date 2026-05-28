@@ -208,11 +208,12 @@ test_that(".plot_stability MV: returns a ggplot", {
     expect_s3_class(gp, "ggplot")
 })
 
-test_that(".plot_stability MV: uses per-trial colour scheme", {
+test_that(".plot_stability MV: uses facet_grid layout (trial x QTL)", {
     obj <- .make_mv_aimTrace_qtlAim(n_qtl = 2)
     gp  <- suppressWarnings(.plot_stability(obj))
-    # MV plot has a colour scale (legend present for trial)
-    expect_false(is.null(gp$scales$scales))
+    # MV plot uses facet_grid, not facet_wrap
+    facet_class <- class(gp$facet)
+    expect_true(any(grepl("FacetGrid", facet_class)))
 })
 
 # =============================================================================
