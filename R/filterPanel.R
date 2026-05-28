@@ -121,6 +121,7 @@
 #'   \code{dup.markers}) are skipped when \code{FALSE}.  Map consistency is
 #'   always prepended as step 1 if not already first in the list.  The
 #'   default list reproduces the original fixed workflow.
+#' @param \dots Currently ignored; reserved for future use.
 #'
 #' @return An object of class \code{"filteredPanel"} — a list containing:
 #' \describe{
