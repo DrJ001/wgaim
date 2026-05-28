@@ -463,7 +463,7 @@ aimTrace(qtl_yld, plot = "lrt", print.out = FALSE)
 #| eval: !expr asreml_ok
 #| fig-height: 6.5
 #| fig-cap: "QTL allele effect estimates ± 1 SE across the iterations in which each QTL was present in the model."
-aimTrace(qtl_yld, plot = "stability", print.out = FALSE, ncol = 2)
+aimTrace(qtl_yld, plot = "stability", print.out = FALSE, ncol = 3)
 ```
 
 ---
