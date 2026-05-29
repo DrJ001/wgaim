@@ -56,11 +56,14 @@
 #'   practice, diversity panels almost always have more markers than lines
 #'   so the vm path is typically taken. Set \code{force = TRUE} to override
 #'   and use the mbf path regardless.
-#' @param exclusion.window Numeric scalar giving the exclusion distance in
-#'   cM around each detected marker. Markers within this window are excluded
-#'   from selection in subsequent iterations. Default is \code{20} cM.
-#'   In GWAS this is a proxy for linkage disequilibrium-based exclusion;
-#'   users in high-LD populations may wish to increase this value.
+#' @param exclusion.window Numeric scalar giving the exclusion distance around
+#'   each detected marker.  Markers within this window are excluded from
+#'   selection in subsequent iterations as a proxy for LD-based exclusion.
+#'   The units are \strong{whatever unit the \code{map.pos} column of the
+#'   marker map is in} — centimorgans (cM) for a genetic map, or megabases
+#'   (Mb), kilobases (kb), or base pairs (bp) for a physical map.  Typical
+#'   values: \code{20} for a cM map; \code{10} for an Mb map; \code{10000}
+#'   for a kb map; \code{10000000} for a bp map.  Default is \code{20}.
 #' @param breakout Integer. If positive, terminates the algorithm after that
 #'   many iterations, returning diagnostics without adding the final marker
 #'   as a fixed effect. Default is \code{-1} (run to completion).
@@ -308,6 +311,8 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     n.markers <- ncol(genoData)
     cat(sprintf("\nGWAS significance threshold (TypeI): %.4f  (%d markers in panel)\n",
                 TypeI, n.markers))
+    cat(sprintf("Exclusion window: %g  (units = units of map position column '%s')\n",
+                exclusion.window, map.pos))
 
     # Phase 2b: Handle lines present in phenotypic but absent from panel
     fl           <- .fixLines(baseModel, phenoData, genoData, merge.by, plines, fix.lines, Trait = Trait, ...)

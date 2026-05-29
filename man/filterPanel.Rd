@@ -57,8 +57,9 @@ Default \code{"marker"}.}
 \item{map.chr}{Character string naming the chromosome column in \code{map}.
 Default \code{"chr"}.}
 
-\item{map.pos}{Character string naming the cM position column in
-\code{map}.  Default \code{"pos"}.}
+\item{map.pos}{Character string naming the marker position column in
+\code{map}.  Positions are used as supplied — no unit conversion is
+applied.  Default \code{"pos"}.}
 
 \item{encoding}{Character string specifying the genotype encoding:
 \code{"012"} (default) or \code{"pm1"}.}

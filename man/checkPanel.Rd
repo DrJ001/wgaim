@@ -22,7 +22,9 @@ genotypes.}
 
 \item{map}{A \code{data.frame} containing the genetic map with at minimum
 three columns: marker names (\code{map.id}), chromosome identifiers
-(\code{map.chr}), and cM positions (\code{map.pos}).}
+(\code{map.chr}), and marker positions (\code{map.pos}).  Positions may
+be in any consistent unit — cM for a genetic map, or Mb, kb, or bp for
+a physical map.}
 
 \item{id}{Character string naming the line identifier column when
 \code{geno} is a \code{data.frame}.  Ignored when \code{geno} is a
@@ -34,8 +36,9 @@ Default \code{"marker"}.}
 \item{map.chr}{Character string naming the chromosome column in \code{map}.
 Default \code{"chr"}.}
 
-\item{map.pos}{Character string naming the cM position column in
-\code{map}.  Default \code{"pos"}.}
+\item{map.pos}{Character string naming the marker position column in
+\code{map}.  Positions are used as supplied — no unit conversion is
+applied.  Default \code{"pos"}.}
 
 \item{encoding}{Character string specifying the genotype encoding:
 \code{"012"} (default, allele counts 0/1/2 or dosage in [0,2]) or
@@ -75,7 +78,8 @@ An object of class \code{"checkPanel"} — a list containing:
   \item{\code{$het.marker}}{Named numeric vector of per-marker
     heterozygosity rates.}
   \item{\code{$chr.coverage}}{Data frame with columns \code{chr},
-    \code{n.markers}, \code{cM.min}, \code{cM.max}.}
+    \code{n.markers}, \code{pos.min}, \code{pos.max}; positions are in
+    the same units as the \code{map.pos} column.}
 }
 }
 \description{
@@ -102,8 +106,8 @@ The following checks are performed:
     information.}
   \item{Heterozygosity}{Per-line proportion of heterozygous calls.  Excess
     heterozygosity may indicate mixed or mislabelled samples.}
-  \item{Chromosome coverage}{Number of markers and cM range per
-    chromosome.}
+  \item{Chromosome coverage}{Number of markers and position range per
+    chromosome (in the same units as the \code{map.pos} column).}
 }
 }
 \seealso{
