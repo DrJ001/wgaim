@@ -156,11 +156,14 @@ and use the mbf path regardless.</p></dd>
 
 
 <dt id="arg-exclusion-window">exclusion.window<a class="anchor" aria-label="anchor" href="#arg-exclusion-window"></a></dt>
-<dd><p>Numeric scalar giving the exclusion distance in
-cM around each detected marker. Markers within this window are excluded
-from selection in subsequent iterations. Default is <code>20</code> cM.
-In GWAS this is a proxy for linkage disequilibrium-based exclusion;
-users in high-LD populations may wish to increase this value.</p></dd>
+<dd><p>Numeric scalar giving the exclusion distance around
+each detected marker.  Markers within this window are excluded from
+selection in subsequent iterations as a proxy for LD-based exclusion.
+The units are <strong>whatever unit the <code>map.pos</code> column of the
+marker map is in</strong> — centimorgans (cM) for a genetic map, or megabases
+(Mb), kilobases (kb), or base pairs (bp) for a physical map.  Typical
+values: <code>20</code> for a cM map; <code>10</code> for an Mb map; <code>10000</code>
+for a kb map; <code>10000000</code> for a bp map.  Default is <code>20</code>.</p></dd>
 
 
 <dt id="arg-breakout">breakout<a class="anchor" aria-label="anchor" href="#arg-breakout"></a></dt>

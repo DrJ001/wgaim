@@ -80,9 +80,11 @@ genetic map into a <code>"wgPanel"</code> object suitable for use with
 <dt id="arg-map">map<a class="anchor" aria-label="anchor" href="#arg-map"></a></dt>
 <dd><p>A <code>data.frame</code> containing the genetic map with at minimum
 three columns: marker names (<code>map.id</code>), chromosome identifiers
-(<code>map.chr</code>), and cM positions (<code>map.pos</code>). Markers present
-in <code>geno</code> but absent from <code>map</code> are dropped with a message.
-Markers are sorted by position within each chromosome.</p></dd>
+(<code>map.chr</code>), and marker positions (<code>map.pos</code>).  Positions may
+be in any consistent unit — cM for a genetic map, or Mb, kb, or bp for
+a physical map.  Markers present in <code>geno</code> but absent from
+<code>map</code> are dropped with a message.  Markers are sorted by position
+within each chromosome.</p></dd>
 
 
 <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
@@ -104,8 +106,9 @@ internal marker naming.</p></dd>
 
 
 <dt id="arg-map-pos">map.pos<a class="anchor" aria-label="anchor" href="#arg-map-pos"></a></dt>
-<dd><p>Character string naming the cM position column in <code>map</code>.
-Default <code>"pos"</code>.</p></dd>
+<dd><p>Character string naming the marker position column in
+<code>map</code>.  Positions are stored and used as supplied — no unit
+conversion is applied.  Default <code>"pos"</code>.</p></dd>
 
 
 <dt id="arg-encoding">encoding<a class="anchor" aria-label="anchor" href="#arg-encoding"></a></dt>
@@ -174,7 +177,8 @@ typical.  Ignored when <code>impute != "knn"</code>.</p></dd>
 <dd><p>Encoded genotype matrix (lines x markers).</p></dd>
 
       <dt><code>$map</code></dt>
-<dd><p>Named numeric vector of cM positions.</p></dd>
+<dd><p>Named numeric vector of marker positions, in the
+        same units as the <code>map.pos</code> column supplied by the user.</p></dd>
 
       <dt><code>$imputed.data</code></dt>
 <dd><p>The analysis-ready genotype matrix
