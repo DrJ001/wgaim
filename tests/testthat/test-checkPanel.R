@@ -218,7 +218,7 @@ test_that("checkPanel chr.coverage has one row per chromosome", {
 
 test_that("checkPanel chr.coverage columns are correct", {
     chk <- checkPanel(p$geno, p$map)
-    expect_named(chk$chr.coverage, c("chr", "n.markers", "cM.min", "cM.max"))
+    expect_named(chk$chr.coverage, c("chr", "n.markers", "pos.min", "pos.max"))
 })
 
 test_that("checkPanel chr.coverage n.markers sums to markers in common", {

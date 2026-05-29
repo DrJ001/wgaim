@@ -33,9 +33,11 @@ primePanel(
 
 \item{map}{A \code{data.frame} containing the genetic map with at minimum
 three columns: marker names (\code{map.id}), chromosome identifiers
-(\code{map.chr}), and cM positions (\code{map.pos}). Markers present
-in \code{geno} but absent from \code{map} are dropped with a message.
-Markers are sorted by position within each chromosome.}
+(\code{map.chr}), and marker positions (\code{map.pos}).  Positions may
+be in any consistent unit — cM for a genetic map, or Mb, kb, or bp for
+a physical map.  Markers present in \code{geno} but absent from
+\code{map} are dropped with a message.  Markers are sorted by position
+within each chromosome.}
 
 \item{id}{Character string naming the line identifier column in \code{geno}
 when \code{geno} is a \code{data.frame}. Ignored when \code{geno} is a
@@ -49,8 +51,9 @@ Default \code{"chr"}. Chromosome names containing dots are replaced with
 underscores with a warning, as dots are used as field separators in
 internal marker naming.}
 
-\item{map.pos}{Character string naming the cM position column in \code{map}.
-Default \code{"pos"}.}
+\item{map.pos}{Character string naming the marker position column in
+\code{map}.  Positions are stored and used as supplied — no unit
+conversion is applied.  Default \code{"pos"}.}
 
 \item{encoding}{Character string specifying the genotype encoding in
 \code{geno}:
@@ -101,7 +104,8 @@ An object of class \code{c("wgPanel", "wgCross", "cross")} -- a list with:
     containing:
     \describe{
       \item{\code{$data}}{Encoded genotype matrix (lines x markers).}
-      \item{\code{$map}}{Named numeric vector of cM positions.}
+      \item{\code{$map}}{Named numeric vector of marker positions, in the
+        same units as the \code{map.pos} column supplied by the user.}
       \item{\code{$imputed.data}}{The analysis-ready genotype matrix
         (same as \code{$data} after any imputation) in additive
         \eqn{\pm 1} or dosage coding.}

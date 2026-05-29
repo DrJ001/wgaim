@@ -33,8 +33,8 @@
 #'     information.}
 #'   \item{Heterozygosity}{Per-line proportion of heterozygous calls.  Excess
 #'     heterozygosity may indicate mixed or mislabelled samples.}
-#'   \item{Chromosome coverage}{Number of markers and cM range per
-#'     chromosome.}
+#'   \item{Chromosome coverage}{Number of markers and position range per
+#'     chromosome (in the same units as the \code{map.pos} column).}
 #' }
 #'
 #' @param geno A numeric matrix (\code{lines x markers}) with row names
@@ -43,7 +43,9 @@
 #'   genotypes.
 #' @param map A \code{data.frame} containing the genetic map with at minimum
 #'   three columns: marker names (\code{map.id}), chromosome identifiers
-#'   (\code{map.chr}), and cM positions (\code{map.pos}).
+#'   (\code{map.chr}), and marker positions (\code{map.pos}).  Positions may
+#'   be in any consistent unit — cM for a genetic map, or Mb, kb, or bp for
+#'   a physical map.
 #' @param id Character string naming the line identifier column when
 #'   \code{geno} is a \code{data.frame}.  Ignored when \code{geno} is a
 #'   matrix.  Default \code{"id"}.
@@ -51,8 +53,9 @@
 #'   Default \code{"marker"}.
 #' @param map.chr Character string naming the chromosome column in \code{map}.
 #'   Default \code{"chr"}.
-#' @param map.pos Character string naming the cM position column in
-#'   \code{map}.  Default \code{"pos"}.
+#' @param map.pos Character string naming the marker position column in
+#'   \code{map}.  Positions are used as supplied — no unit conversion is
+#'   applied.  Default \code{"pos"}.
 #' @param encoding Character string specifying the genotype encoding:
 #'   \code{"012"} (default, allele counts 0/1/2 or dosage in [0,2]) or
 #'   \code{"pm1"} (already in additive \eqn{\pm 1} coding).
@@ -90,7 +93,8 @@
 #'   \item{\code{$het.marker}}{Named numeric vector of per-marker
 #'     heterozygosity rates.}
 #'   \item{\code{$chr.coverage}}{Data frame with columns \code{chr},
-#'     \code{n.markers}, \code{cM.min}, \code{cM.max}.}
+#'     \code{n.markers}, \code{pos.min}, \code{pos.max}; positions are in
+#'     the same units as the \code{map.pos} column.}
 #' }
 #'
 #' @seealso \code{\link{filterPanel}}, \code{\link{primePanel}}
@@ -227,8 +231,8 @@ checkPanel <- function(geno, map,
         data.frame(
             chr       = ch,
             n.markers = sum(idx),
-            cM.min    = min(mpos, na.rm = TRUE),
-            cM.max    = max(mpos, na.rm = TRUE),
+            pos.min   = min(mpos, na.rm = TRUE),
+            pos.max   = max(mpos, na.rm = TRUE),
             stringsAsFactors = FALSE
         )
     }))
@@ -365,12 +369,12 @@ print.checkPanel <- function(x,
     # Chromosome coverage
     .hdr("Chromosome coverage:")
     cc <- x$chr.coverage
-    cat(sprintf("  %-12s  %8s  %s\n", "Chromosome", "Markers", "Range (cM)"))
+    cat(sprintf("  %-12s  %8s  %s\n", "Chromosome", "Markers", "Range (pos)"))
     cat(sprintf("  %-12s  %8s  %s\n", strrep("-", 12),
-                strrep("-", 7), strrep("-", 18)))
+                strrep("-", 7), strrep("-", 19)))
     for (i in seq_len(nrow(cc))) {
-        cat(sprintf("  %-12s  %8d  %.1f \u2013 %.1f cM\n",
-                    cc$chr[i], cc$n.markers[i], cc$cM.min[i], cc$cM.max[i]))
+        cat(sprintf("  %-12s  %8d  %.1f \u2013 %.1f\n",
+                    cc$chr[i], cc$n.markers[i], cc$pos.min[i], cc$pos.max[i]))
     }
     cat("\n")
     invisible(x)

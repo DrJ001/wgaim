@@ -108,8 +108,9 @@
 #'   Default \code{"marker"}.
 #' @param map.chr Character string naming the chromosome column in \code{map}.
 #'   Default \code{"chr"}.
-#' @param map.pos Character string naming the cM position column in
-#'   \code{map}.  Default \code{"pos"}.
+#' @param map.pos Character string naming the marker position column in
+#'   \code{map}.  Positions are used as supplied — no unit conversion is
+#'   applied.  Default \code{"pos"}.
 #' @param encoding Character string specifying the genotype encoding:
 #'   \code{"012"} (default) or \code{"pm1"}.
 #' @param steps A named list controlling which filters are applied and in what
