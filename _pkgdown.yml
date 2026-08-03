@@ -25,6 +25,7 @@ articles:
       `primePanel` data-preparation workflow.
     contents:
       - gwasAim_pipeline
+      - gwasAim_mv_pipeline
 
 navbar:
   structure:
