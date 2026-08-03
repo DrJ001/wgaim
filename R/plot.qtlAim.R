@@ -1593,12 +1593,20 @@ plot.qtlAim <- function(x, genObj,
     # ---------------------------------------------------------------
     # 1.  Locate vm and residual genetic terms in G.param
     #     (works regardless of variance structure: diag/corh/fa/etc.)
+    #
+    #     When there are phenotype lines with no marker data,
+    #     .fixLines() substitutes merge.by -> Gsave in the random
+    #     genetic term, so the effective in-model term name is
+    #     "Gsave" not the original `gterm`. Detect this here and use
+    #     the correct label for both the `only=` filter and the
+    #     `classify=` predict call downstream.
     # ---------------------------------------------------------------
     gp_names <- names(object$G.param)
     vm_only  <- gp_names[grep("vm.*covObj|mbf.*ints", gp_names)]
     res_only <- gp_names[grep(paste0(":", gterm, "$"), gp_names)]
+    res_lab  <- gterm
     if (length(res_only) == 0L) {
-        # Fallback: Gsave or bare gterm
+        # Fallback: Gsave (introduced by .fixLines()) or bare gterm
         res_lab  <- if ("Gsave" %in% colnames(object$mf)) "Gsave" else gterm
         res_only <- gp_names[grep(res_lab, gp_names, fixed = TRUE)]
     }
@@ -1607,10 +1615,10 @@ plot.qtlAim <- function(x, genObj,
     # ---------------------------------------------------------------
     # 2.  Predict combined (additive + residual) BLUPs per trial x line
     # ---------------------------------------------------------------
-    classify_term <- paste(Trait, gterm, sep = ":")
+    classify_term <- paste(Trait, res_lab, sep = ":")
     pv    <- predict(object, classify = classify_term,
                      only = only_terms, data = data)
-    g_df  <- pv$pvals[, c(Trait, gterm, "predicted.value"), drop = FALSE]
+    g_df  <- pv$pvals[, c(Trait, res_lab, "predicted.value"), drop = FALSE]
     colnames(g_df) <- c("trial", "line", "g_combined")
     g_df$trial <- as.character(g_df$trial)
     g_df$line  <- as.character(g_df$line)

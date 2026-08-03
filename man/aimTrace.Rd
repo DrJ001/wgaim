@@ -13,6 +13,7 @@
   plot = FALSE,
   print.out = TRUE,
   sig.col = "firebrick",
+  ncol = NULL,
   ...
 )
 
@@ -46,9 +47,11 @@ Only has an effect when \code{print.out = TRUE}.}
     iterations with the significance threshold marked and each detected
     QTL labelled.}
   \item{\code{"stability"}}{Returns a \code{ggplot} of QTL effect
-    estimates \eqn{\pm}1 SE across every iteration in which the QTL was
-    in the model, one facet per QTL. For multivariate analyses, one line
-    per trial is shown within each facet. Large jumps suggest confounding.}
+    estimates \eqn{\pm}1 SE (points with error bars) across every
+    iteration in which the QTL was in the model, one facet per QTL.
+  For multivariate analyses a \code{facet_grid(trial x QTL)}
+    layout is used with one panel per trial per QTL.
+    Large jumps suggest confounding.}
   \item{\code{"both"}}{Returns a named list
     \code{list(lrt = ..., stability = ...)} invisibly.}
 }}
@@ -59,16 +62,16 @@ Set to \code{FALSE} to suppress all console output and return only the
 plot, which is useful when calling \code{aimTrace()} inside a vignette or
 report where only the graphic is needed.}
 
-\item{sig.col}{Colour for highlighted points and ribbons in diagnostic
+\item{sig.col}{Colour for highlighted points and error bars in diagnostic
 plots. Default \code{"firebrick"}.}
-
-\item{\dots}{Further arguments (e.g.\ \code{digits}) passed to methods.}
 
 \item{ncol}{Integer. Number of columns in the \code{facet_wrap} layout of
 the \code{"stability"} plot for univariate analyses. Defaults to
 \code{NULL}, which uses 3 columns (or fewer if there are fewer QTL).
 Ignored for multivariate analyses, which use
 \code{facet_grid(trial ~ qtl)} regardless.}
+
+\item{\dots}{Further arguments (e.g.\ \code{digits}) passed to methods.}
 }
 \value{
 \code{NULL} invisibly when \code{plot = FALSE}; a \code{ggplot}

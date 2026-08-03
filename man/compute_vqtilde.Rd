@@ -7,7 +7,7 @@
 compute_vqtilde(trans, Ginv, vatilde, ntrait)
 }
 \arguments{
-\item{trans}{nmarkers x nlines back-transform matrix M^T(MM^T)^{-1}.}
+\item{trans}{nmarkers x nlines back-transform matrix M^T(MM^T)^\{-1\}.}
 
 \item{Ginv}{ntrait x ntrait generalised inverse of Ga.}
 

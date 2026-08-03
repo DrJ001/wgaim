@@ -10,9 +10,10 @@
 **Authors**: Julian Taylor & Ari Verbyla
 
 > **This package is under active development.** The API may change
-> between commits ahead of the first stable release. A vignette for the
-> QTL mapping pipeline is now available; vignettes for GWAS and genomic
-> prediction & selection are in preparation.
+> between commits ahead of the first stable release. Vignettes for the
+> QTL mapping and GWAS pipelines (both univariate and multivariate) are
+> now available; the genomic prediction & selection vignette is in
+> preparation.
 
 ---
 
@@ -87,7 +88,8 @@ interpretation and display.
 |---|---|
 | [Univariate QTL Mapping with wgAim](https://drj001.github.io/wgAim/articles/qtlAim_pipeline.html) | A complete walkthrough of the biparental QTL mapping pipeline: preparing a `wgCross` object with `primeCross()`, fitting a whole-genome composite model with `qtlAim()`, and interrogating the results with `summary()`, `plot()`, `aimTrace()`, `linkMap()`, and `fineMap()`. |
 | [Multivariate QTL Mapping with wgAim](https://drj001.github.io/wgAim/articles/qtlAim_mv_pipeline.html) | Multi-environment QTL mapping using a factor analytic variance structure: base model development from `diag(Trial)` to `fa(Trial, 2)`, forward selection with `qtlAim()`, and visualisation of main-effect and G×E interaction QTL with `summary()`, `plot()`, and `aimTrace()`. |
-| *GWAS with wgAim* (in preparation) | Panel preparation with `checkPanel()`, `filterPanel()`, and `primePanel()`; genome-wide association analysis with `gwasAim()`; and post-analysis display and fine mapping. |
+| [Univariate GWAS with wgAim](https://drj001.github.io/wgAim/articles/gwasAim_pipeline.html) | A complete walkthrough of the single-environment diversity-panel GWAS pipeline: panel preparation with `checkPanel()`, `filterPanel()`, and `primePanel()`; forward-selection genome-wide association analysis with `gwasAim()`; and interrogation of the results with `summary()`, `plot()`, `aimTrace()`, `linkMap()`, and `fineMap()`. |
+| [Multivariate GWAS with wgAim](https://drj001.github.io/wgAim/articles/gwasAim_mv_pipeline.html) | Multi-environment GWAS using a factor analytic variance structure: base model development from `diag(Site)` to `fa(Site, 2)`, forward selection with `gwasAim(Trait = "Site")`, and visualisation of main-effect and G×E interaction markers with `summary()`, `plot()`, and `aimTrace()`. |
 | *Genomic prediction and selection with wgAim* (in preparation) | Genomic prediction with `gpAim()` and construction of weighted, Smith-Hazel, and desired-gains selection indices with `selIndex()`. |
 
 ---

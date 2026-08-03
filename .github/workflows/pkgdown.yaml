@@ -58,6 +58,10 @@ jobs:
           touch docs/articles/qtlAim_pipeline.html
           cp inst/doc/qtlAim_mv_pipeline.html docs/articles/qtlAim_mv_pipeline.html
           touch docs/articles/qtlAim_mv_pipeline.html
+          cp inst/doc/gwasAim_pipeline.html docs/articles/gwasAim_pipeline.html
+          touch docs/articles/gwasAim_pipeline.html
+          cp inst/doc/gwasAim_mv_pipeline.html docs/articles/gwasAim_mv_pipeline.html
+          touch docs/articles/gwasAim_mv_pipeline.html
 
       # Build each section individually — deliberately avoiding
       # build_site_github_pages() which calls clean_site() and would
