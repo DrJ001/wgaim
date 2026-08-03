@@ -44,7 +44,7 @@
 #'     \item{\code{"stability"}}{Returns a \code{ggplot} of QTL effect
 #'       estimates \eqn{\pm}1 SE (points with error bars) across every
 #'       iteration in which the QTL was in the model, one facet per QTL.
-#'       For multivariate analyses a \code{facet_grid(trial \eqn{\times} QTL)}
+#'     For multivariate analyses a \code{facet_grid(trial x QTL)}
 #'       layout is used with one panel per trial per QTL.
 #'       Large jumps suggest confounding.}
 #'     \item{\code{"both"}}{Returns a named list

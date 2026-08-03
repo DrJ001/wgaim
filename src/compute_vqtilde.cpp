@@ -23,7 +23,7 @@
 //' This is the denominator of the multivariate outlier statistic
 //' \eqn{t^2_{kl}} from Verbyla & Cullis (2012), equation (11).
 //'
-//' @param trans   nmarkers x nlines back-transform matrix M^T(MM^T)^{-1}.
+//' @param trans   nmarkers x nlines back-transform matrix M^T(MM^T)^\{-1\}.
 //' @param Ginv    ntrait x ntrait generalised inverse of Ga.
 //' @param vatilde (ntrait*nlines) x (ntrait*nlines) posterior variance
 //'   (Ga x relm - PEV), arranged in trait-major block order.

@@ -1,0 +1,652 @@
+---
+title: "Univariate GWAS with wgAim"
+author: "Julian Taylor & Ari Verbyla"
+date: today
+vignette: >
+  %\VignetteIndexEntry{Univariate GWAS with wgAim}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    number-sections: true
+    smooth-scroll: true
+    embed-resources: true
+    theme: litera
+    css: custom.css
+    highlight-style: github
+    code-fold: false
+    fig-width: 10
+    fig-height: 5
+    fig-dpi: 150
+    html-math-method: katex
+execute:
+  warning: false
+  message: false
+  cache: true
+---
+
+```{r setup}
+#| include: false
+#| cache: false
+asreml_ok <- requireNamespace("asreml", quietly = TRUE)
+if (requireNamespace("wgAim", quietly = TRUE)) {
+  library(wgAim)
+} else {
+  devtools::load_all("C:/jtaylor/Research/Computing/R Packages/Claude/wgaim",
+                     quiet = TRUE)
+}
+library(ggplot2)
+if (asreml_ok) {
+  library(asreml)
+  asreml.options(trace = FALSE)
+}
+```
+
+---
+
+## Overview
+
+This vignette demonstrates the complete univariate **wgAim** GWAS pipeline
+for a diversity panel evaluated in a single environment. The pipeline has
+three stages:
+
+1. **Pre-analysis** — inspect a raw 0/1/2 marker genotype matrix with
+   `checkPanel()`, apply quality filters with `filterPanel()`, and
+   assemble the analysis-ready `wgPanel` object with `primePanel()`
+   (including KNN imputation of residual missingness).
+2. **Analysis** — fit a whole-genome composite marker model and iteratively
+   detect associated markers with `gwasAim()`.
+3. **Post-analysis** — interrogate, summarise, and visualise the detected
+   associations using the `print`, `summary`, and `plot` methods, and
+   refine peak positions with `fineMap()`.
+
+Throughout the vignette we use the simulated `genoGWASraw`, `mapGWASsim`
+and `phenoGWASsim` datasets bundled with the package. These represent a
+diversity panel of 200 lines genotyped at approximately 1700 SNP markers
+across 10 chromosomes (about 170 markers per chromosome, average spacing
+~0.9 cM). The panel is generated with `AlphaSimR` — 50 founder haplotypes
+via a coalescent (`runMacs2`), one generation of random mating to
+produce 200 F1 diverse lines, then a SNP chip actively selected from
+segregating sites with minor allele frequency (MAF) > 0.15. All shipped
+markers have F1 MAF > 0.15 (median ~0.32), so the panel is dominated by
+informative common variants. The resulting kinship matrix
+$\boldsymbol{K}$ has genuine full-rank structure (off-diagonal SD
+~0.085) and captures the half-sib / full-sib relatedness naturally.
+The raw marker matrix deliberately contains a range of realistic
+data-quality issues (missingness, monomorphic markers, duplicate lines,
+duplicate markers and markers absent from the map) so the full
+pre-analysis pipeline can be exercised. Five QTL were planted at known
+positions to give ground truth for detection. The phenotype is a balanced
+6-site, 2-replicate multi-environment trial on the tonnes-per-hectare
+scale (site means 4.5–4.9 t/ha, residual SD ~0.377 t/ha per site) with
+two Kronecker-structured polygenic components matching the wgAim
+multivariate analysis's `fa(Site,k):vm(id, K) + fa(Site,k):id`
+decomposition (kept deliberately small so the composite LRT stops
+cleanly once true QTL are absorbed); for the single-environment vignette
+we use only `Env1`.
+
+::: {.note}
+**Requires:** ASReml-R V4. The vignette is pre-rendered so no licence is
+needed to read it. Run the code chunks only if you have ASReml-R installed.
+:::
+
+---
+
+## Mathematical Framework
+
+The mathematical framework underpinning `gwasAim()` is essentially
+identical to that of `qtlAim()`. Please see the **Mathematical
+Framework** section of the [Univariate QTL Mapping
+vignette](qtlAim_pipeline.html#mathematical-framework) for the full
+development, covering:
+
+- the base linear mixed model
+  $\boldsymbol{y} = \boldsymbol{X}\boldsymbol{\tau} + \boldsymbol{Z}_u\boldsymbol{u} + \boldsymbol{Z}_g\boldsymbol{g} + \boldsymbol{e}$;
+- decomposition of the genetic term $\boldsymbol{g}$ into a whole-genome
+  additive component $\boldsymbol{a}$ and a residual polygenic
+  background $\boldsymbol{p}$;
+- the two computational paths for $\boldsymbol{a}$ — **vm**
+  (genomic relationship matrix
+  $\boldsymbol{K} = \tfrac{1}{p}\boldsymbol{M}\boldsymbol{M}^{\top}$
+  when $p > n$) and **mbf** (ridge regression on marker scores when
+  $n \geq p$) — which yield identical selection results;
+- forward selection driven by a single omnibus **LRT** per iteration on
+  the additive variance of the remaining composite term
+  ($\Lambda \stackrel{\text{approx.}}{\sim} \chi^2_{1}$), which is
+  already family-wise so **no Bonferroni correction is needed**;
+- per-marker **outlier statistics**
+  $o_k = \tilde{q}_k^2 / \tilde{v}_k$ used to nominate the next marker,
+  subject to an LD-based `exclusion.window`;
+- the final model
+  $\boldsymbol{y} = \boldsymbol{X}\boldsymbol{\tau}
+    + \sum_{k=1}^{s} \hat{\beta}_k\,\boldsymbol{x}_k
+    + \boldsymbol{Z}_u\boldsymbol{u}
+    + \boldsymbol{Z}_g\boldsymbol{a}_{-s}
+    + \boldsymbol{Z}_g\boldsymbol{p}
+    + \boldsymbol{e}$
+  in which the $s$ detected markers appear as fixed effects and the
+  composite term is rebuilt on the remaining markers.
+
+### What's different in GWAS
+
+Only three things distinguish the GWAS pipeline from biparental interval
+mapping at the modelling level:
+
+1. **Marker matrix source.** `qtlAim()` operates on virtual
+   mid-interval scores constructed by `primeCross(type = "interval")`
+   ($\lambda$-weighted dosages in $[-1, +1]$). `gwasAim()` operates on
+   the *actual* panel markers assembled by `primePanel()`, coded
+   $\pm 1$ for the two alleles after the $x \mapsto x - 1$ shift from
+   raw $0/1/2$ counts (heterozygotes at $0$). No interval mid-points
+   are constructed; each panel marker is used directly.
+
+2. **Population structure.** Diversity panels typically carry both
+   short-range LD and long-range stratification from subpopulations.
+   Both are absorbed by the composite additive term via
+   $\boldsymbol{K}$ in the vm path, so no additional principal-
+   component covariates or kinship correction are required in the
+   base model.
+
+3. **The vm path dominates.** Panels almost always satisfy $p \gg n$
+   (many more markers than lines), so `gwasAim()` selects the vm
+   formulation automatically. The mbf ridge formulation is available
+   via `force = TRUE` when $n \geq p$ or for diagnostic comparison.
+
+The **exclusion window** (argument `exclusion.window`, default 20) is
+expressed in the units of the map's `pos` column — cM for a genetic
+map, or Mb / kb / bp for a physical map.
+
+---
+
+## Data Preparation
+
+The pre-analysis pipeline has three functions applied in sequence:
+
+1. `checkPanel()` — pure diagnostic; reports data-quality issues but does
+   not modify the data.
+2. `filterPanel()` — applies quality thresholds in a principled order.
+3. `primePanel()` — converts the clean matrix into a `wgPanel` object and
+   optionally imputes any remaining missing values.
+
+```{r load_data}
+#| eval: !expr asreml_ok
+data(genoGWASraw,  package = "wgAim")
+data(mapGWASsim,   package = "wgAim")
+data(phenoGWASsim, package = "wgAim")
+
+cat(sprintf("Raw geno    : %d lines x %d marker columns\n",
+            nrow(genoGWASraw), ncol(genoGWASraw) - 1L))
+cat(sprintf("Map         : %d markers x %d columns\n",
+            nrow(mapGWASsim), ncol(mapGWASsim)))
+cat(sprintf("Phenotype   : %d rows across %d sites\n",
+            nrow(phenoGWASsim), nlevels(phenoGWASsim$Site)))
+```
+
+A quick look at the raw genotype matrix — a `data.frame` with an `id`
+column followed by one column per marker in 0/1/2 allele-count coding:
+
+```{r peek_geno}
+#| eval: !expr asreml_ok
+genoGWASraw[1:6, 1:8]
+```
+
+### Step 1 — Diagnostic scan with `checkPanel()`
+
+`checkPanel()` is a pure diagnostic. It computes summary statistics on
+the raw matrix, cross-references marker names against the map, and reports
+data-quality issues but does not modify the data. The results guide the
+choice of thresholds for the subsequent `filterPanel()` step.
+
+```{r checkpanel}
+#| eval: !expr asreml_ok
+chk <- checkPanel(genoGWASraw, mapGWASsim,
+                   id       = "id",
+                   map.id   = "marker",
+                   map.chr  = "chr",
+                   map.pos  = "pos",
+                   encoding = "012")
+print(chk)
+```
+
+The printed summary flags every embedded issue: 25 markers in the geno
+matrix that are absent from the map (unplaceable), 25 markers in the map
+absent from the geno matrix (the same markers under their original
+names, before being renamed in the raw matrix), 4 duplicate lines,
+roughly 40 duplicate marker pairs (the forced pairs plus a small number
+of natural duplicates from short-range LD), 150 markers with excessive
+missingness, 5 lines with excessive missingness, 15 monomorphic markers
+and a MAF distribution consistent with a moderately dense panel. The MAF
+threshold table makes it easy to preview how many markers would be
+removed at each conventional cut-off.
+
+### Step 2 — Apply filters with `filterPanel()`
+
+`filterPanel()` uses the diagnostics to apply data-quality thresholds
+in a principled order controlled by a `steps` argument. The default
+`steps` list implements the standard workflow:
+
+1. Map consistency — drop markers absent from the map.
+2. Marker missingness (default 20%).
+3. Line missingness (default 20%).
+4. Duplicate lines.
+5. Duplicate markers *(off by default; enable if desired)*.
+6. MAF (default 0.05).
+
+The `checkPanel` object can be piped directly into `filterPanel()`; all
+metadata (id column, map field names, encoding) is carried through
+automatically.
+
+```{r filterpanel}
+#| eval: !expr asreml_ok
+flt <- filterPanel(chk)   # accepts the checkPanel object directly
+print(flt)
+```
+
+The audit trail shows the effect of each step and confirms the final
+panel dimensions (typically ~191 lines out of 200 and ~1450 markers out
+of ~1700 with the default thresholds). Map consistency, the
+high-missingness marker filter, monomorphic markers and duplicate
+markers account for most of the marker attrition — the MAF filter is
+effectively a no-op on this simulated panel since the raw genotypes are
+already actively sampled at MAF > 0.15 (see the Overview). Line
+attrition comes from the four seeded duplicate pairs plus five
+high-missingness lines exceeding the 20% threshold.
+
+### Step 3 — Build the `wgPanel` with `primePanel()`
+
+`primePanel()` converts the filtered matrix into the internal object
+class used by `gwasAim()`. It applies the $x \mapsto x-1$ encoding shift
+so alleles are represented as $\pm 1$ (or dosage in $[-1, 1]$) with
+heterozygotes at 0, splits the matrix by chromosome, sorts by position
+within each chromosome and — optionally — imputes any remaining missing
+values. The recommended in-package option is chromosome-wise KNN
+imputation, which uses BLAS-accelerated pairwise distances and pre-sorted
+neighbour indices to respect the LD structure within each chromosome.
+
+```{r primepanel}
+#| eval: !expr asreml_ok
+panel <- primePanel(flt, impute = "knn", knn.k = 5)
+cat("Class          :", paste(class(panel), collapse = ", "), "\n")
+cat("Chromosomes    :", length(panel$geno), "\n")
+cat("Markers total  :",
+    sum(sapply(panel$geno, function(el) ncol(el$imputed.data))), "\n")
+cat("Lines in panel :", nrow(panel$pheno), "\n")
+```
+
+The `wgPanel` object stores per-chromosome marker matrices in
+`panel$geno[[ch]]$imputed.data` alongside their cM positions in
+`panel$geno[[ch]]$map`.  A `linkMap()` call gives a visual summary of the
+prepared panel:
+
+```{r linkmap_panel}
+#| eval: !expr asreml_ok
+#| fig-height: 5
+#| fig-width: 12
+#| fig-cap: "Genetic map of the prepared diversity panel after filtering (10 chromosomes, ~170 markers each after quality filters)."
+linkMap(panel, nrow = 1, marker.names = "none") +
+  theme(plot.title = element_blank())
+```
+
+---
+
+## Base Model — single environment (`Env1`)
+
+For the single-environment GWAS we subset the phenotype to `Env1` and
+fit a base model that captures the design structure. The trial is a
+2-replicate RCBD with row and column plot coordinates. A simple and
+robust choice is a random-effect model for lines, rows and columns:
+
+```{r base_model}
+#| eval: !expr asreml_ok
+#| results: hide
+env1 <- droplevels(phenoGWASsim[phenoGWASsim$Site == "Env1", ])
+env1$Row    <- factor(env1$Row)
+env1$Column <- factor(env1$Column)
+env1$Rep    <- factor(env1$Rep)
+
+base_env1 <- asreml(
+  fixed     = yield ~ Rep,
+  random    = ~ id + Row + Column,
+  data      = env1,
+  na.action = na.method(x = "include"),
+  maxit     = 80
+)
+base_env1 <- update(base_env1)
+```
+
+The line term `id` captures line-to-line genetic variation prior to any
+marker modelling; row and column random effects absorb spatial trend
+across the field layout. Peek at the variance components to confirm all
+terms are contributing:
+
+```{r base_varcomp}
+#| eval: !expr asreml_ok
+summary(base_env1)$varcomp
+```
+
+---
+
+## Running `gwasAim()`
+
+`gwasAim()` takes the converged base model and the `wgPanel` object.
+`merge.by` names the shared line-identifier column (present in both
+`env1` and `panel$pheno`). The default `exclusion.window = 20` acts as
+a proxy for LD-based exclusion — in this vignette the map is in cM,
+so 20 means "no other detected marker within 20 cM":
+
+```{r gwasaim}
+#| eval: !expr asreml_ok
+#| results: hide
+gwas_env1 <- gwasAim(
+  baseModel        = base_env1,
+  genObj           = panel,
+  merge.by         = "id",
+  exclusion.window = 20,
+  TypeI            = 0.05,
+  trace            = FALSE,
+  na.action        = na.method(x = "include"),
+  maxit            = 80
+)
+```
+
+The engine path (vm or mbf) is selected automatically. With ~191 lines
+and ~1450 markers after filtering, we sit firmly in the vm regime and
+the genomic relationship matrix
+$\boldsymbol{K} = \tfrac{1}{p}\boldsymbol{M}\boldsymbol{M}^{\top}$ is used:
+
+```{r gwas_class}
+#| eval: !expr asreml_ok
+#| results: markup
+cat("Class              :", paste(class(gwas_env1), collapse = ", "), "\n")
+cat("Markers in panel   :", gwas_env1$QTL$n.markers, "\n")
+cat("Significant markers:", length(gwas_env1$QTL$qtl), "\n")
+```
+
+---
+
+## Results
+
+### `print()` — brief narrative
+
+`print()` reports the significance threshold, panel size and one line
+per detected marker with its chromosome, name and cM position:
+
+```{r print_gwas}
+#| eval: !expr asreml_ok
+print(gwas_env1, genObj = panel)
+```
+
+### `summary()` — final marker table
+
+`summary()` collates the final model into a table with one row per
+detected marker: flanking marker name, cM position, estimated additive
+effect, p-value, percentage of phenotypic variance explained and LOD
+score:
+
+```{r summary_gwas}
+#| eval: !expr asreml_ok
+summ_env1 <- summary(gwas_env1, genObj = panel)
+print(summ_env1)
+```
+
+Rows are sorted by chromosome and cM position. The planted QTL (in
+tonnes per hectare per allele substitution) are Chr2 +0.145 and Chr5
+−0.145 (both MAIN); Chr7 +0.125 (weak MAIN); Chr3 fading from +0.230
+in `Env1` down to 0 in `Env6`; and Chr9 crossing from −0.180 in
+`Env1`–`Env3` to +0.180 in `Env4`–`Env6`. In a single environment
+the strongest signals at `Env1` are the Chr3 fade (at its peak here)
+and the Chr9 crossover (at its negative extreme), followed by the
+two MAIN QTL on Chr2 and Chr5. The weakest MAIN (Chr7) may or may
+not clear the threshold in a single environment — this is exactly the
+kind of borderline effect that MV analysis is designed to detect by
+borrowing strength across sites. See the roxygen help for
+`?phenoGWASsim` for the shipped marker names and full QTL specification.
+
+---
+
+## Visualisation — `plot()`
+
+Six complementary plot types are available via the `type` argument of
+`plot.gwasAim()`. The default is `"manhattan"`, the classic GWAS display.
+
+### Manhattan plot — `type = "manhattan"` (default)
+
+A classic Manhattan plot: one point per marker, alternating chromosome
+backgrounds, significant markers highlighted in `sig.col` with labels.
+One facet per forward-selection iteration shows the outlier statistic
+before each marker is nominated:
+
+```{r plot_manhattan}
+#| eval: !expr asreml_ok
+#| fig-height: 9.6
+#| fig-cap: "Manhattan plots across all forward-selection iterations. Each panel shows the genome-wide outlier statistic $\\tilde{q}_k^2/\\tilde{v}_k$; the significant marker for that iteration is highlighted and labelled."
+plot(gwas_env1, genObj = panel, type = "manhattan", sig.col = "firebrick")
+```
+
+### Genome-wide outlier statistics — `type = "outlier"`
+
+The outlier plot displays the same genome-wide statistic as line traces
+faceted by iteration (an alternative to the Manhattan view). Chromosomal
+regions that persistently carry signal show up as tall peaks across
+multiple iterations:
+
+```{r plot_outlier}
+#| eval: !expr asreml_ok
+#| fig-height: 9.6
+#| fig-cap: "Line-plot view of the genome-wide outlier statistic at each forward-selection iteration. Vertical dashed lines mark the selected marker in each iteration."
+plot(gwas_env1, genObj = panel, type = "outlier", sig.col = "firebrick")
+```
+
+### Scaled genome-wide BLUPs — `type = "blups"`
+
+The BLUPs plot shows the scaled posterior means
+$\tilde{q}_k / \sqrt{|\tilde{v}_k|}$ at every marker. Markers close to a
+detected association naturally shrink towards zero as the association
+absorbs the nearby signal in subsequent iterations:
+
+```{r plot_blups}
+#| eval: !expr asreml_ok
+#| fig-height: 9.6
+#| fig-cap: "Scaled composite BLUPs across the genome at each iteration."
+plot(gwas_env1, genObj = panel, type = "blups", sig.col = "firebrick")
+```
+
+### Allele effects — `type = "effects"`
+
+The effects lollipop summarises the final set of detected markers. Each
+marker appears as a lollipop whose head sits at the estimated allele
+substitution effect ± 1 SE, coloured by which allele is favoured:
+**firebrick** when the +1 allele (raw genotype 2) increases yield,
+**steelblue** when the −1 allele (raw genotype 0) does. The right panel
+shows the percentage of variance explained per marker:
+
+```{r plot_effects}
+#| eval: !expr asreml_ok
+#| fig-height: 5
+#| fig-cap: "Allele effects and percentage variance explained for each detected marker."
+plot(gwas_env1, genObj = panel, type = "effects")
+```
+
+### Allele contrast — `type = "contrast"`
+
+The contrast plot displays the total genetic value for each line against
+its dosage class (0, 1, 2) at each detected marker. The total genetic
+value combines three components: the composite genome-wide BLUP, the
+residual line-level genetic effect, and the summed fixed marker
+contributions $\sum_k \hat{\beta}_k x_{ik}$.
+
+This plot requires `data` — the augmented phenotypic data frame that
+`gwasAim()` writes back to the calling environment as `<response>.data`
+(here `yield.data`, which contains the original phenotype columns plus
+`Gomit` and the `X.<chr>.<idx>` dosage columns for each detected marker):
+
+```{r plot_contrast}
+#| eval: !expr asreml_ok
+#| fig-height: 7.2
+#| fig-cap: "Total genetic value by dosage class (0/1/2) at each detected marker, faceted in two columns. Group means +/- SE are overlaid."
+plot(gwas_env1, genObj = panel, type = "contrast",
+     data = yield.data, ncol = 2)
+```
+
+### Iteration heatmap — `type = "heatmap"`
+
+The heatmap gives a compact genome × iteration view, filling each cell
+with the outlier statistic. This makes it easy to see which chromosomal
+regions carried persistent signal across iterations:
+
+```{r plot_heatmap}
+#| eval: !expr asreml_ok
+#| fig-height: 5
+#| fig-cap: "Iteration × genome heatmap of the outlier statistic. Detected markers are annotated with a filled diamond."
+plot(gwas_env1, genObj = panel, type = "heatmap", sig.col = "firebrick")
+```
+
+### Linkage map overlay — `linkMap()`
+
+`linkMap()` overlays the detected markers on the panel map, with marker
+names annotated on the right and the trait label on the left:
+
+```{r linkmap_gwas}
+#| eval: !expr asreml_ok
+#| fig-height: 6
+#| fig-width: 14
+#| fig-cap: "Genetic map with detected GWAS markers overlaid. Marker names are annotated on the right; the trait label on the left."
+linkMap(gwas_env1, genObj = panel, marker.names = "markers")
+```
+
+---
+
+## Iteration Diagnostics — `aimTrace()`
+
+`aimTrace()` traces how the LRT statistic and marker effect estimates
+evolved across the forward-selection iterations. Two diagnostic plots
+are available.
+
+### LRT trace — `plot = "lrt"`
+
+```{r aimtrace_lrt}
+#| eval: !expr asreml_ok
+#| fig-height: 4
+#| fig-cap: "LRT statistic at each iteration. The dashed line is the chi-squared boundary threshold at TypeI = 0.05."
+aimTrace(gwas_env1, plot = "lrt", print.out = FALSE)
+```
+
+### Effect stability — `plot = "stability"`
+
+The stability plot traces each detected marker's allele effect ± 1 SE
+across every iteration in which it was present in the model. Effects that
+remain stable indicate the marker's contribution is well-identified and
+not aliased with later-detected markers:
+
+```{r aimtrace_stability}
+#| eval: !expr asreml_ok
+#| fig-height: 7
+#| fig-cap: "Marker allele effect estimates +/- 1 SE across iterations, laid out 2 x 2."
+aimTrace(gwas_env1, plot = "stability", print.out = FALSE, ncol = 2)
+```
+
+---
+
+## Fine Mapping — `fineMap()`
+
+`fineMap()` performs a high-resolution single-marker scan in a window
+around each detected marker, holding all other detected effects fixed in
+the model. For `gwasAim` objects this scans the *actual* panel markers
+within `± window` cM of the peak (no interpolation), reporting per-marker
+z-ratio p-values and LOD scores.
+
+We fine-map the two markers detected first in forward selection — these
+are the strongest signals by construction, since `gwasAim()` promotes
+markers greedily by outlier statistic. A 25 cM window with the default
+`exclusion.window = 20` gives good resolution around each peak:
+
+```{r finemapping}
+#| eval: !expr asreml_ok
+#| results: hide
+top2 <- head(gwas_env1$QTL$qtl, 2L)
+fm <- fineMap(gwas_env1, genObj = panel,
+              qtl              = top2,
+              window           = 25,
+              exclusion.window = 20)
+```
+
+The `plot()` method draws the LOD profile around each peak. The filled
+triangle marks the peak fine-map position; the open triangle shows the
+original coarse-scan position:
+
+```{r finemap_plot}
+#| eval: !expr asreml_ok
+#| fig-height: 5
+#| fig-width: 14
+#| fig-cap: "Fine-mapping LOD profiles for the two strongest GWAS peaks."
+plot(fm, ncol = 2)
+```
+
+---
+
+## Summary
+
+The complete single-environment GWAS pipeline illustrated in this
+vignette is:
+
+```r
+# 1. Pre-analysis: check -> filter -> prime
+chk   <- checkPanel(genoGWASraw, mapGWASsim, id = "id")
+flt   <- filterPanel(chk)               # default step list
+panel <- primePanel(flt, impute = "knn", knn.k = 5)
+
+# 2. Subset phenotype to the environment of interest
+env1  <- droplevels(phenoGWASsim[phenoGWASsim$Site == "Env1", ])
+env1$Row    <- factor(env1$Row)
+env1$Column <- factor(env1$Column)
+env1$Rep    <- factor(env1$Rep)
+
+# 3. Base model (no genomic term)
+base_env1 <- asreml(yield ~ Rep, random = ~ id + Row + Column,
+                    data = env1, na.action = na.method(x = "include"))
+
+# 4. GWAS forward selection
+gwas_env1 <- gwasAim(base_env1, genObj = panel, merge.by = "id",
+                     TypeI = 0.05, exclusion.window = 20)
+
+# 5. Results
+summary(gwas_env1, genObj = panel)                # final marker table
+plot(gwas_env1,    genObj = panel)                # Manhattan (default)
+plot(gwas_env1,    genObj = panel, type = "outlier")
+plot(gwas_env1,    genObj = panel, type = "blups")
+plot(gwas_env1,    genObj = panel, type = "effects")
+plot(gwas_env1,    genObj = panel, type = "contrast", data = yield.data)
+plot(gwas_env1,    genObj = panel, type = "heatmap")
+aimTrace(gwas_env1, plot = "lrt")
+aimTrace(gwas_env1, plot = "stability")
+linkMap(gwas_env1,  genObj = panel)
+
+# 6. Fine mapping (top two markers in detection order)
+top2 <- head(gwas_env1$QTL$qtl, 2L)
+fm <- fineMap(gwas_env1, genObj = panel, qtl = top2, window = 25)
+plot(fm, ncol = 2)
+```
+
+---
+
+## References
+
+Verbyla, A.P., Cullis, B.R. & Thompson, R. (2007). The analysis of QTL by
+simultaneous use of the full linkage map. *Theoretical and Applied Genetics*,
+**116**, 95–111. <https://doi.org/10.1007/s00122-007-0676-4>
+
+Verbyla, A.P., Taylor, J.D. & Verbyla, K.L. (2012). RWGAIM: An efficient
+high-dimensional random whole genome average (QTL) interval mapping approach.
+*Genetics Research*, **94**, 291–306.
+<https://doi.org/10.1017/S0016672312000493>
+
+Taylor, J. & Verbyla, A.P. (2011). R Package wgaim: QTL Analysis in
+Bi-Parental Populations Using Linear Mixed Models. *Journal of Statistical
+Software*, **40**(7), 1–18. <https://doi.org/10.18637/jss.v040.i07>
+
+VanRaden, P.M. (2008). Efficient methods to compute genomic predictions.
+*Journal of Dairy Science*, **91**(11), 4414–4423.
+<https://doi.org/10.3168/jds.2007-0980>

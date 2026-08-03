@@ -18,6 +18,13 @@ articles:
     contents:
       - qtlAim_pipeline
       - qtlAim_mv_pipeline
+  - title: "GWAS"
+    desc: >
+      Worked examples of the univariate and multivariate GWAS pipelines in
+      diversity panels, including the `checkPanel` / `filterPanel` /
+      `primePanel` data-preparation workflow.
+    contents:
+      - gwasAim_pipeline
 
 navbar:
   structure:
@@ -117,6 +124,9 @@ reference:
       - phenoSxT
       - genoMVsim
       - phenoMVsim
+      - genoGWASraw
+      - mapGWASsim
+      - phenoGWASsim
 
   - title: "Package"
     contents:

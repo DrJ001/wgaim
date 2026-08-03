@@ -25,7 +25,9 @@ quarto_bin <- Sys.getenv("QUARTO_PATH",
 # Vignettes to build: named vector of <source qmd> -> <output stem>
 vignettes <- c(
     "qtlAim_pipeline.qmd",
-    "qtlAim_mv_pipeline.qmd"
+    "qtlAim_mv_pipeline.qmd",
+    "gwasAim_pipeline.qmd",
+    "gwasAim_mv_pipeline.qmd"
 )
 
 # --- Helpers -----------------------------------------------------------------

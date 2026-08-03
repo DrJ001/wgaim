@@ -311,8 +311,8 @@ gwasAim.asreml <- function(baseModel, genObj, merge.by = NULL,
     n.markers <- ncol(genoData)
     cat(sprintf("\nGWAS significance threshold (TypeI): %.4f  (%d markers in panel)\n",
                 TypeI, n.markers))
-    cat(sprintf("Exclusion window: %g  (units = units of map position column '%s')\n",
-                exclusion.window, map.pos))
+    cat(sprintf("Exclusion window: %g  (units follow the marker map positions in genObj)\n",
+                exclusion.window))
 
     # Phase 2b: Handle lines present in phenotypic but absent from panel
     fl           <- .fixLines(baseModel, phenoData, genoData, merge.by, plines, fix.lines, Trait = Trait, ...)

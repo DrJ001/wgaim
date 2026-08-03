@@ -12,6 +12,7 @@ aimTrace.gwasAim <- function(object,
                               plot      = FALSE,
                               print.out = TRUE,
                               sig.col   = "firebrick",
+                              ncol      = NULL,
                               ...) {
     dots <- list(...)
     dig  <- if (!is.na(pmatch("digits", names(dots)))) dots$digits else options()$digits
@@ -77,7 +78,7 @@ aimTrace.gwasAim <- function(object,
     if (identical(plot, FALSE)) return(invisible(NULL))
     plot <- match.arg(as.character(plot), c("lrt", "stability", "both"))
     if (plot == "lrt")       return(.plot_lrt(object, sig.col))
-    if (plot == "stability") return(.plot_stability(object, sig.col))
+    if (plot == "stability") return(.plot_stability(object, sig.col, ncol = ncol))
     invisible(list(lrt       = .plot_lrt(object, sig.col),
-                   stability = .plot_stability(object, sig.col)))
+                   stability = .plot_stability(object, sig.col, ncol = ncol)))
 }
