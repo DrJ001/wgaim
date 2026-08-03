@@ -55,7 +55,7 @@
 
 <p><strong>Authors</strong>: Julian Taylor &amp; Ari Verbyla</p>
 <blockquote>
-<p><strong>This package is under active development.</strong> The API may change between commits ahead of the first stable release. A vignette for the QTL mapping pipeline is now available; vignettes for GWAS and genomic prediction &amp; selection are in preparation.</p>
+<p><strong>This package is under active development.</strong> The API may change between commits ahead of the first stable release. Vignettes for the QTL mapping and GWAS pipelines (both univariate and multivariate) are now available; the genomic prediction &amp; selection vignette is in preparation.</p>
 </blockquote>
 <hr>
 <div class="section level2">
@@ -141,9 +141,12 @@
 <td>Multi-environment QTL mapping using a factor analytic variance structure: base model development from <code>diag(Trial)</code> to <code>fa(Trial, 2)</code>, forward selection with <code><a href="reference/qtlAim.html">qtlAim()</a></code>, and visualisation of main-effect and G×E interaction QTL with <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code>, and <code><a href="reference/aimTrace.html">aimTrace()</a></code>.</td>
 </tr>
 <tr>
-<td>
-<em>GWAS with wgAim</em> (in preparation)</td>
-<td>Panel preparation with <code><a href="reference/checkPanel.html">checkPanel()</a></code>, <code><a href="reference/filterPanel.html">filterPanel()</a></code>, and <code><a href="reference/primePanel.html">primePanel()</a></code>; genome-wide association analysis with <code><a href="reference/gwasAim.html">gwasAim()</a></code>; and post-analysis display and fine mapping.</td>
+<td><a href="https://drj001.github.io/wgAim/articles/gwasAim_pipeline.html">Univariate GWAS with wgAim</a></td>
+<td>A complete walkthrough of the single-environment diversity-panel GWAS pipeline: panel preparation with <code><a href="reference/checkPanel.html">checkPanel()</a></code>, <code><a href="reference/filterPanel.html">filterPanel()</a></code>, and <code><a href="reference/primePanel.html">primePanel()</a></code>; forward-selection genome-wide association analysis with <code><a href="reference/gwasAim.html">gwasAim()</a></code>; and interrogation of the results with <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code>, <code><a href="reference/aimTrace.html">aimTrace()</a></code>, <code><a href="reference/linkMap.html">linkMap()</a></code>, and <code><a href="reference/fineMap.html">fineMap()</a></code>.</td>
+</tr>
+<tr>
+<td><a href="https://drj001.github.io/wgAim/articles/gwasAim_mv_pipeline.html">Multivariate GWAS with wgAim</a></td>
+<td>Multi-environment GWAS using a factor analytic variance structure: base model development from <code>diag(Site)</code> to <code>fa(Site, 2)</code>, forward selection with <code>gwasAim(Trait = "Site")</code>, and visualisation of main-effect and G×E interaction markers with <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code>, and <code><a href="reference/aimTrace.html">aimTrace()</a></code>.</td>
 </tr>
 <tr>
 <td>
@@ -960,7 +963,7 @@
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer>

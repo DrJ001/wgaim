@@ -80,6 +80,7 @@ stability plot shows per-trial effect estimates coloured by trial level.</p>
 <span>  plot <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  print.out <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  sig.col <span class="op">=</span> <span class="st">"firebrick"</span>,</span>
+<span>  ncol <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -128,9 +129,11 @@ Only has an effect when <code>print.out = TRUE</code>.</p></dd>
 
   <dt><code>"stability"</code></dt>
 <dd><p>Returns a <code>ggplot</code> of QTL effect
-    estimates \(\pm\)1 SE across every iteration in which the QTL was
-    in the model, one facet per QTL. For multivariate analyses, one line
-    per trial is shown within each facet. Large jumps suggest confounding.</p></dd>
+    estimates \(\pm\)1 SE (points with error bars) across every
+    iteration in which the QTL was in the model, one facet per QTL.
+  For multivariate analyses a <code>facet_grid(trial x QTL)</code>
+    layout is used with one panel per trial per QTL.
+    Large jumps suggest confounding.</p></dd>
 
   <dt><code>"both"</code></dt>
 <dd><p>Returns a named list
@@ -149,12 +152,8 @@ report where only the graphic is needed.</p></dd>
 
 
 <dt id="arg-sig-col">sig.col<a class="anchor" aria-label="anchor" href="#arg-sig-col"></a></dt>
-<dd><p>Colour for highlighted points and ribbons in diagnostic
+<dd><p>Colour for highlighted points and error bars in diagnostic
 plots. Default <code>"firebrick"</code>.</p></dd>
-
-
-<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Further arguments (e.g.\ <code>digits</code>) passed to methods.</p></dd>
 
 
 <dt id="arg-ncol">ncol<a class="anchor" aria-label="anchor" href="#arg-ncol"></a></dt>
@@ -163,6 +162,10 @@ the <code>"stability"</code> plot for univariate analyses. Defaults to
 <code>NULL</code>, which uses 3 columns (or fewer if there are fewer QTL).
 Ignored for multivariate analyses, which use
 <code>facet_grid(trial ~ qtl)</code> regardless.</p></dd>
+
+
+<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
+<dd><p>Further arguments (e.g.\ <code>digits</code>) passed to methods.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -197,7 +200,7 @@ Ignored for multivariate analyses, which use
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>
