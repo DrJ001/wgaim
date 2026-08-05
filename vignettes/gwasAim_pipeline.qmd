@@ -64,10 +64,10 @@ three stages:
    refine peak positions with `fineMap()`.
 
 Throughout the vignette we use the simulated `genoGWASraw`, `mapGWASsim`
-and `phenoGWASsim` datasets bundled with the package. These represent a
-diversity panel of 200 lines genotyped at approximately 1700 SNP markers
+and `phenoGWASsim` datasets bundled with the package. `genoGWASraw` and `mapGWASsim` represent a
+simulated diversity panel of 200 lines genotyped at approximately 1700 SNP markers
 across 10 chromosomes (about 170 markers per chromosome, average spacing
-~0.9 cM). The panel is generated with `AlphaSimR` — 50 founder haplotypes
+~0.9 cM). The panel is generated with `AlphaSimR` with 50 founder haplotypes
 via a coalescent (`runMacs2`), one generation of random mating to
 produce 200 F1 diverse lines, then a SNP chip actively selected from
 segregating sites with minor allele frequency (MAF) > 0.15. All shipped
@@ -79,14 +79,11 @@ The raw marker matrix deliberately contains a range of realistic
 data-quality issues (missingness, monomorphic markers, duplicate lines,
 duplicate markers and markers absent from the map) so the full
 pre-analysis pipeline can be exercised. Five QTL were planted at known
-positions to give ground truth for detection. The phenotype is a balanced
-6-site, 2-replicate multi-environment trial on the tonnes-per-hectare
-scale (site means 4.5–4.9 t/ha, residual SD ~0.377 t/ha per site) with
-two Kronecker-structured polygenic components matching the wgAim
-multivariate analysis's `fa(Site,k):vm(id, K) + fa(Site,k):id`
-decomposition (kept deliberately small so the composite LRT stops
-cleanly once true QTL are absorbed); for the single-environment vignette
-we use only `Env1`.
+positions to give ground truth for detection.
+
+See `?phenoGWASsim` or the **Overview** section of the [Multivariate GWAS Mapping
+vignette](gwasAim_mv_pipeline.html) for a more detailed specification of the phenotype
+data. In this single-environment vignette we have restricted the analysis to `Env1` only.
 
 ::: {.note}
 **Requires:** ASReml-R V4. The vignette is pre-rendered so no licence is
@@ -100,35 +97,7 @@ needed to read it. Run the code chunks only if you have ASReml-R installed.
 The mathematical framework underpinning `gwasAim()` is essentially
 identical to that of `qtlAim()`. Please see the **Mathematical
 Framework** section of the [Univariate QTL Mapping
-vignette](qtlAim_pipeline.html#mathematical-framework) for the full
-development, covering:
-
-- the base linear mixed model
-  $\boldsymbol{y} = \boldsymbol{X}\boldsymbol{\tau} + \boldsymbol{Z}_u\boldsymbol{u} + \boldsymbol{Z}_g\boldsymbol{g} + \boldsymbol{e}$;
-- decomposition of the genetic term $\boldsymbol{g}$ into a whole-genome
-  additive component $\boldsymbol{a}$ and a residual polygenic
-  background $\boldsymbol{p}$;
-- the two computational paths for $\boldsymbol{a}$ — **vm**
-  (genomic relationship matrix
-  $\boldsymbol{K} = \tfrac{1}{p}\boldsymbol{M}\boldsymbol{M}^{\top}$
-  when $p > n$) and **mbf** (ridge regression on marker scores when
-  $n \geq p$) — which yield identical selection results;
-- forward selection driven by a single omnibus **LRT** per iteration on
-  the additive variance of the remaining composite term
-  ($\Lambda \stackrel{\text{approx.}}{\sim} \chi^2_{1}$), which is
-  already family-wise so **no Bonferroni correction is needed**;
-- per-marker **outlier statistics**
-  $o_k = \tilde{q}_k^2 / \tilde{v}_k$ used to nominate the next marker,
-  subject to an LD-based `exclusion.window`;
-- the final model
-  $\boldsymbol{y} = \boldsymbol{X}\boldsymbol{\tau}
-    + \sum_{k=1}^{s} \hat{\beta}_k\,\boldsymbol{x}_k
-    + \boldsymbol{Z}_u\boldsymbol{u}
-    + \boldsymbol{Z}_g\boldsymbol{a}_{-s}
-    + \boldsymbol{Z}_g\boldsymbol{p}
-    + \boldsymbol{e}$
-  in which the $s$ detected markers appear as fixed effects and the
-  composite term is rebuilt on the remaining markers.
+vignette](qtlAim_pipeline.html#mathematical-framework) for the full algorithmic pipeline.
 
 ### What's different in GWAS
 
@@ -156,7 +125,7 @@ mapping at the modelling level:
    via `force = TRUE` when $n \geq p$ or for diagnostic comparison.
 
 The **exclusion window** (argument `exclusion.window`, default 20) is
-expressed in the units of the map's `pos` column — cM for a genetic
+expressed in the units of the map's `pos` column and these are cM for a genetic
 map, or Mb / kb / bp for a physical map.
 
 ---
@@ -215,7 +184,7 @@ The printed summary flags every embedded issue: 25 markers in the geno
 matrix that are absent from the map (unplaceable), 25 markers in the map
 absent from the geno matrix (the same markers under their original
 names, before being renamed in the raw matrix), 4 duplicate lines,
-roughly 40 duplicate marker pairs (the forced pairs plus a small number
+roughly 50 duplicate marker pairs (the forced pairs plus a small number
 of natural duplicates from short-range LD), 150 markers with excessive
 missingness, 5 lines with excessive missingness, 15 monomorphic markers
 and a MAF distribution consistent with a moderately dense panel. The MAF
@@ -246,10 +215,10 @@ print(flt)
 ```
 
 The audit trail shows the effect of each step and confirms the final
-panel dimensions (typically ~191 lines out of 200 and ~1450 markers out
+panel dimensions (typically ~191 lines out of 200 and ~1500 markers out
 of ~1700 with the default thresholds). Map consistency, the
 high-missingness marker filter, monomorphic markers and duplicate
-markers account for most of the marker attrition — the MAF filter is
+markers account for most of the marker attrition. The MAF filter is
 effectively a no-op on this simulated panel since the raw genotypes are
 already actively sampled at MAF > 0.15 (see the Overview). Line
 attrition comes from the four seeded duplicate pairs plus five
@@ -261,7 +230,7 @@ high-missingness lines exceeding the 20% threshold.
 class used by `gwasAim()`. It applies the $x \mapsto x-1$ encoding shift
 so alleles are represented as $\pm 1$ (or dosage in $[-1, 1]$) with
 heterozygotes at 0, splits the matrix by chromosome, sorts by position
-within each chromosome and — optionally — imputes any remaining missing
+within each chromosome and optionally imputes any remaining missing
 values. The recommended in-package option is chromosome-wise KNN
 imputation, which uses BLAS-accelerated pairwise distances and pre-sorted
 neighbour indices to respect the LD structure within each chromosome.
@@ -353,7 +322,7 @@ gwas_env1 <- gwasAim(
 ```
 
 The engine path (vm or mbf) is selected automatically. With ~191 lines
-and ~1450 markers after filtering, we sit firmly in the vm regime and
+and ~1500 markers after filtering, we sit firmly in the vm regime and
 the genomic relationship matrix
 $\boldsymbol{K} = \tfrac{1}{p}\boldsymbol{M}\boldsymbol{M}^{\top}$ is used:
 
@@ -396,14 +365,21 @@ Rows are sorted by chromosome and cM position. The planted QTL (in
 tonnes per hectare per allele substitution) are Chr2 +0.145 and Chr5
 −0.145 (both MAIN); Chr7 +0.125 (weak MAIN); Chr3 fading from +0.230
 in `Env1` down to 0 in `Env6`; and Chr9 crossing from −0.180 in
-`Env1`–`Env3` to +0.180 in `Env4`–`Env6`. In a single environment
-the strongest signals at `Env1` are the Chr3 fade (at its peak here)
-and the Chr9 crossover (at its negative extreme), followed by the
-two MAIN QTL on Chr2 and Chr5. The weakest MAIN (Chr7) may or may
-not clear the threshold in a single environment — this is exactly the
-kind of borderline effect that MV analysis is designed to detect by
-borrowing strength across sites. See the roxygen help for
-`?phenoGWASsim` for the shipped marker names and full QTL specification.
+`Env1`–`Env3` to +0.180 in `Env4`–`Env6`. Because we are analysing
+`Env1` in isolation, the two G×E QTL happen to be at their extremes
+here — Chr3 at its fade peak (+0.230) and Chr9 at its negative
+crossover extreme (−0.180) — so both come in as the strongest signals,
+followed by the Chr2 MAIN (+0.145) and the weak Chr7 MAIN (+0.125).
+The Chr5 MAIN (−0.145) is not detected in this single-environment
+analysis: with per-site standard errors of roughly 0.03 t/ha the
+signal-to-noise is on the edge of the LRT threshold, and site-specific
+residual noise in `Env1` was enough to keep it under. This is exactly
+the kind of borderline main effect that the multi-environment analysis
+is designed to recover by borrowing strength across sites — see the
+[Multi-Environment GWAS vignette](gwasAim_mv_pipeline.html) where
+Chr5 is recovered cleanly alongside the other four. See the roxygen
+help for `?phenoGWASsim` for the shipped marker names and full QTL
+specification.
 
 ---
 
@@ -478,7 +454,7 @@ value combines three components: the composite genome-wide BLUP, the
 residual line-level genetic effect, and the summed fixed marker
 contributions $\sum_k \hat{\beta}_k x_{ik}$.
 
-This plot requires `data` — the augmented phenotypic data frame that
+This plot requires `data`, the augmented phenotypic data frame that
 `gwasAim()` writes back to the calling environment as `<response>.data`
 (here `yield.data`, which contains the original phenotype columns plus
 `Gomit` and the `X.<chr>.<idx>` dosage columns for each detected marker):

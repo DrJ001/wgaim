@@ -71,11 +71,12 @@ trials, environments, seasons, or measured traits — any factor whose
 levels define the multivariate response. In this vignette `Trait = "Site"`.
 
 Throughout we use the `genoGWASraw`, `mapGWASsim` and `phenoGWASsim`
-datasets bundled with the package: a simulated diversity panel of 200
+datasets bundled with the package. `genoGWASraw` and `mapGWASsim`
+represent a simulated diversity panel of 200
 lines genotyped at approximately 1700 SNP markers across 10
 chromosomes (~170 markers per chromosome, average spacing ~0.9 cM),
 evaluated in 6 field sites with 2 replicates each. The panel is
-generated with `AlphaSimR` — 50 founder haplotypes via a coalescent
+generated with `AlphaSimR` with 50 founder haplotypes via a coalescent
 (`runMacs2`), one generation of random mating to produce 200 F1
 diverse lines, then a SNP chip actively selected from segregating
 sites with minor allele frequency (MAF) > 0.15. All shipped markers
@@ -83,20 +84,21 @@ have F1 MAF > 0.15 (median ~0.32), giving a kinship matrix
 $\boldsymbol{K}$ with genuine full-rank structure (off-diagonal SD
 ~0.085) that captures the half-sib / full-sib relatedness naturally.
 Yields are on the tonnes-per-hectare scale (site means 4.5–4.9 t/ha,
-residual SD ~0.377 t/ha per site) with two Kronecker-structured
-polygenic components matching the multivariate analysis's
+residual SD ~0.377 t/ha per site) with two structured components
+matching the multivariate analysis's
 `fa(Site,k):vm(id, K) + fa(Site,k):id` decomposition (both kept
 deliberately small so the composite LRT stops cleanly once true QTL
 are absorbed). Five QTL were planted at known positions to give ground
 truth for detection: three with consistent effects across all sites
-(Chr2 +0.145 t/ha, Chr5 −0.145 t/ha, Chr7 +0.125 t/ha — the third is
-the weakest MAIN) and two with site-specific effects (Chr3 fading from
-+0.230 t/ha in `Env1` to 0 in `Env6`; Chr9 crossing from −0.180 t/ha
-in `Env1`–`Env3` to +0.180 t/ha in `Env4`–`Env6`). The raw marker
-matrix contains realistic data-quality issues (missingness, monomorphic
-markers, duplicate lines, duplicate markers, unplaceable markers) so
-the full pre-analysis pipeline can be exercised. See the roxygen help
-for `?phenoGWASsim` for the full specification.
+(Chr2 +0.145 t/ha, Chr5 −0.145 t/ha, and Chr7 +0.125 t/ha — the
+third being deliberately weak to sit near the detection threshold),
+and two with site-specific effects (Chr3 fading from +0.230 t/ha in
+`Env1` to 0 in `Env6`; Chr9 crossing from −0.180 t/ha in `Env1`–`Env3`
+to +0.180 t/ha in `Env4`–`Env6`). The raw marker matrix contains
+realistic data-quality issues (missingness, monomorphic markers,
+duplicate lines, duplicate markers, unplaceable markers) so the full
+pre-analysis pipeline can be exercised. See the roxygen help for
+`?phenoGWASsim` for the full specification.
 
 ::: {.note}
 **Requires:** ASReml-R V4. The vignette is pre-rendered so no licence is
@@ -110,53 +112,25 @@ needed to read it. Run the code chunks only if you have ASReml-R installed.
 The mathematical framework underpinning multi-environment `gwasAim()` is
 essentially identical to that of multivariate `qtlAim()`. Please see the
 **Mathematical Framework** section of the [Multivariate QTL Mapping
-vignette](qtlAim_mv_pipeline.html#mathematical-framework) for the full
-development, covering:
-
-- the stacked multivariate LMM
-  $\boldsymbol{y} = \boldsymbol{X}\boldsymbol{\tau} + \boldsymbol{Z}_u\boldsymbol{u} + \boldsymbol{Z}_g\boldsymbol{g} + \boldsymbol{e}$
-  with block-diagonal residual and cross-trial genetic covariance matrix
-  $\boldsymbol{G}_a$;
-- **factor analytic** (FA) parsimonious approximation
-  $\boldsymbol{G}_a = \boldsymbol{\Lambda}\boldsymbol{\Lambda}^{\top} + \boldsymbol{\Psi}$
-  that keeps the parameter count manageable for many trials;
-- decomposition of the genetic term into a composite additive component
-  $\boldsymbol{a}$ (via the vm/mbf paths — vm typically used for diversity
-  panels) and a residual polygenic background $\boldsymbol{p}$;
-- forward selection driven by a **chi-squared mixture** LRT
-  $\Lambda \stackrel{\text{approx.}}{\sim} \sum_{j=0}^{T} w_j \chi^2_j$
-  with weights $w_j = \binom{T}{j}/2^T$, obtained numerically via
-  `qchisq.mixture()`;
-- the **quadratic-form outlier statistic**
-  $o_k = \tilde{\boldsymbol{q}}_k^{\top}\boldsymbol{G}_a^{-1}\tilde{\boldsymbol{q}}_k / \tilde{v}_k$;
-- **post-selection MAIN vs G×E classification** via Wald zero-equality
-  tests on each QTL's $T$-vector of trial-specific effects, giving the
-  final model
-  $\boldsymbol{y} = \boldsymbol{X}\boldsymbol{\tau}
-    + \boldsymbol{Z}_g\sum_{j \in \mathcal{M}} \hat{\beta}_j \boldsymbol{x}_j
-    + \boldsymbol{Z}_g\sum_{k \in \mathcal{I}} \hat{\boldsymbol{\gamma}}_k^{\top} \boldsymbol{x}_k
-    + \boldsymbol{Z}_u\boldsymbol{u}
-    + \boldsymbol{Z}_g\boldsymbol{a}_{-s}
-    + \boldsymbol{Z}_g\boldsymbol{p}
-    + \boldsymbol{e}$
-  with main-effect QTL indexed by $\mathcal{M}$ (scalar $\hat{\beta}_j$)
-  and G×E QTL indexed by $\mathcal{I}$ (trial-specific vector
-  $\hat{\boldsymbol{\gamma}}_k$).
+vignette](qtlAim_mv_pipeline.html#mathematical-framework) for the full algorithmic pipeline.
 
 ### What's different in GWAS
 
 The same three GWAS-specific differences noted in the univariate GWAS
 vignette apply here:
 
+
 1. **Marker matrix source.** `qtlAim()` uses virtual mid-interval scores
    from `primeCross(type = "interval")`. `gwasAim()` uses the *actual*
    panel markers assembled by `primePanel()`, coded $\pm 1$ after the
    $x \mapsto x - 1$ shift from raw $0/1/2$ counts (heterozygotes at
    $0$). Each panel marker is used directly.
+
 2. **Population structure.** Diversity panels typically carry both
    short-range LD and long-range stratification from subpopulations;
    both are absorbed by the composite additive term via
    $\boldsymbol{G}_a \otimes \boldsymbol{K}$ in the vm path.
+
 3. **The vm path dominates.** Panels almost always satisfy $p \gg n$,
    so the multivariate vm formulation
    $\boldsymbol{a} \sim \mathcal{N}(\boldsymbol{0},\, \boldsymbol{G}_a \otimes \boldsymbol{K})$
@@ -191,7 +165,7 @@ cat(sprintf("Prepared panel : %d lines x %d markers across %d chromosomes\n",
             length(panel$geno)))
 ```
 
-With ~191 lines and ~1450 markers after filtering, the panel sits firmly
+With ~191 lines and ~1500 markers after filtering, the panel sits firmly
 in the $p \gg n$ regime and `gwasAim()` will use the vm path automatically
 at every iteration of forward selection.
 
@@ -367,7 +341,7 @@ cat("Significant markers:", length(gwas_mv$QTL$qtl), "\n")
 
 `print()` reports the significance threshold, panel size and one line
 per detected marker with its chromosome, name and cM position, plus a
-`[MAIN]` or `[INT]` tag from the post-selection Wald pruning:
+`[MAIN]` or `[INTERACTION]` tag from the post-selection Wald pruning:
 
 ```{r print_gwas}
 #| eval: !expr asreml_ok
@@ -376,11 +350,21 @@ print(gwas_mv, genObj = panel)
 
 ### `summary()` — final marker table
 
-The multivariate `summary()` reports one row per site per detected
-marker. The `Trait` column identifies the site; MAIN markers appear
-with a single common `Size`/`Pvalue`/`Perc.Var`/`LOD` value broadcast
-to every site; G×E markers show trial-specific effect estimates. Rows
-are sorted by chromosome, then cM position, then site:
+The multivariate `summary()` returns a data frame whose row structure
+depends on each detected marker's MAIN vs G×E classification from the
+post-selection Wald pruning:
+
+- **MAIN markers** produce a **single row** with `Trait = "MAIN"` and
+  a single `Size` / `Pvalue` / `LOD` value (one common effect across
+  all sites).
+- **G×E markers** produce **one row per site**, with `Trait` set to
+  the site level (`Env1`..`Env6`) and per-site `Size` / `Pvalue` /
+  `LOD` values.
+
+The `Perc.Var` column is computed once per unique QTL and broadcast
+across its rows (so all six rows of a G×E QTL carry the same
+`Perc.Var`). Rows are sorted by chromosome, then cM position, then
+`Trait`:
 
 ```{r summary_gwas}
 #| eval: !expr asreml_ok
@@ -392,14 +376,17 @@ The multi-environment analysis borrows strength across the six sites,
 so weaker per-site signals combine into detectable joint effects.
 Compare the recovery here to the single-environment analysis in
 `Env1` from the [Univariate GWAS
-vignette](gwasAim_pipeline.html): the MV analysis's advantage is
-strongest for QTL with consistent-direction main effects
-(especially the weakest MAIN, Chr7 +0.125 t/ha), and for G×E QTL
-like Chr9 whose crossover pattern (±0.180 t/ha) gives large-magnitude
-signal in every site. Fade patterns like Chr3, whose effect starts
-at +0.230 t/ha in `Env1` and decays to 0 in `Env6`, give proportionally
-less joint signal in the later sites and rely on the strong-signal
-sites for detection.
+vignette](gwasAim_pipeline.html): the clearest illustration of the
+MV advantage in this dataset is the recovery of the **Chr5 MAIN**
+QTL (−0.145 t/ha), which sits below the detection threshold in the
+single-environment analysis but is comfortably resolved here once
+the LRT combines evidence across all six sites. The G×E QTL are
+also more informatively described in the MV analysis: Chr9's
+crossover (±0.180 t/ha) is correctly classified as an INTERACTION
+with a sign flip visible in the per-site `Size` estimates, and
+Chr3's fade shows large positive per-site effects in `Env1`–`Env4`
+decaying towards zero in `Env5`–`Env6`, exactly matching its
+planted +0.230 → 0 trajectory.
 
 ---
 

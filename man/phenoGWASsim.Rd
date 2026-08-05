@@ -19,7 +19,7 @@ A \code{data.frame} with 2400 rows and 6 columns:
   \item{\code{Row}, \code{Column}}{Integer.  Plot coordinates within
     each site trial layout.  Can be modelled as random main effects
     to absorb row / column trend.}
-  \item{\code{yield}}{Numeric.  Simulated grain yield in kg/ha.
+  \item{\code{yield}}{Numeric.  Simulated grain yield in t/ha.
     Site means and per-site residual SDs vary within the ranges
     typical of a MET trial.}
 }
